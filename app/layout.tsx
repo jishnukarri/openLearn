@@ -4,14 +4,18 @@ import { NavBar } from "@/components/navbar";
 import { PwaRegister } from "@/components/pwa-register";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { StudentBottomNav } from "@/components/student-bottom-nav";
-import { Geist, Geist_Mono, Poppins } from "next/font/google";
+import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import { cn } from "@/lib/utils";
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
-const poppins = Poppins({
+// Variable serif display face committed in DESIGN.md — warm, high-contrast,
+// used sparingly for lesson/topic titles and headline moments so the brand
+// doesn't read as one more geometric-sans AI default.
+const fraunces = Fraunces({
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  axes: ["opsz", "SOFT", "WONK"],
+  weight: "variable",
   variable: "--font-display",
 });
 
@@ -43,7 +47,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={cn("h-full antialiased", "font-sans", geistSans.variable, geistMono.variable, poppins.variable)}>
+    <html lang="en" className={cn("h-full antialiased", "font-sans", geistSans.variable, geistMono.variable, fraunces.variable)}>
       <body className="min-h-full flex flex-col">
         <NavigationProgress />
         <PwaRegister />

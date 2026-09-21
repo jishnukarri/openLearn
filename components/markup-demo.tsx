@@ -57,7 +57,7 @@ const EXAMPLES: Example[] = [
 
 function AnnotatedAnswer({ tokens }: { tokens: Token[] }) {
   return (
-    <p className="text-base leading-loose text-foreground">
+    <p className="max-w-[62ch] text-base leading-loose text-foreground">
       {tokens.map((t, i) =>
         t.status === "hit" ? (
           <span
@@ -118,7 +118,7 @@ export function MarkupDemo() {
             <AnnotatedAnswer tokens={example.answer} />
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-border bg-surface p-6 sm:border-l sm:border-t-0">
+          <div className="flex flex-col gap-3 border-t border-border p-6 sm:border-l sm:border-t-0">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">Markscheme</p>
               <span className="font-[family-name:var(--font-mono)] text-sm font-bold text-primary">
@@ -133,7 +133,7 @@ export function MarkupDemo() {
                   ) : (
                     <X className="mt-0.5 size-4 shrink-0 text-error" strokeWidth={2.5} />
                   )}
-                  <p className="text-xs leading-relaxed text-muted">{p.comment}</p>
+                  <p className="text-sm leading-relaxed text-muted">{p.comment}</p>
                 </div>
               ))}
             </div>
@@ -141,7 +141,7 @@ export function MarkupDemo() {
         </div>
       </div>
 
-      <p className="mt-3 text-center text-2xs text-muted">
+      <p className="mx-auto mt-3 max-w-[60ch] text-center text-sm text-muted">
         A real, worked example — marked strictly against the exam board&apos;s own markscheme, the way every answer on openLearn is marked.
       </p>
     </div>

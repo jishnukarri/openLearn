@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/appwrite/session";
 import { getStudentSubjects, getWeakTopics, getSubjectsNeedingDiagnostic } from "@/lib/supabase/students";
 import { listPublishedTopicsBySubject } from "@/lib/supabase/topics";
 import { listAssignmentsForStudent } from "@/lib/supabase/assignments";
+import { getCompletedTopicIds } from "@/lib/supabase/progress";
 import { AnimatedNumber } from "@/components/animated-number";
 import { ButtonLink } from "@/components/button";
 
@@ -19,11 +20,12 @@ const SUBJECT_COLOURS = [
 
 export default async function DashboardPage() {
   const { profile } = await requireRole("student");
-  const [subjects, weakTopics, assignments, needingDiagnostic] = await Promise.all([
+  const [subjects, weakTopics, assignments, needingDiagnostic, completedTopicIds] = await Promise.all([
     getStudentSubjects(profile.id),
     getWeakTopics(profile.id),
     listAssignmentsForStudent(profile.id),
     getSubjectsNeedingDiagnostic(profile.id),
+    getCompletedTopicIds(profile.id),
   ]);
   const topicsBySubject = await Promise.all(
     subjects.map(async (subject) => ({
@@ -64,13 +66,16 @@ export default async function DashboardPage() {
               <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {topicsBySubject.map(({ subject, topics }, index) => {
                   const firstTopic = topics[0];
+                  const completedCount = topics.filter((t) => completedTopicIds.has(t.id)).length;
+                  const pct = topics.length ? Math.round((completedCount / topics.length) * 100) : 0;
+                  const status = topics.length === 0 ? "No topics yet" : completedCount === 0 ? "Not started" : completedCount === topics.length ? "All topics complete" : `${completedCount} of ${topics.length} complete`;
                   return (
                     <Link key={subject.subject_id} href={firstTopic ? `/subjects/${subject.subject_id}` : "/dashboard/add-subjects"} className={`card-lift min-h-40 rounded-2xl p-4 text-white ${SUBJECT_COLOURS[index % SUBJECT_COLOURS.length]}`}>
                       <p className="text-xs font-medium text-white/75">{subject.exam_board_name}</p>
                       <h3 className="mt-7 font-[family-name:var(--font-display)] text-xl font-semibold">{subject.subject_name}</h3>
                       <div className="mt-5">
-                        <div className="flex items-center justify-between text-2xs text-white/80"><span>Ready to study</span><span>{topics.length} topics</span></div>
-                        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/20"><div className="h-full rounded-full bg-white/80" style={{ width: topics.length ? "100%" : "0%" }} /></div>
+                        <div className="flex items-center justify-between text-2xs text-white/80"><span>{status}</span><span>{topics.length} {topics.length === 1 ? "topic" : "topics"}</span></div>
+                        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/20"><div className="h-full rounded-full bg-white/80" style={{ width: `${pct}%` }} /></div>
                       </div>
                     </Link>
                   );

@@ -66,9 +66,9 @@ export function AdminSubjectGrid({
               </span>
             </div>
             <div>
-              <h3 className="font-[family-name:var(--font-display)] text-xl font-semibold">
+              <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
                 {subject.name}
-              </h3>
+              </h2>
               <div className="mt-3 flex items-center justify-between text-2xs text-white/75">
                 <span>{subject.topicCount} {subject.topicCount === 1 ? "topic" : "topics"}</span>
                 <span className="font-semibold underline">Quick preview →</span>

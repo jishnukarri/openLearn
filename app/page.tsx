@@ -20,10 +20,7 @@ export default async function Home() {
           className="pointer-events-none absolute left-1/2 top-0 h-105 w-160 -translate-x-1/2 -translate-y-1/3 rounded-full bg-primary/25 blur-[130px]"
         />
         <div className="relative mx-auto max-w-2xl">
-          <p className="animate-fade-slide-up font-[family-name:var(--font-mono)] text-xs font-semibold uppercase tracking-wide text-primary">
-            Marked strictly to the real markscheme
-          </p>
-          <h1 className="animate-fade-slide-up mt-3 font-display text-5xl font-semibold leading-snug tracking-tight text-foreground sm:text-6xl">
+          <h1 className="animate-fade-slide-up font-display text-5xl font-semibold leading-snug tracking-tight text-foreground sm:text-6xl">
             Revise chemistry, biology and maths, marked like a real teacher marked it.
           </h1>
           <p
