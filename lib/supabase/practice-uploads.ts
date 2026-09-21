@@ -1,5 +1,5 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 import { uploadFile, getFileUrl, downloadFileBytes } from "@/lib/appwrite/storage";
 
 export type PracticeUploadSession = {
@@ -16,8 +16,7 @@ export async function createUploadSession(input: {
   topicId: string;
   questionId: string;
 }): Promise<string> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("practice_uploads")
     .insert({ student_id: input.studentId, topic_id: input.topicId, question_id: input.questionId })
     .select("id")
@@ -27,8 +26,7 @@ export async function createUploadSession(input: {
 }
 
 export async function getUploadSession(id: string): Promise<PracticeUploadSession | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("practice_uploads")
     .select("id, student_id, topic_id, question_id, status, image_paths")
     .eq("id", id)
@@ -47,11 +45,10 @@ export async function getUploadSession(id: string): Promise<PracticeUploadSessio
 
 // Uploads raw files to Appwrite storage and marks the session ready.
 export async function addUploadedFiles(sessionId: string, files: File[]): Promise<void> {
-  const supabase = createServiceClient();
   const fileIds = await Promise.all(files.map((f) => uploadFile(f)));
 
   const existing = await getUploadSession(sessionId);
-  const { error } = await supabase
+  const { error } = await db
     .from("practice_uploads")
     .update({ status: "ready", image_paths: [...(existing?.imagePaths ?? []), ...fileIds] })
     .eq("id", sessionId);

@@ -1,5 +1,5 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 
 export type ContentReport = {
   id: string;
@@ -18,8 +18,7 @@ export async function createReport(input: {
   contextLabel: string;
   message: string;
 }): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("content_reports").insert({
+  const { error } = await db.from("content_reports").insert({
     reporter_id: input.reporterId,
     topic_id: input.topicId ?? null,
     subtopic_id: input.subtopicId ?? null,
@@ -31,8 +30,7 @@ export async function createReport(input: {
 }
 
 export async function listOpenReports(): Promise<ContentReport[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("content_reports")
     .select("id, context_label, message, status, created_at, profiles(full_name)")
     .eq("status", "open")
@@ -56,8 +54,7 @@ export async function listOpenReports(): Promise<ContentReport[]> {
 }
 
 export async function resolveReport(reportId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("content_reports")
     .update({ status: "resolved" })
     .eq("id", reportId);

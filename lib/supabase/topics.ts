@@ -1,5 +1,5 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 import type { GeneratedTopic } from "@/lib/ai/topics";
 
 export type Topic = {
@@ -22,8 +22,7 @@ export type Subtopic = {
 };
 
 export async function listTopicsBySubject(subjectId: string): Promise<Topic[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("topics")
     .select("id, subject_id, exam_board_id, name, summary, status, position, custom_instructions")
     .eq("subject_id", subjectId)
@@ -37,8 +36,7 @@ export async function listPublishedTopicsBySubject(
   subjectId: string,
   examBoardId?: string
 ): Promise<Topic[]> {
-  const supabase = createServiceClient();
-  let query = supabase
+  let query = db
     .from("topics")
     .select("id, subject_id, exam_board_id, name, summary, status, position, custom_instructions")
     .eq("subject_id", subjectId)
@@ -56,8 +54,7 @@ export async function listPublishedTopicsBySubject(
 export type TopicWithSubject = Topic & { subject: { id: string; name: string; archetype: string | null } };
 
 export async function getTopic(topicId: string): Promise<TopicWithSubject | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("topics")
     .select("id, subject_id, name, summary, status, position, custom_instructions, subjects(id, name, archetype)")
     .eq("id", topicId)
@@ -75,9 +72,8 @@ export async function createTopics(
   topics: GeneratedTopic[],
   examBoardId?: string
 ): Promise<Topic[]> {
-  const supabase = createServiceClient();
 
-  const { data: startPos } = await supabase
+  const { data: startPos } = await db
     .from("topics")
     .select("position")
     .eq("subject_id", subjectId)
@@ -100,7 +96,7 @@ export async function createTopics(
     return row;
   });
 
-  const { data: inserted, error } = await supabase
+  const { data: inserted, error } = await db
     .from("topics")
     .insert(rows)
     .select("id, subject_id, name, summary, status, position, custom_instructions");
@@ -122,7 +118,7 @@ export async function createTopics(
   );
 
   if (subtopicRows.length > 0) {
-    const { error: subtopicsError } = await supabase
+    const { error: subtopicsError } = await db
       .from("subtopics")
       .insert(subtopicRows);
     if (subtopicsError) throw subtopicsError;
@@ -139,9 +135,8 @@ export async function createCustomTopic(input: {
   name: string;
   summary: string;
 }): Promise<Topic> {
-  const supabase = createServiceClient();
 
-  const { data: startPos } = await supabase
+  const { data: startPos } = await db
     .from("topics")
     .select("position")
     .eq("subject_id", input.subjectId)
@@ -150,7 +145,7 @@ export async function createCustomTopic(input: {
     .maybeSingle();
   const position = (startPos?.position ?? -1) + 1;
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("topics")
     .insert({
       subject_id: input.subjectId,
@@ -171,8 +166,7 @@ export async function createCustomTopic(input: {
 // students, so it's left alone even if the admin regenerates around it.
 // Deleting a topic cascades to its subtopics/lessons/questions in the DB.
 export async function deleteDraftTopicsBySubject(subjectId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("topics")
     .delete()
     .eq("subject_id", subjectId)
@@ -184,8 +178,7 @@ export async function deleteDraftTopicsBySubjectAndBoard(
   subjectId: string,
   examBoardId: string
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("topics")
     .delete()
     .eq("subject_id", subjectId)
@@ -195,20 +188,17 @@ export async function deleteDraftTopicsBySubjectAndBoard(
 }
 
 export async function deleteTopic(topicId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("topics").delete().eq("id", topicId);
+  const { error } = await db.from("topics").delete().eq("id", topicId);
   if (error) throw error;
 }
 
 export async function deleteSubtopic(subtopicId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("subtopics").delete().eq("id", subtopicId);
+  const { error } = await db.from("subtopics").delete().eq("id", subtopicId);
   if (error) throw error;
 }
 
 export async function listSubtopicsByTopic(topicId: string): Promise<Subtopic[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("subtopics")
     .select("id, topic_id, name, status, position")
     .eq("topic_id", topicId)
@@ -219,8 +209,7 @@ export async function listSubtopicsByTopic(topicId: string): Promise<Subtopic[]>
 }
 
 export async function listPublishedSubtopicsByTopic(topicId: string): Promise<Subtopic[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("subtopics")
     .select("id, topic_id, name, status, position")
     .eq("topic_id", topicId)
@@ -237,8 +226,7 @@ export type SubtopicWithTopic = Subtopic & { topic: TopicWithSubject };
 // from its parent topic (subject name, custom instructions) — subtopics
 // don't carry that info themselves.
 export async function getSubtopic(subtopicId: string): Promise<SubtopicWithTopic | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("subtopics")
     .select("id, topic_id, name, status, position, topics(id, subject_id, name, summary, status, position, custom_instructions, subjects(id, name, archetype))")
     .eq("id", subtopicId)
@@ -258,8 +246,7 @@ export async function updateTopicInstructions(
   topicId: string,
   instructions: string
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("topics")
     .update({ custom_instructions: instructions })
     .eq("id", topicId);
@@ -267,8 +254,7 @@ export async function updateTopicInstructions(
 }
 
 export async function updateTopic(topicId: string, input: { name: string; summary: string }): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("topics")
     .update({ name: input.name, summary: input.summary })
     .eq("id", topicId);
@@ -276,8 +262,7 @@ export async function updateTopic(topicId: string, input: { name: string; summar
 }
 
 export async function updateSubtopic(subtopicId: string, name: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("subtopics").update({ name }).eq("id", subtopicId);
+  const { error } = await db.from("subtopics").update({ name }).eq("id", subtopicId);
   if (error) throw error;
 }
 
@@ -285,14 +270,13 @@ export async function updateSubtopic(subtopicId: string, name: string): Promise<
 // useful to a student half-published, and reviewing 8 subtopics one at a
 // time before the topic itself is visible is just friction.
 export async function publishTopic(topicId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("topics")
     .update({ status: "published" })
     .eq("id", topicId);
   if (error) throw error;
 
-  const { error: subtopicsError } = await supabase
+  const { error: subtopicsError } = await db
     .from("subtopics")
     .update({ status: "published" })
     .eq("topic_id", topicId);
@@ -300,11 +284,10 @@ export async function publishTopic(topicId: string): Promise<void> {
 }
 
 export async function unpublishTopic(topicId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("topics").update({ status: "draft" }).eq("id", topicId);
+  const { error } = await db.from("topics").update({ status: "draft" }).eq("id", topicId);
   if (error) throw error;
 
-  const { error: subtopicsError } = await supabase
+  const { error: subtopicsError } = await db
     .from("subtopics")
     .update({ status: "draft" })
     .eq("topic_id", topicId);
@@ -312,8 +295,7 @@ export async function unpublishTopic(topicId: string): Promise<void> {
 }
 
 export async function publishAllTopicsBySubject(subjectId: string): Promise<Topic[]> {
-  const supabase = createServiceClient();
-  const { data: topics, error } = await supabase
+  const { data: topics, error } = await db
     .from("topics")
     .update({ status: "published" })
     .eq("subject_id", subjectId)
@@ -321,7 +303,7 @@ export async function publishAllTopicsBySubject(subjectId: string): Promise<Topi
   if (error) throw error;
   if (topics.length === 0) return [];
 
-  const { error: subtopicsError } = await supabase
+  const { error: subtopicsError } = await db
     .from("subtopics")
     .update({ status: "published" })
     .in(
@@ -334,8 +316,7 @@ export async function publishAllTopicsBySubject(subjectId: string): Promise<Topi
 }
 
 export async function publishSubtopic(subtopicId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("subtopics")
     .update({ status: "published" })
     .eq("id", subtopicId);
@@ -343,8 +324,7 @@ export async function publishSubtopic(subtopicId: string): Promise<void> {
 }
 
 export async function unpublishSubtopic(subtopicId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("subtopics")
     .update({ status: "draft" })
     .eq("id", subtopicId);

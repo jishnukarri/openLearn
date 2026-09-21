@@ -1,12 +1,11 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 import type { Provider, ProviderConfig } from "@/lib/ai/client";
 
 export async function getTeacherAiSettings(
   profileId: string
 ): Promise<ProviderConfig | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("teacher_ai_settings")
     .select("provider, api_key, model, host")
     .eq("profile_id", profileId)
@@ -27,8 +26,7 @@ export async function saveTeacherAiSettings(
   profileId: string,
   config: { provider: Provider; apiKey: string; model?: string; host?: string }
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("teacher_ai_settings").upsert({
+  const { error } = await db.from("teacher_ai_settings").upsert({
     profile_id: profileId,
     provider: config.provider,
     api_key: config.apiKey,
@@ -40,8 +38,7 @@ export async function saveTeacherAiSettings(
 }
 
 export async function deleteTeacherAiSettings(profileId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("teacher_ai_settings")
     .delete()
     .eq("profile_id", profileId);

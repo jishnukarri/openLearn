@@ -1,5 +1,5 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 import type { SubmissionQuestionResult } from "@/lib/ai/paper-marking";
 
 export type SubmissionStatus = "pending" | "marked" | "unmatched" | "error";
@@ -48,8 +48,7 @@ export async function createSubmission(input: {
   status: SubmissionStatus;
   imageFileIds: string[];
 }): Promise<string> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("paper_submissions")
     .insert({
       paper_id: input.paperId,
@@ -69,9 +68,8 @@ export async function saveSubmissionAnswers(
   results: SubmissionQuestionResult[],
   maxMarksByQuestion: Map<number, number>
 ): Promise<void> {
-  const supabase = createServiceClient();
   if (results.length === 0) return;
-  const { error } = await supabase.from("paper_submission_answers").insert(
+  const { error } = await db.from("paper_submission_answers").insert(
     results.map((r) => ({
       submission_id: submissionId,
       question_number: r.questionNumber,
@@ -92,8 +90,7 @@ export async function updateSubmissionStatus(
     totalPossibleMarks?: number;
   }
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("paper_submissions")
     .update({
       status: update.status,
@@ -106,8 +103,7 @@ export async function updateSubmissionStatus(
 }
 
 export async function reassignSubmissionRoster(submissionId: string, rosterEntryId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("paper_submissions")
     .update({ roster_entry_id: rosterEntryId })
     .eq("id", submissionId);
@@ -117,8 +113,7 @@ export async function reassignSubmissionRoster(submissionId: string, rosterEntry
 export async function getSubmissionsForPaper(paperId: string): Promise<
   Array<Submission & { displayName: string | null }>
 > {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("paper_submissions")
     .select(
       "id, paper_id, roster_entry_id, detected_reference_code, status, error_message, image_file_ids, total_marks_awarded, total_possible_marks, created_at, paper_roster_entries(custom_name, profiles(full_name, email))"
@@ -136,8 +131,7 @@ export async function getSubmissionsForPaper(paperId: string): Promise<
 }
 
 export async function getSubmission(submissionId: string): Promise<Submission | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("paper_submissions")
     .select(
       "id, paper_id, roster_entry_id, detected_reference_code, status, error_message, image_file_ids, total_marks_awarded, total_possible_marks, created_at"
@@ -149,8 +143,7 @@ export async function getSubmission(submissionId: string): Promise<Submission | 
 }
 
 export async function getSubmissionAnswers(submissionId: string): Promise<SubmissionAnswer[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("paper_submission_answers")
     .select("id, submission_id, question_number, marks_awarded, max_marks, feedback")
     .eq("submission_id", submissionId)

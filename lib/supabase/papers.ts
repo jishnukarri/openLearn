@@ -1,5 +1,5 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db, type DatabaseClient } from "./database-client";
 
 export type PaperQuestionInput = {
   questionNumber: number;
@@ -32,8 +32,7 @@ export async function createPaper(input: {
   classId: string;
   title: string;
 }): Promise<string> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("papers")
     .insert({ teacher_id: input.teacherId, class_id: input.classId, title: input.title })
     .select("id")
@@ -49,8 +48,7 @@ export async function replacePaperQuestions(
   paperId: string,
   questions: PaperQuestionInput[]
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error: deleteError } = await supabase
+  const { error: deleteError } = await db
     .from("paper_questions")
     .delete()
     .eq("paper_id", paperId);
@@ -58,7 +56,7 @@ export async function replacePaperQuestions(
 
   if (questions.length === 0) return;
 
-  const { error } = await supabase.from("paper_questions").insert(
+  const { error } = await db.from("paper_questions").insert(
     questions.map((q) => ({
       paper_id: paperId,
       question_number: q.questionNumber,
@@ -71,8 +69,7 @@ export async function replacePaperQuestions(
 }
 
 export async function getPaper(paperId: string): Promise<Paper | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("papers")
     .select("id, teacher_id, class_id, title, status, created_at")
     .eq("id", paperId)
@@ -90,8 +87,7 @@ export async function getPaper(paperId: string): Promise<Paper | null> {
 }
 
 export async function getPaperQuestions(paperId: string): Promise<PaperQuestion[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("paper_questions")
     .select("id, paper_id, question_number, prompt, max_marks, markscheme, image_url")
     .eq("paper_id", paperId)
@@ -109,14 +105,12 @@ export async function getPaperQuestions(paperId: string): Promise<PaperQuestion[
 }
 
 export async function markPaperReady(paperId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("papers").update({ status: "ready" }).eq("id", paperId);
+  const { error } = await db.from("papers").update({ status: "ready" }).eq("id", paperId);
   if (error) throw error;
 }
 
 export async function listPapersForTeacher(teacherId: string): Promise<Paper[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("papers")
     .select("id, teacher_id, class_id, title, status, created_at")
     .eq("teacher_id", teacherId)
@@ -140,7 +134,7 @@ export type RosterEntry = {
   referenceCode: string;
 };
 
-// Same unambiguous alphabet as class invite codes (lib/supabase/classes.ts)
+// Same unambiguous alphabet as class invite codes (lib/db/classes.ts)
 // — read aloud/hand-written by students, so no 0/O/1/I confusion.
 function generateReferenceCode(): string {
   const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -152,11 +146,11 @@ function generateReferenceCode(): string {
 }
 
 async function insertRosterEntry(
-  supabase: ReturnType<typeof createServiceClient>,
+  db: DatabaseClient,
   row: { paper_id: string; student_id: string | null; custom_name: string | null }
 ): Promise<RosterEntry> {
   for (let attempt = 0; attempt < 5; attempt++) {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("paper_roster_entries")
       .insert({ ...row, reference_code: generateReferenceCode() })
       .select("id, paper_id, student_id, custom_name, reference_code")
@@ -182,11 +176,10 @@ export async function addPlatformStudentsToRoster(
   paperId: string,
   studentIds: string[]
 ): Promise<RosterEntry[]> {
-  const supabase = createServiceClient();
   const results: RosterEntry[] = [];
   for (const studentId of studentIds) {
     results.push(
-      await insertRosterEntry(supabase, { paper_id: paperId, student_id: studentId, custom_name: null })
+      await insertRosterEntry(db, { paper_id: paperId, student_id: studentId, custom_name: null })
     );
   }
   return results;
@@ -196,11 +189,10 @@ export async function addCustomStudentsToRoster(
   paperId: string,
   names: string[]
 ): Promise<RosterEntry[]> {
-  const supabase = createServiceClient();
   const results: RosterEntry[] = [];
   for (const name of names) {
     results.push(
-      await insertRosterEntry(supabase, { paper_id: paperId, student_id: null, custom_name: name })
+      await insertRosterEntry(db, { paper_id: paperId, student_id: null, custom_name: name })
     );
   }
   return results;
@@ -209,8 +201,7 @@ export async function addCustomStudentsToRoster(
 export async function getRosterForPaper(paperId: string): Promise<
   Array<RosterEntry & { displayName: string; email: string | null }>
 > {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("paper_roster_entries")
     .select("id, paper_id, student_id, custom_name, reference_code, profiles(full_name, email)")
     .eq("paper_id", paperId)
@@ -228,7 +219,6 @@ export async function getRosterForPaper(paperId: string): Promise<
 }
 
 export async function removeRosterEntry(entryId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("paper_roster_entries").delete().eq("id", entryId);
+  const { error } = await db.from("paper_roster_entries").delete().eq("id", entryId);
   if (error) throw error;
 }

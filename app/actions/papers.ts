@@ -13,11 +13,10 @@ import {
   addCustomStudentsToRoster,
   removeRosterEntry,
 } from "@/lib/supabase/papers";
-import { createServiceClient } from "@/lib/supabase/server";
+import { db } from "@/lib/supabase/database-client";
 
 async function assertOwnsClass(teacherId: string, classId: string) {
-  const supabase = createServiceClient();
-  const { data: cls, error } = await supabase
+  const { data: cls, error } = await db
     .from("classes")
     .select("id")
     .eq("id", classId)

@@ -1,5 +1,5 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 
 export type ProfileRole = "admin" | "teacher" | "student" | "pending_teacher";
 
@@ -16,8 +16,7 @@ export type Profile = {
 export async function getProfileByAppwriteId(
   appwriteUserId: string
 ): Promise<Profile | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("profiles")
     .select("id, appwrite_user_id, email, full_name, role, xp, streak_count")
     .eq("appwrite_user_id", appwriteUserId)
@@ -31,8 +30,7 @@ export async function updateProfileName(
   profileId: string,
   fullName: string
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("profiles")
     .update({ full_name: fullName })
     .eq("id", profileId);
@@ -40,8 +38,7 @@ export async function updateProfileName(
 }
 
 export async function deleteProfile(profileId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("profiles").delete().eq("id", profileId);
+  const { error } = await db.from("profiles").delete().eq("id", profileId);
   if (error) throw error;
 }
 
@@ -51,8 +48,7 @@ export async function createProfile(input: {
   fullName: string;
   role?: ProfileRole;
 }): Promise<Profile> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("profiles")
     .insert({
       appwrite_user_id: input.appwriteUserId,

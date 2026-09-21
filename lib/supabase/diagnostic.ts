@@ -1,5 +1,5 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 import type {
   GeneratedDiagnosticQuestion,
   QuestionType,
@@ -27,9 +27,8 @@ export async function createDiagnosticSession(input: {
   questions: GeneratedDiagnosticQuestion[];
   subjectNameToId: Map<string, string>;
 }): Promise<string> {
-  const supabase = createServiceClient();
 
-  const { data: session, error: sessionError } = await supabase
+  const { data: session, error: sessionError } = await db
     .from("diagnostic_sessions")
     .insert({ student_id: input.studentId, mode: input.mode })
     .select("id")
@@ -74,7 +73,7 @@ export async function createDiagnosticSession(input: {
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
 
-  const { error: questionsError } = await supabase
+  const { error: questionsError } = await db
     .from("diagnostic_questions")
     .insert(rows);
   if (questionsError) throw questionsError;
@@ -90,8 +89,7 @@ export async function isDiagnosticSessionOwner(
   sessionId: string,
   studentId: string
 ): Promise<boolean> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("diagnostic_sessions")
     .select("student_id")
     .eq("id", sessionId)
@@ -103,8 +101,7 @@ export async function isDiagnosticSessionOwner(
 export async function getDiagnosticQuestions(
   sessionId: string
 ): Promise<DiagnosticQuestion[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("diagnostic_questions")
     .select("id, subject_id, topic_name, type, prompt, max_marks, content, position")
     .eq("session_id", sessionId)
@@ -120,8 +117,7 @@ export async function recordDiagnosticAnswer(
   selectedIndex?: number | null,
   answerText?: string | null
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("diagnostic_answers")
     .upsert({
       question_id: questionId,
@@ -143,8 +139,7 @@ export async function getPendingShortAnswers(sessionId: string): Promise<
     answerText: string;
   }>
 > {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("diagnostic_questions")
     .select(
       "id, prompt, max_marks, content, diagnostic_answers!inner(score, answer_text)"
@@ -179,8 +174,7 @@ export async function updateAnswerScore(
   questionId: string,
   score: number
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("diagnostic_answers")
     .update({ score })
     .eq("question_id", questionId);
@@ -193,9 +187,8 @@ export async function buildKnowledgeModel(
   sessionId: string,
   studentId: string
 ): Promise<void> {
-  const supabase = createServiceClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("diagnostic_questions")
     .select("subject_id, topic_name, diagnostic_answers(score)")
     .eq("session_id", sessionId);
@@ -238,7 +231,7 @@ export async function buildKnowledgeModel(
 
   if (rows.length === 0) return;
 
-  const { error: upsertError } = await supabase
+  const { error: upsertError } = await db
     .from("knowledge_model")
     .upsert(rows, { onConflict: "student_id,subject_id,topic_name" });
   if (upsertError) throw upsertError;
@@ -252,8 +245,7 @@ export type TopicResult = {
 export async function getSessionResultsByTopic(
   sessionId: string
 ): Promise<TopicResult[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("diagnostic_questions")
     .select("topic_name, diagnostic_answers(score)")
     .eq("session_id", sessionId);
@@ -296,8 +288,7 @@ export type QuestionReview = {
 export async function getSessionQuestionReviews(
   sessionId: string
 ): Promise<QuestionReview[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("diagnostic_questions")
     .select(
       "id, topic_name, type, prompt, max_marks, content, diagnostic_answers(score, answer_text)"

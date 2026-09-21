@@ -1,5 +1,5 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 
 export type Assignment = {
   id: string;
@@ -44,9 +44,8 @@ function resolveAssignmentTarget(row: any): {
 export async function listAssignmentsForStudent(
   studentId: string
 ): Promise<Assignment[]> {
-  const supabase = createServiceClient();
 
-  const { data: memberships, error: memberError } = await supabase
+  const { data: memberships, error: memberError } = await db
     .from("class_members")
     .select("class_id")
     .eq("student_id", studentId);
@@ -55,7 +54,7 @@ export async function listAssignmentsForStudent(
   const classIds = memberships.map((m: any) => m.class_id);
   if (classIds.length === 0) return [];
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("assignments")
     .select(
       "id, notes, created_at, topics(id, name, subjects(name)), subtopics(id, name, topics(name, subjects(name))), classes(name)"
@@ -84,9 +83,8 @@ export async function getForkingAssignment(
   studentId: string,
   topicId: string
 ): Promise<{ classId: string; notes: string } | null> {
-  const supabase = createServiceClient();
 
-  const { data: memberships, error: memberError } = await supabase
+  const { data: memberships, error: memberError } = await db
     .from("class_members")
     .select("class_id")
     .eq("student_id", studentId);
@@ -95,7 +93,7 @@ export async function getForkingAssignment(
   const classIds = memberships.map((m) => m.class_id);
   if (classIds.length === 0) return null;
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("assignments")
     .select("class_id, notes")
     .eq("topic_id", topicId)
@@ -120,8 +118,7 @@ export async function createAssignment(input: {
   if (!input.topicId && !input.subtopicId) {
     throw new Error("createAssignment requires a topicId or a subtopicId.");
   }
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("assignments").insert({
+  const { error } = await db.from("assignments").insert({
     class_id: input.classId,
     topic_id: input.topicId ?? null,
     subtopic_id: input.subtopicId ?? null,
@@ -142,8 +139,7 @@ export async function listAssignmentsForClass(classId: string): Promise<
     created_at: string;
   }[]
 > {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("assignments")
     .select(
       "id, notes, created_at, topics(id, name, subjects(name)), subtopics(id, name, topics(name, subjects(name)))"
@@ -179,16 +175,15 @@ export async function copyAssignments(input: {
   targetClassId: string;
   assignedBy: string;
 }): Promise<number> {
-  const supabase = createServiceClient();
 
-  const { data: source, error: sourceError } = await supabase
+  const { data: source, error: sourceError } = await db
     .from("assignments")
     .select("topic_id, subtopic_id, notes")
     .eq("class_id", input.sourceClassId);
   if (sourceError) throw sourceError;
   if (source.length === 0) return 0;
 
-  const { data: existing, error: existingError } = await supabase
+  const { data: existing, error: existingError } = await db
     .from("assignments")
     .select("topic_id, subtopic_id")
     .eq("class_id", input.targetClassId);
@@ -207,7 +202,7 @@ export async function copyAssignments(input: {
 
   if (rows.length === 0) return 0;
 
-  const { error } = await supabase.from("assignments").insert(rows);
+  const { error } = await db.from("assignments").insert(rows);
   if (error) throw error;
   return rows.length;
 }

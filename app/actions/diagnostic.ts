@@ -14,7 +14,7 @@ import {
   buildKnowledgeModel,
   isDiagnosticSessionOwner,
 } from "@/lib/supabase/diagnostic";
-import { createServiceClient } from "@/lib/supabase/server";
+import { db } from "@/lib/supabase/database-client";
 import {
   scoreDiagnosticAnswerInstant,
   type LevelAnswerPayload,
@@ -44,9 +44,8 @@ export async function startFreshDiagnosticAction(formData: FormData): Promise<vo
     topicMap = await getFirstTopicPerSubject(subjects.map((s) => s.subject_id));
   }
 
-  const supabase = createServiceClient();
   const subjectNameToId = new Map<string, string>();
-  const { data: rows } = await supabase
+  const { data: rows } = await db
     .from("subjects")
     .select("id, name")
     .in(
@@ -90,8 +89,7 @@ export async function startRecapDiagnosticAction(formData: FormData): Promise<vo
 
   if (selections.length === 0) redirect("/dashboard");
 
-  const supabase = createServiceClient();
-  const { data: rows } = await supabase
+  const { data: rows } = await db
     .from("subjects")
     .select("id, name")
     .in(

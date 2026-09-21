@@ -1,12 +1,11 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 import type { SubjectSummary } from "./subjects";
 
 // Published subjects authored by an admin — the only copy source, per this
 // feature's scope (copying other teachers' subjects is explicitly out).
 export async function listPublishedAdminSubjects(): Promise<SubjectSummary[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("subjects")
     .select(
       "id, name, status, created_at, created_by, subject_exam_boards(exam_boards(id, name)), topics(id), profiles!subjects_created_by_fkey(role)"
@@ -34,9 +33,8 @@ export async function copySubjectForTeacher(
   subjectId: string,
   teacherId: string
 ): Promise<string> {
-  const supabase = createServiceClient();
 
-  const { data: source, error: sourceError } = await supabase
+  const { data: source, error: sourceError } = await db
     .from("subjects")
     .select(
       "name, custom_instructions, archetype, subject_exam_boards(exam_board_id, spec_text, spec_url, status)"
@@ -45,7 +43,7 @@ export async function copySubjectForTeacher(
     .single();
   if (sourceError) throw sourceError;
 
-  const { data: newSubject, error: subjectError } = await supabase
+  const { data: newSubject, error: subjectError } = await db
     .from("subjects")
     .insert({
       name: source.name,
@@ -61,7 +59,7 @@ export async function copySubjectForTeacher(
 
   const boardLinks = (source.subject_exam_boards as any[]) ?? [];
   if (boardLinks.length > 0) {
-    const { error } = await supabase.from("subject_exam_boards").insert(
+    const { error } = await db.from("subject_exam_boards").insert(
       boardLinks.map((b) => ({
         subject_id: newSubjectId,
         exam_board_id: b.exam_board_id,
@@ -73,14 +71,14 @@ export async function copySubjectForTeacher(
     if (error) throw error;
   }
 
-  const { data: topics, error: topicsError } = await supabase
+  const { data: topics, error: topicsError } = await db
     .from("topics")
     .select("id, name, summary, position, status, custom_instructions, exam_board_id")
     .eq("subject_id", subjectId);
   if (topicsError) throw topicsError;
   if (!topics || topics.length === 0) return newSubjectId;
 
-  const { data: newTopics, error: newTopicsError } = await supabase
+  const { data: newTopics, error: newTopicsError } = await db
     .from("topics")
     .insert(
       topics.map((t) => ({
@@ -99,7 +97,7 @@ export async function copySubjectForTeacher(
   const topicIdMap = new Map<string, string>(topics.map((t, i) => [t.id, newTopics[i].id]));
   const sourceTopicIds = topics.map((t) => t.id);
 
-  const { data: subtopics, error: subtopicsError } = await supabase
+  const { data: subtopics, error: subtopicsError } = await db
     .from("subtopics")
     .select("id, topic_id, name, position, status")
     .in("topic_id", sourceTopicIds);
@@ -107,7 +105,7 @@ export async function copySubjectForTeacher(
 
   let subtopicIdMap = new Map<string, string>();
   if (subtopics && subtopics.length > 0) {
-    const { data: newSubtopics, error: newSubtopicsError } = await supabase
+    const { data: newSubtopics, error: newSubtopicsError } = await db
       .from("subtopics")
       .insert(
         subtopics.map((s) => ({
@@ -122,14 +120,14 @@ export async function copySubjectForTeacher(
     subtopicIdMap = new Map(subtopics.map((s, i) => [s.id, newSubtopics[i].id]));
   }
 
-  const { data: lessons, error: lessonsError } = await supabase
+  const { data: lessons, error: lessonsError } = await db
     .from("lessons")
     .select("topic_id, subtopic_id, content")
     .in("topic_id", sourceTopicIds)
     .is("class_id", null);
   if (lessonsError) throw lessonsError;
   if (lessons && lessons.length > 0) {
-    const { error } = await supabase.from("lessons").insert(
+    const { error } = await db.from("lessons").insert(
       lessons.map((l) => ({
         topic_id: topicIdMap.get(l.topic_id),
         subtopic_id: l.subtopic_id ? subtopicIdMap.get(l.subtopic_id) : null,
@@ -139,7 +137,7 @@ export async function copySubjectForTeacher(
     if (error) throw error;
   }
 
-  const { data: questions, error: questionsError } = await supabase
+  const { data: questions, error: questionsError } = await db
     .from("questions")
     .select(
       "topic_id, subtopic_id, prompt, markscheme, max_marks, model_answer, format, section_index, bank_position, verified, image_url"
@@ -148,7 +146,7 @@ export async function copySubjectForTeacher(
     .is("class_id", null);
   if (questionsError) throw questionsError;
   if (questions && questions.length > 0) {
-    const { error } = await supabase.from("questions").insert(
+    const { error } = await db.from("questions").insert(
       questions.map((q) => ({
         topic_id: topicIdMap.get(q.topic_id),
         subtopic_id: q.subtopic_id ? subtopicIdMap.get(q.subtopic_id) : null,
@@ -166,13 +164,13 @@ export async function copySubjectForTeacher(
     if (error) throw error;
   }
 
-  const { data: flashcardSets, error: flashcardsError } = await supabase
+  const { data: flashcardSets, error: flashcardsError } = await db
     .from("flashcard_sets")
     .select("topic_id, subtopic_id, cards")
     .in("topic_id", sourceTopicIds);
   if (flashcardsError) throw flashcardsError;
   if (flashcardSets && flashcardSets.length > 0) {
-    const { error } = await supabase.from("flashcard_sets").insert(
+    const { error } = await db.from("flashcard_sets").insert(
       flashcardSets.map((f) => ({
         topic_id: topicIdMap.get(f.topic_id),
         subtopic_id: f.subtopic_id ? subtopicIdMap.get(f.subtopic_id) : null,

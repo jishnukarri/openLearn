@@ -1,27 +1,24 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 
 // Marks a topic complete for the path page — idempotent (a repeat lesson
 // completion just no-ops the second time).
 export async function markTopicComplete(studentId: string, topicId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("topic_completions")
     .upsert({ student_id: studentId, topic_id: topicId }, { onConflict: "student_id,topic_id" });
   if (error) throw error;
 }
 
 export async function markSubtopicComplete(studentId: string, subtopicId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("subtopic_completions")
     .upsert({ student_id: studentId, subtopic_id: subtopicId }, { onConflict: "student_id,subtopic_id" });
   if (error) throw error;
 }
 
 export async function getCompletedSubtopicIds(studentId: string): Promise<Set<string>> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("subtopic_completions")
     .select("subtopic_id")
     .eq("student_id", studentId);
@@ -30,8 +27,7 @@ export async function getCompletedSubtopicIds(studentId: string): Promise<Set<st
 }
 
 export async function isTopicCompleted(studentId: string, topicId: string): Promise<boolean> {
-  const supabase = createServiceClient();
-  const { data } = await supabase
+  const { data } = await db
     .from("topic_completions")
     .select("topic_id")
     .eq("student_id", studentId)
@@ -41,8 +37,7 @@ export async function isTopicCompleted(studentId: string, topicId: string): Prom
 }
 
 export async function getCompletedTopicIds(studentId: string): Promise<Set<string>> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("topic_completions")
     .select("topic_id")
     .eq("student_id", studentId);
@@ -52,8 +47,7 @@ export async function getCompletedTopicIds(studentId: string): Promise<Set<strin
 
 // XP per mark, plus a streak bump — called once per submitted answer.
 export async function awardXp(profileId: string, marksAwarded: number): Promise<void> {
-  const supabase = createServiceClient();
-  const { data: profile, error: fetchError } = await supabase
+  const { data: profile, error: fetchError } = await db
     .from("profiles")
     .select("xp, streak_count, last_active_date")
     .eq("id", profileId)
@@ -68,7 +62,7 @@ export async function awardXp(profileId: string, marksAwarded: number): Promise<
     streak = profile.last_active_date === yesterday ? streak + 1 : 1;
   }
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await db
     .from("profiles")
     .update({
       xp: profile.xp + marksAwarded * 10,

@@ -5,7 +5,7 @@ import { getSubject } from "@/lib/supabase/subjects";
 import { listPublishedTopicsBySubject, listPublishedSubtopicsByTopic } from "@/lib/supabase/topics";
 import { getCompletedTopicIds, getCompletedSubtopicIds } from "@/lib/supabase/progress";
 import { getStudentSubjects } from "@/lib/supabase/students";
-import { createServiceClient } from "@/lib/supabase/server";
+import { db } from "@/lib/supabase/database-client";
 import { SubjectPath, type PathUnit } from "./subject-path";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -24,12 +24,11 @@ export default async function SubjectPathPage({
   const enrollment = studentSubjects.find((s) => s.subject_id === subjectId);
   const examBoardId = enrollment?.exam_board_id;
 
-  const supabase = createServiceClient();
   const [topics, completedTopics, completedSubtopics, knowledgeRows] = await Promise.all([
     listPublishedTopicsBySubject(subjectId, examBoardId),
     getCompletedTopicIds(profile.id),
     getCompletedSubtopicIds(profile.id),
-    supabase
+    db
       .from("knowledge_model")
       .select("topic_name, score")
       .eq("student_id", profile.id)

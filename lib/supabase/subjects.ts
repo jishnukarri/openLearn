@@ -1,5 +1,5 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 
 export type ExamBoard = { id: string; name: string };
 
@@ -40,8 +40,7 @@ function mapSubject(data: any): Subject {
 }
 
 export async function listExamBoards(): Promise<ExamBoard[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("exam_boards")
     .select("id, name")
     .order("name");
@@ -51,8 +50,7 @@ export async function listExamBoards(): Promise<ExamBoard[]> {
 }
 
 export async function createExamBoard(name: string): Promise<ExamBoard> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("exam_boards")
     .insert({ name })
     .select("id, name")
@@ -72,8 +70,7 @@ export type SubjectSummary = {
 };
 
 export async function listSubjectSummaries(): Promise<SubjectSummary[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("subjects")
     .select("id, name, status, created_at, created_by, subject_exam_boards(exam_boards(id, name)), topics(id)")
     .order("created_at", { ascending: false });
@@ -94,8 +91,7 @@ export async function listSubjectSummaries(): Promise<SubjectSummary[]> {
 // owns — powers /teacher/subjects, which must never show admin-owned or
 // other teachers' subjects.
 export async function listSubjectSummariesByOwner(ownerId: string): Promise<SubjectSummary[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("subjects")
     .select("id, name, status, created_at, created_by, subject_exam_boards(exam_boards(id, name)), topics(id)")
     .eq("created_by", ownerId)
@@ -114,8 +110,7 @@ export async function listSubjectSummariesByOwner(ownerId: string): Promise<Subj
 }
 
 export async function listSubjects(): Promise<Subject[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("subjects")
     .select(SUBJECT_COLUMNS)
     .order("created_at", { ascending: false });
@@ -125,8 +120,7 @@ export async function listSubjects(): Promise<Subject[]> {
 }
 
 export async function getSubject(subjectId: string): Promise<Subject | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("subjects")
     .select(SUBJECT_COLUMNS)
     .eq("id", subjectId)
@@ -147,8 +141,7 @@ export async function updateSpecText(
   examBoardId: string,
   specText: string
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("subject_exam_boards")
     .update({ spec_text: specText })
     .eq("subject_id", subjectId)
@@ -160,8 +153,7 @@ export async function updateSubjectArchetype(
   subjectId: string,
   archetype: SubjectArchetype | null
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("subjects")
     .update({ archetype })
     .eq("id", subjectId);
@@ -172,8 +164,7 @@ export async function updateSubjectInstructions(
   subjectId: string,
   instructions: string
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("subjects")
     .update({ custom_instructions: instructions })
     .eq("id", subjectId);
@@ -183,8 +174,7 @@ export async function updateSubjectInstructions(
 // Concatenates whatever spec text has been pasted in across this subject's
 // exam boards, for grounding topic generation. Empty string if none yet.
 export async function getSpecTextForSubject(subjectId: string): Promise<string> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("subject_exam_boards")
     .select("spec_text, exam_boards(name)")
     .eq("subject_id", subjectId);
@@ -200,8 +190,7 @@ export async function getSpecTextForBoard(
   subjectId: string,
   examBoardId: string
 ): Promise<string> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("subject_exam_boards")
     .select("spec_text")
     .eq("subject_id", subjectId)
@@ -212,14 +201,12 @@ export async function getSpecTextForBoard(
 }
 
 export async function deleteSubject(subjectId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("subjects").delete().eq("id", subjectId);
+  const { error } = await db.from("subjects").delete().eq("id", subjectId);
   if (error) throw error;
 }
 
 export async function publishSubject(subjectId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("subjects")
     .update({ status: "published" })
     .eq("id", subjectId);
@@ -230,8 +217,7 @@ export async function publishSubject(subjectId: string): Promise<void> {
 // so republishing the subject later brings everything straight back
 // exactly as it was left, no re-publishing each topic by hand.
 export async function unpublishSubject(subjectId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("subjects")
     .update({ status: "draft" })
     .eq("id", subjectId);
@@ -243,9 +229,8 @@ export async function createSubject(input: {
   createdBy: string;
   examBoardIds: string[];
 }): Promise<Subject> {
-  const supabase = createServiceClient();
 
-  const { data: subject, error: subjectError } = await supabase
+  const { data: subject, error: subjectError } = await db
     .from("subjects")
     .insert({ name: input.name, created_by: input.createdBy })
     .select("id, name, status, created_at, created_by, custom_instructions")
@@ -254,7 +239,7 @@ export async function createSubject(input: {
   if (subjectError) throw subjectError;
 
   if (input.examBoardIds.length > 0) {
-    const { error: boardsError } = await supabase
+    const { error: boardsError } = await db
       .from("subject_exam_boards")
       .insert(
         input.examBoardIds.map((examBoardId) => ({

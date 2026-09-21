@@ -1,5 +1,5 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 import { uploadFile, deleteFile } from "@/lib/appwrite/storage";
 
 export type TopicDocument = {
@@ -11,8 +11,7 @@ export type TopicDocument = {
 };
 
 export async function listDocumentsByTopic(topicId: string): Promise<TopicDocument[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("topic_documents")
     .select("id, topic_id, filename, chunk_count, created_at")
     .eq("topic_id", topicId)
@@ -39,10 +38,9 @@ export async function createTopicDocument(input: {
   file: File;
   chunks: { content: string; embedding: number[] | null }[];
 }): Promise<void> {
-  const supabase = createServiceClient();
   const fileId = await uploadFile(input.file);
 
-  const { data: doc, error: docError } = await supabase
+  const { data: doc, error: docError } = await db
     .from("topic_documents")
     .insert({
       topic_id: input.topicId,
@@ -56,7 +54,7 @@ export async function createTopicDocument(input: {
   if (docError) throw docError;
 
   if (input.chunks.length > 0) {
-    const { error: chunkError } = await supabase.from("topic_document_chunks").insert(
+    const { error: chunkError } = await db.from("topic_document_chunks").insert(
       input.chunks.map((c, i) => ({
         document_id: doc.id,
         topic_id: input.topicId,
@@ -70,14 +68,13 @@ export async function createTopicDocument(input: {
 }
 
 export async function deleteTopicDocument(documentId: string): Promise<void> {
-  const supabase = createServiceClient();
-  const { data: doc } = await supabase
+  const { data: doc } = await db
     .from("topic_documents")
     .select("storage_path")
     .eq("id", documentId)
     .maybeSingle();
 
-  const { error } = await supabase.from("topic_documents").delete().eq("id", documentId);
+  const { error } = await db.from("topic_documents").delete().eq("id", documentId);
   if (error) throw error;
 
   if (doc?.storage_path) {
@@ -86,8 +83,7 @@ export async function deleteTopicDocument(documentId: string): Promise<void> {
 }
 
 export async function hasIndexedChunks(topicId: string): Promise<boolean> {
-  const supabase = createServiceClient();
-  const { count, error } = await supabase
+  const { count, error } = await db
     .from("topic_document_chunks")
     .select("*", { count: "exact", head: true })
     .eq("topic_id", topicId)
@@ -101,8 +97,7 @@ export async function searchTopicChunks(
   queryEmbedding: number[],
   matchCount = 5
 ): Promise<string[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase.rpc("match_topic_chunks", {
+  const { data, error } = await db.rpc("match_topic_chunks", {
     p_topic_id: topicId,
     p_query_embedding: queryEmbedding,
     p_match_count: matchCount,

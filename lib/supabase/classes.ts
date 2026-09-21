@@ -1,5 +1,5 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 
 export type Class = {
   id: string;
@@ -20,8 +20,7 @@ function generateInviteCode(): string {
 }
 
 export async function listClassesByTeacher(teacherId: string): Promise<Class[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("classes")
     .select("id, name, invite_code, created_at, class_members(count)")
     .eq("teacher_id", teacherId)
@@ -42,11 +41,10 @@ export async function createClass(input: {
   name: string;
   teacherId: string;
 }): Promise<Class> {
-  const supabase = createServiceClient();
 
   // invite_code is unique — retry on the rare collision.
   for (let attempt = 0; attempt < 5; attempt++) {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("classes")
       .insert({
         name: input.name,
@@ -66,8 +64,7 @@ export async function createClass(input: {
 export async function getClassByInviteCode(
   inviteCode: string
 ): Promise<{ id: string; name: string } | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("classes")
     .select("id, name")
     .eq("invite_code", inviteCode.toUpperCase())
@@ -81,8 +78,7 @@ export async function joinClass(input: {
   classId: string;
   studentId: string;
 }): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("class_members")
     .upsert(
       { class_id: input.classId, student_id: input.studentId },
@@ -94,8 +90,7 @@ export async function joinClass(input: {
 export async function getStudentClasses(
   studentId: string
 ): Promise<{ id: string; name: string }[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("class_members")
     .select("classes(id, name)")
     .eq("student_id", studentId);
@@ -115,9 +110,8 @@ export async function listClassMembers(
   classId: string,
   teacherId: string
 ): Promise<ClassMember[]> {
-  const supabase = createServiceClient();
   // Verify the class belongs to this teacher before exposing student data.
-  const { data: cls } = await supabase
+  const { data: cls } = await db
     .from("classes")
     .select("id")
     .eq("id", classId)
@@ -125,7 +119,7 @@ export async function listClassMembers(
     .maybeSingle();
   if (!cls) return [];
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("class_members")
     .select("joined_at, profiles(id, full_name, email)")
     .eq("class_id", classId)
@@ -145,8 +139,7 @@ export async function removeStudentFromClass(input: {
   studentId: string;
   teacherId: string;
 }): Promise<void> {
-  const supabase = createServiceClient();
-  const { data: cls } = await supabase
+  const { data: cls } = await db
     .from("classes")
     .select("id")
     .eq("id", input.classId)
@@ -154,7 +147,7 @@ export async function removeStudentFromClass(input: {
     .maybeSingle();
   if (!cls) throw new Error("Class not found.");
 
-  const { error } = await supabase
+  const { error } = await db
     .from("class_members")
     .delete()
     .eq("class_id", input.classId)
@@ -166,8 +159,7 @@ export async function deleteClass(input: {
   classId: string;
   teacherId: string;
 }): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("classes")
     .delete()
     .eq("id", input.classId)

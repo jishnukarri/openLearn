@@ -1,5 +1,5 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 import type { GeneratedQuestion, QuestionFormat } from "@/lib/ai/questions";
 import type { MarkingResult } from "@/lib/ai/marking";
 
@@ -16,7 +16,6 @@ export type Question = {
   verified: boolean;
   image_url: string | null;
 };
-
 
 // classId omitted/null = the shared, topic-wide question every self-study
 // student sees. A non-null classId is a fork generated for that class only.
@@ -52,8 +51,7 @@ export async function getQuestionForTopic(
   topicId: string,
   classId?: string | null
 ): Promise<Question | null> {
-  const supabase = createServiceClient();
-  const base = supabase
+  const base = db
     .from("questions")
     .select(QUESTION_COLUMNS)
     .eq("topic_id", topicId)
@@ -65,7 +63,7 @@ export async function getQuestionForTopic(
   if (!full.error) return full.data ? normalizeQuestionRow(full.data as any) : null;
   if (!isMissingColumnError(full.error)) throw full.error;
 
-  const legacyBase = supabase
+  const legacyBase = db
     .from("questions")
     .select(LEGACY_QUESTION_COLUMNS)
     .eq("topic_id", topicId)
@@ -78,19 +76,17 @@ export async function getQuestionForTopic(
 }
 
 export async function getQuestionById(id: string): Promise<Question | null> {
-  const supabase = createServiceClient();
-  const full = await supabase.from("questions").select(QUESTION_COLUMNS).eq("id", id).maybeSingle();
+  const full = await db.from("questions").select(QUESTION_COLUMNS).eq("id", id).maybeSingle();
   if (!full.error) return full.data ? normalizeQuestionRow(full.data as any) : null;
   if (!isMissingColumnError(full.error)) throw full.error;
 
-  const legacy = await supabase.from("questions").select(LEGACY_QUESTION_COLUMNS).eq("id", id).maybeSingle();
+  const legacy = await db.from("questions").select(LEGACY_QUESTION_COLUMNS).eq("id", id).maybeSingle();
   if (legacy.error) throw legacy.error;
   return legacy.data ? normalizeQuestionRow(legacy.data as any) : null;
 }
 
 export async function listQuestionBankForTopic(topicId: string): Promise<Question[]> {
-  const supabase = createServiceClient();
-  const full = await supabase
+  const full = await db
     .from("questions")
     .select(QUESTION_COLUMNS)
     .eq("topic_id", topicId)
@@ -99,7 +95,7 @@ export async function listQuestionBankForTopic(topicId: string): Promise<Questio
   if (!full.error) return (full.data || []).map((row: any) => normalizeQuestionRow(row));
   if (!isMissingColumnError(full.error)) throw full.error;
 
-  const legacy = await supabase
+  const legacy = await db
     .from("questions")
     .select(LEGACY_QUESTION_COLUMNS)
     .eq("topic_id", topicId)
@@ -119,7 +115,6 @@ export async function createQuestionBank(
   topicId: string,
   questions: Array<GeneratedQuestion & { sectionIndex: number; bankPosition: number; imageUrl?: string | null }>
 ): Promise<Question[]> {
-  const supabase = createServiceClient();
   const rows = questions.map((q) => ({
     topic_id: topicId,
     prompt: q.prompt,
@@ -133,7 +128,7 @@ export async function createQuestionBank(
     image_url: q.imageUrl ?? null,
   }));
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("questions")
     .insert(rows)
     .select(QUESTION_COLUMNS);
@@ -149,7 +144,7 @@ export async function createQuestionBank(
     model_answer: q.modelAnswer,
     format: q.format ?? null,
   }));
-  const legacy = await supabase.from("questions").insert(legacyRows).select(LEGACY_QUESTION_COLUMNS);
+  const legacy = await db.from("questions").insert(legacyRows).select(LEGACY_QUESTION_COLUMNS);
   if (legacy.error) throw legacy.error;
   return (legacy.data || []).map((row) => normalizeQuestionRow(row as any));
 }
@@ -159,8 +154,7 @@ export async function createQuestion(
   generated: GeneratedQuestion,
   classId?: string | null
 ): Promise<Question> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("questions")
     .insert({
       topic_id: topicId,
@@ -181,7 +175,7 @@ export async function createQuestion(
   if (!error) return normalizeQuestionRow(data as any);
   if (!isMissingColumnError(error)) throw error;
 
-  const legacy = await supabase
+  const legacy = await db
     .from("questions")
     .insert({
       topic_id: topicId,
@@ -198,12 +192,10 @@ export async function createQuestion(
   return normalizeQuestionRow(legacy.data as any);
 }
 
-
 // A subtopic's own question — kept separate from the topic-wide
 // get/createQuestion for the same reason as lessons (see lessons.ts).
 export async function getQuestionForSubtopic(subtopicId: string): Promise<Question | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("questions")
     .select(QUESTION_COLUMNS)
     .eq("subtopic_id", subtopicId)
@@ -219,8 +211,7 @@ export async function createQuestionForSubtopic(
   subtopicId: string,
   generated: GeneratedQuestion
 ): Promise<Question> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("questions")
     .insert({
       topic_id: topicId,
@@ -245,8 +236,7 @@ export async function recordAnswer(input: {
   maxMarks: number;
   result: MarkingResult;
 }): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("student_answers").insert({
+  const { error } = await db.from("student_answers").insert({
     question_id: input.questionId,
     student_id: input.studentId,
     answer_text: input.answerText,
@@ -262,14 +252,13 @@ export async function updateQuestionVerification(
   verified: boolean,
   updatedFields?: Partial<Pick<Question, "prompt" | "model_answer" | "max_marks">>
 ): Promise<void> {
-  const supabase = createServiceClient();
   const payload: any = { verified };
   if (updatedFields) {
     if (updatedFields.prompt !== undefined) payload.prompt = updatedFields.prompt;
     if (updatedFields.model_answer !== undefined) payload.model_answer = updatedFields.model_answer;
     if (updatedFields.max_marks !== undefined) payload.max_marks = updatedFields.max_marks;
   }
-  const { error } = await supabase.from("questions").update(payload).eq("id", questionId);
+  const { error } = await db.from("questions").update(payload).eq("id", questionId);
   if (error) throw error;
 }
 
@@ -278,8 +267,7 @@ export async function createQuestionSession(
   topicId: string,
   subtopicId?: string | null
 ): Promise<string> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("question_sessions")
     .insert({ student_id: studentId, topic_id: topicId, subtopic_id: subtopicId ?? null })
     .select("id")
@@ -292,8 +280,7 @@ export async function completeSession(
   sessionId: string,
   masteryExit: boolean
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("question_sessions")
     .update({ completed_at: new Date().toISOString(), mastery_exit: masteryExit })
     .eq("id", sessionId);
@@ -307,8 +294,7 @@ export async function recordQuestionSessionAttempt(input: {
   correct: boolean;
   isRetry?: boolean;
 }): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("question_session_attempts").insert({
+  const { error } = await db.from("question_session_attempts").insert({
     question_id: input.questionId,
     student_id: input.studentId,
     session_id: input.sessionId,

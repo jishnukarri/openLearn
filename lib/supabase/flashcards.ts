@@ -1,10 +1,9 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 import type { FlashcardSet } from "@/lib/ai/flashcards";
 
 export async function getFlashcardsByTopic(topicId: string): Promise<FlashcardSet | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("flashcard_sets")
     .select("cards")
     .eq("topic_id", topicId)
@@ -16,16 +15,14 @@ export async function getFlashcardsByTopic(topicId: string): Promise<FlashcardSe
 }
 
 export async function createFlashcardSet(topicId: string, set: FlashcardSet): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("flashcard_sets")
     .insert({ topic_id: topicId, cards: set.cards });
   if (error) throw error;
 }
 
 export async function getFlashcardsBySubtopic(subtopicId: string): Promise<FlashcardSet | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("flashcard_sets")
     .select("cards")
     .eq("subtopic_id", subtopicId)
@@ -41,8 +38,7 @@ export async function createFlashcardSetForSubtopic(
   subtopicId: string,
   set: FlashcardSet
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("flashcard_sets")
     .insert({ topic_id: topicId, subtopic_id: subtopicId, cards: set.cards });
   if (error) throw error;

@@ -1,5 +1,5 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 import type { LessonContent } from "@/lib/ai/lessons";
 
 // classId omitted/null = the shared, topic-wide lesson every self-study
@@ -9,8 +9,7 @@ export async function getLessonByTopic(
   topicId: string,
   classId?: string | null
 ): Promise<LessonContent | null> {
-  const supabase = createServiceClient();
-  let query = supabase
+  let query = db
     .from("lessons")
     .select("content")
     .eq("topic_id", topicId)
@@ -28,8 +27,7 @@ export async function createLesson(
   content: LessonContent,
   classId?: string | null
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("lessons")
     .insert({ topic_id: topicId, content, class_id: classId ?? null });
   if (error) throw error;
@@ -39,8 +37,7 @@ export async function createLesson(
 // (rather than overloading them) so the shared topic-wide lesson and a
 // subtopic's lesson can never be confused for one another.
 export async function getLessonBySubtopic(subtopicId: string): Promise<LessonContent | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("lessons")
     .select("content")
     .eq("subtopic_id", subtopicId)
@@ -56,8 +53,7 @@ export async function createLessonForSubtopic(
   subtopicId: string,
   content: LessonContent
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase
+  const { error } = await db
     .from("lessons")
     .insert({ topic_id: topicId, subtopic_id: subtopicId, content });
   if (error) throw error;

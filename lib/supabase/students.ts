@@ -1,5 +1,5 @@
 import "server-only";
-import { createServiceClient } from "./server";
+import { db } from "./database-client";
 
 export type StudentSubject = {
   subject_id: string;
@@ -12,8 +12,7 @@ export type StudentSubject = {
 export async function getStudentSubjects(
   studentId: string
 ): Promise<StudentSubject[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("student_subjects")
     .select("started_syllabus, exam_board_id, subjects(id, name), exam_boards(id, name)")
     .eq("student_id", studentId);
@@ -34,8 +33,7 @@ export async function saveSubjectSelections(
   selections: { subjectId: string; examBoardId: string }[],
   startedSyllabus: boolean
 ): Promise<void> {
-  const supabase = createServiceClient();
-  const { error } = await supabase.from("student_subjects").upsert(
+  const { error } = await db.from("student_subjects").upsert(
     selections.map((p) => ({
       student_id: studentId,
       subject_id: p.subjectId,
@@ -50,8 +48,7 @@ export async function saveSubjectSelections(
 export type WeakTopic = { subject_name: string; topic_name: string | null; score: number };
 
 export async function getWeakTopics(studentId: string): Promise<WeakTopic[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("knowledge_model")
     .select("topic_name, score, subjects(name)")
     .eq("student_id", studentId)
@@ -70,8 +67,7 @@ export async function getWeakTopics(studentId: string): Promise<WeakTopic[]> {
 // read (no AI) so callers can cheaply decide whether a diagnostic is
 // actually needed before ever generating one.
 export async function getDiagnosedSubjectIds(studentId: string): Promise<Set<string>> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("knowledge_model")
     .select("subject_id")
     .eq("student_id", studentId);
@@ -99,8 +95,7 @@ export async function getTopicDiagnosticScore(
   topicName: string,
   subjectId: string
 ): Promise<number | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("knowledge_model")
     .select("score")
     .eq("student_id", studentId)
@@ -117,8 +112,7 @@ export async function getFirstTopicPerSubject(
   subjectIds: string[]
 ): Promise<Map<string, string>> {
   if (subjectIds.length === 0) return new Map();
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("topics")
     .select("subject_id, name")
     .in("subject_id", subjectIds)
@@ -134,8 +128,7 @@ export async function getFirstTopicPerSubject(
 }
 
 export async function hasOnboarded(studentId: string): Promise<boolean> {
-  const supabase = createServiceClient();
-  const { count, error } = await supabase
+  const { count, error } = await db
     .from("student_subjects")
     .select("*", { count: "exact", head: true })
     .eq("student_id", studentId);
