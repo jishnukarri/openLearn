@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__a1a7f9af-d6c7-4a58-8ac0-7952de6e4168__list_tables",
+      "mcp__a1a7f9af-d6c7-4a58-8ac0-7952de6e4168__get_project_url",
+      "mcp__a1a7f9af-d6c7-4a58-8ac0-7952de6e4168__get_publishable_keys",
+      "mcp__a1a7f9af-d6c7-4a58-8ac0-7952de6e4168__list_projects",
+      "mcp__a1a7f9af-d6c7-4a58-8ac0-7952de6e4168__list_organizations",
+      "mcp__a1a7f9af-d6c7-4a58-8ac0-7952de6e4168__get_cost",
+      "mcp__a1a7f9af-d6c7-4a58-8ac0-7952de6e4168__confirm_cost",
+      "mcp__a1a7f9af-d6c7-4a58-8ac0-7952de6e4168__create_project",
+      "mcp__a1a7f9af-d6c7-4a58-8ac0-7952de6e4168__apply_migration",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(node -e \"const {Account,Users,ID}=require\\('/home/phantom/projects/AIRoadmap/open_learn/node_modules/node-appwrite'\\); console.log\\(Object.getOwnPropertyNames\\(Account.prototype\\).filter\\(n=>/session/i.test\\(n\\)\\)\\); console.log\\(Object.getOwnPropertyNames\\(Users.prototype\\).filter\\(n=>/^create/i.test\\(n\\)\\)\\); console.log\\(typeof ID.unique\\)\")",
+      "Bash(curl -s -i -X POST http://localhost:3000/signup -H 'Content-Type: application/x-www-form-urlencoded' --data 'name=Debug+User&email=debug.user.__CMDSUB_OUTPUT__@example.com&password=TestPassword123!' -o /tmp/claude-1000/-home-phantom-projects-AIRoadmap-open-learn/45793db8-7fac-4264-a737-1f5567bb27a5/scratchpad/signup_resp.txt -D -)",
+      "Bash(node -e ' *)",
+      "mcp__a1a7f9af-d6c7-4a58-8ac0-7952de6e4168__execute_sql",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000 --max-time 3)",
+      "Bash(curl -s -o /tmp/claude-1000/-home-phantom-projects-AIRoadmap-open-learn/45793db8-7fac-4264-a737-1f5567bb27a5/scratchpad/signup_page.html -w \"HTTP:%{http_code}\\\\n\" http://localhost:3000/signup --max-time 5)",
+      "Bash(curl -s http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css --max-time 5)",
+      "Bash(curl -s \"http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__0cbk-n2._.css\" --max-time 5 -o /tmp/claude-1000/-home-phantom-projects-AIRoadmap-open-learn/45793db8-7fac-4264-a737-1f5567bb27a5/scratchpad/style.css)"
+    ]
+  }
+}

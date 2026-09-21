@@ -1,0 +1,155 @@
+"use server";
+
+import * as z from "zod";
+import { ID } from "node-appwrite";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import {
+  createServerUsers,
+  createPublicAccount,
+  createSessionClient,
+} from "@/lib/appwrite/server";
+import { SESSION_COOKIE } from "@/lib/appwrite/session";
+import { createProfile, getProfileByAppwriteId } from "@/lib/supabase/profiles";
+import { roleHome } from "@/lib/roles";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+export type AuthFormState =
+  | {
+      errors?: {
+        name?: string[];
+        email?: string[];
+        password?: string[];
+      };
+      message?: string;
+    }
+  | undefined;
+
+const SignupSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters long.").trim(),
+  email: z.email("Please enter a valid email.").trim(),
+  password: z.string().min(8, "Password must be at least 8 characters long."),
+});
+
+const LoginSchema = z.object({
+  email: z.email("Please enter a valid email.").trim(),
+  password: z.string().min(1, "Password is required."),
+});
+
+async function setSessionCookie(secret: string, expire: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, secret, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    expires: new Date(expire),
+  });
+}
+
+export async function signup(
+  _state: AuthFormState,
+  formData: FormData
+): Promise<AuthFormState> {
+  const validated = SignupSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+
+  if (!validated.success) {
+    return { errors: validated.error.flatten().fieldErrors };
+  }
+
+  if (!(await checkRateLimit("signup", 5, 60_000))) {
+    return { message: "Too many attempts. Please try again in a minute." };
+  }
+
+  const { name, email, password } = validated.data;
+
+  const isTeacher = formData.get("isTeacher") === "1";
+
+  try {
+    const users = createServerUsers();
+    const user = await users.create(ID.unique(), email, undefined, password, name);
+
+    // Account.createEmailPasswordSession (public client, no API key) returns
+    // secret: "" by design — Appwrite only populates it for browser clients.
+    // Users.createSession (API key, admin-privileged) is the server-side way
+    // to mint a session with a real, usable secret.
+    const session = await users.createSession({ userId: user.$id });
+    await setSessionCookie(session.secret, session.expire);
+
+    await createProfile({
+      appwriteUserId: user.$id,
+      email,
+      fullName: name,
+      role: isTeacher ? "pending_teacher" : "student",
+    });
+  } catch {
+    // Generic message for all failures, including "email already exists"
+    // (Appwrite 409) — a distinct message here would let an attacker
+    // enumerate registered emails.
+    return { message: "Something went wrong creating your account." };
+  }
+
+  redirect(isTeacher ? "/pending-approval" : "/onboarding");
+}
+
+export async function login(
+  _state: AuthFormState,
+  formData: FormData
+): Promise<AuthFormState> {
+  const validated = LoginSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+
+  if (!validated.success) {
+    return { errors: validated.error.flatten().fieldErrors };
+  }
+
+  if (!(await checkRateLimit("login", 5, 60_000))) {
+    return { message: "Too many attempts. Please try again in a minute." };
+  }
+
+  const { email, password } = validated.data;
+
+  let userId: string;
+  try {
+    // Verifies the password (throws on mismatch). Its secret is unusable —
+    // see the comment in signup() — so we only use it to confirm the
+    // credentials and learn the userId, then mint a real session below.
+    const account = createPublicAccount();
+    const verifiedSession = await account.createEmailPasswordSession(
+      email,
+      password
+    );
+    userId = verifiedSession.userId;
+
+    const users = createServerUsers();
+    const session = await users.createSession({ userId });
+    await setSessionCookie(session.secret, session.expire);
+  } catch {
+    return { message: "Incorrect email or password." };
+  }
+
+  const profile = await getProfileByAppwriteId(userId);
+  redirect(roleHome(profile?.role));
+}
+
+export async function logout() {
+  const cookieStore = await cookies();
+  const secret = cookieStore.get(SESSION_COOKIE)?.value;
+
+  if (secret) {
+    try {
+      await createSessionClient(secret).deleteSession("current");
+    } catch {
+      // session already invalid server-side; still clear the cookie below
+    }
+  }
+
+  cookieStore.delete(SESSION_COOKIE);
+  redirect("/login");
+}

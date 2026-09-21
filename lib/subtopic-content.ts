@@ -1,0 +1,82 @@
+import "server-only";
+import type { SubtopicWithTopic } from "@/lib/supabase/topics";
+import { getLessonBySubtopic, createLessonForSubtopic } from "@/lib/supabase/lessons";
+import {
+  getQuestionForSubtopic,
+  createQuestionForSubtopic,
+  type Question,
+} from "@/lib/supabase/questions";
+import {
+  getFlashcardsBySubtopic,
+  createFlashcardSetForSubtopic,
+} from "@/lib/supabase/flashcards";
+import { generateLesson, type LessonContent } from "@/lib/ai/lessons";
+import { generateQuestion } from "@/lib/ai/questions";
+import { generateFlashcards, type FlashcardSet } from "@/lib/ai/flashcards";
+import { resolveProviderConfig } from "@/lib/ai/client";
+import { finalizeLessonContent } from "@/lib/lesson-finalize";
+import { withReferenceContext } from "@/lib/rag";
+
+// A subtopic is its own lesson unit — the generator gets the subtopic's own
+// name (not the parent topic's), so "Ionisation Energy Trends" is taught as
+// one focused lesson instead of being folded into a six-subtopic mega
+// lesson under "Periodic Table: Structure and Trends". Reference documents
+// (RAG) are still looked up by the *parent* topic id — that's where a
+// teacher uploads them, and every subtopic under it should benefit.
+
+export async function resolveLessonForSubtopic(
+  subtopic: SubtopicWithTopic,
+  studentId: string
+): Promise<LessonContent> {
+  const existing = await getLessonBySubtopic(subtopic.id);
+  if (existing && existing.sections[0]?.check) return existing;
+
+  const config = await resolveProviderConfig(studentId);
+  const instructions = await withReferenceContext(
+    subtopic.topic.id,
+    subtopic.name,
+    subtopic.topic.custom_instructions
+  );
+  const generated = await generateLesson(subtopic.name, subtopic.topic.subject.name, false, instructions, config);
+  const finalized = await finalizeLessonContent(generated, subtopic.id);
+  await createLessonForSubtopic(subtopic.topic.id, subtopic.id, finalized);
+  return finalized;
+}
+
+export async function resolveQuestionForSubtopic(
+  subtopic: SubtopicWithTopic,
+  studentId: string,
+  opts?: { force?: boolean }
+): Promise<Question> {
+  if (!opts?.force) {
+    const existing = await getQuestionForSubtopic(subtopic.id);
+    if (existing) return existing;
+  }
+
+  const config = await resolveProviderConfig(studentId);
+  const instructions = await withReferenceContext(
+    subtopic.topic.id,
+    subtopic.name,
+    subtopic.topic.custom_instructions
+  );
+  const generated = await generateQuestion(subtopic.name, subtopic.topic.subject.name, instructions, config);
+  return createQuestionForSubtopic(subtopic.topic.id, subtopic.id, generated);
+}
+
+export async function resolveFlashcardsForSubtopic(
+  subtopic: SubtopicWithTopic,
+  studentId: string
+): Promise<FlashcardSet> {
+  const existing = await getFlashcardsBySubtopic(subtopic.id);
+  if (existing) return existing;
+
+  const config = await resolveProviderConfig(studentId);
+  const instructions = await withReferenceContext(
+    subtopic.topic.id,
+    subtopic.name,
+    subtopic.topic.custom_instructions
+  );
+  const generated = await generateFlashcards(subtopic.name, subtopic.topic.subject.name, instructions, config);
+  await createFlashcardSetForSubtopic(subtopic.topic.id, subtopic.id, generated);
+  return generated;
+}

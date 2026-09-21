@@ -1,0 +1,443 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ─── Light mode (default) ─────────────────────────────────────────────── */
+/* Warm palette throughout (per DESIGN.md / README: "neutrals stay a warm
+   near-black rather than pure black" — the old tokens were shadcn's default
+   cool violet-gray oklch values and never actually delivered on that).
+   Indigo/coral/amber keep their documented single jobs (chrome/celebration/
+   XP); coral, amber, success and error all get darkened light-mode-only
+   variants below because the brand hex values, while correct as fills or as
+   text on the near-black dark surface, fail WCAG AA (some as low as 1.5:1)
+   as text against a light surface. Same hue family, same job, just tuned
+   per background so the accent is still legible instead of decorative. */
+:root {
+  /* App-specific tokens */
+  --surface: #ffffff;
+  --border: #e7e0d8;
+  --muted: #746a5e;
+  --highlight: #926006;
+  --success: #1a8048;
+  --error: #cc3333;
+
+  /* Fonts: loaded via next/font/google in app/layout.tsx as CSS variables
+     (--font-sans, --font-geist-mono, --font-display); these are just the
+     system-font fallback chains for the brief pre-hydration window. */
+  --font-sans-fallback: "Segoe UI", sans-serif;
+  --font-mono-fallback: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  /* shadcn standard tokens — light */
+  --background: #faf7f3;
+  --foreground: #211c17;
+  --primary: #534fe0;
+  --primary-foreground: #ffffff;
+  --secondary: #c94a34;
+  --secondary-foreground: #ffffff;
+  --card: #ffffff;
+  --card-foreground: #211c17;
+  --popover: #ffffff;
+  --popover-foreground: #211c17;
+  --muted-foreground: #746a5e;
+  --accent: #f1ece5;
+  --accent-foreground: #211c17;
+  --destructive: #cc3333;
+  --input: #e7e0d8;
+  --ring: #534fe0;
+  --radius: 0.625rem;
+  --chart-1: oklch(0.828 0.111 230.318);
+  --chart-2: oklch(0.685 0.169 237.323);
+  --chart-3: oklch(0.588 0.158 241.966);
+  --chart-4: oklch(0.5 0.134 242.749);
+  --chart-5: oklch(0.443 0.11 240.79);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #211c17;
+  --sidebar-primary: #534fe0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1ece5;
+  --sidebar-accent-foreground: #211c17;
+  --sidebar-border: #e7e0d8;
+  --sidebar-ring: #534fe0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-highlight: var(--highlight);
+  --color-success: var(--success);
+  --color-error: var(--error);
+
+  --font-sans: var(--font-sans), var(--font-sans-fallback);
+  --font-mono: var(--font-geist-mono), var(--font-mono-fallback);
+  --font-display: var(--font-display), var(--font-sans-fallback);
+
+  /* Type scale — every non-default size below is a named step, not an
+     arbitrary value, so text-3xs/text-2xs/text-4xs replace one-off
+     text-[10px]/text-[11px]/text-[9px] utilities across the app. */
+  --text-4xs: 0.5625rem;
+  --text-4xs--line-height: 0.75rem;
+  --text-3xs: 0.625rem;
+  --text-3xs--line-height: 0.875rem;
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+
+body {
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+}
+
+/* ── Page transition progress bar ───────────────────────────────────── */
+@keyframes nav-start {
+  /* Grows from nothing to ~80%, slowing down to signal "waiting" */
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(0.82); }
+}
+@keyframes nav-complete {
+  from { transform: scaleX(0.82); opacity: 1; }
+  to   { transform: scaleX(1);    opacity: 0; }
+}
+.nav-progress-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--primary);
+  transform-origin: left;
+  /* One step above the navbar/bottom-nav's z-50 (their highest layer),
+     so the progress bar reads above chrome without an arbitrary max value. */
+  z-index: 51;
+  pointer-events: none;
+}
+.nav-progress-bar[data-state="loading"] {
+  animation: nav-start 6s cubic-bezier(0.1, 0.05, 0, 1) forwards;
+}
+.nav-progress-bar[data-state="complete"] {
+  animation: nav-complete 0.35s ease-out forwards;
+}
+
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.6) translateY(4px); }
+  60% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes gentle-bounce {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-3px); }
+  50% { transform: translateY(0); }
+  70% { transform: translateY(-1px); }
+}
+@keyframes shake-x {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+.animate-shake-x { animation: shake-x 0.4s ease-out both; }
+@keyframes fade-slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Slower, more perceptible entrance for a whole lesson step swapping in —
+   fade-slide-up's 0.5s/10px reads as a near-instant flash-cut at this
+   scale (a full step's content, not a small inline reveal), especially
+   since the outgoing step has no exit animation at all. */
+@keyframes step-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary) 0%, transparent); }
+}
+
+.animate-pop-in { animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* Springy hover-lift for dashboard cards — overshoot curve so the lift
+   feels physical rather than linear. */
+.card-lift {
+  transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.35s ease;
+}
+.card-lift:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 8px 24px -12px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+/* Subtle film-grain overlay for flat colour panels (the subject cards that
+   used to be gradients) so removing the gradient doesn't read as dead-flat.
+   SVG feTurbulence noise, applied as a low-opacity background layer. */
+.grain-overlay {
+  position: relative;
+}
+.grain-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: 0.16;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.animate-bounce-once { animation: gentle-bounce 0.5s ease-out both; }
+.animate-fade-slide-up { animation: fade-slide-up 0.5s ease-out both; }
+.animate-step-in { animation: step-in 0.75s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-glow-pulse { animation: glow-pulse 1.6s ease-out 1; }
+
+/* AI lesson visuals — embed markup arrives with no classes or inline styles
+   (enforced by lib/lesson-sanitize.ts), so all appearance for the allowed
+   tags lives here. The --color-* aliases are re-declared because AI SVGs
+   reference them directly and @theme inline doesn't guarantee they exist
+   at runtime. */
+.lesson-embed {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-highlight: var(--highlight);
+  --color-success: var(--success);
+  --color-error: var(--error);
+
+  font-size: 0.875rem;
+  color: var(--foreground);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.lesson-embed svg {
+  display: block;
+  margin-inline: auto;
+  max-width: 100%;
+  height: auto;
+  color: var(--foreground);
+}
+.lesson-embed table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.lesson-embed th,
+.lesson-embed td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.lesson-embed thead th {
+  background: var(--surface);
+  font-weight: 600;
+}
+.lesson-embed ul { list-style: disc; padding-left: 1.25rem; }
+.lesson-embed ol { list-style: decimal; padding-left: 1.25rem; }
+.lesson-embed blockquote {
+  border-left: 3px solid var(--primary);
+  background: var(--surface);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: var(--muted);
+}
+.lesson-embed code {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.8125rem;
+  background: var(--surface);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+}
+.lesson-embed pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  overflow-x: auto;
+}
+.lesson-embed h4 { font-weight: 600; }
+.lesson-embed figcaption,
+.lesson-embed .lesson-embed-caption {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+}
+.lesson-embed img {
+  display: block;
+  margin-inline: auto;
+  max-width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop-in, .animate-bounce-once, .animate-fade-slide-up, .animate-step-in, .animate-glow-pulse, .animate-shake-x {
+    animation: none !important;
+  }
+}
+
+/* ─── Dark mode tokens (shared between media query and .dark class) ─────── */
+/* Keep in sync: any change here must be mirrored in the .dark block below. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* App-specific tokens */
+    --surface: #1f1a15;
+    --border: oklch(1 0 0 / 10%);
+    --muted: #a69c90;
+    --highlight: #ffc24d;
+    --success: #3ddc84;
+    --error: #ff5c5c;
+
+    /* shadcn standard tokens — dark */
+    --background: #17130f;
+    --foreground: #f5f1eb;
+    --primary: #534fe0;
+    --primary-foreground: #ffffff;
+    --secondary: #ff8a78;
+    --secondary-foreground: #1a1512;
+    --card: #1f1a15;
+    --card-foreground: #f5f1eb;
+    --popover: #1f1a15;
+    --popover-foreground: #f5f1eb;
+    --muted-foreground: #a69c90;
+    --accent: #2a241d;
+    --accent-foreground: #f5f1eb;
+    --destructive: #ff5c5c;
+    --input: oklch(1 0 0 / 15%);
+    --ring: #534fe0;
+    --sidebar: #1f1a15;
+    --sidebar-foreground: #f5f1eb;
+    --sidebar-primary: #534fe0;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #2a241d;
+    --sidebar-accent-foreground: #f5f1eb;
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: #534fe0;
+  }
+}
+
+/* Class-based override — same values, lets a future theme toggle win over
+   OS preference without requiring a full page reload. */
+.dark {
+  --surface: #1f1a15;
+  --border: oklch(1 0 0 / 10%);
+  --muted: #a69c90;
+  --highlight: #ffc24d;
+  --success: #3ddc84;
+  --error: #ff5c5c;
+
+  --background: #17130f;
+  --foreground: #f5f1eb;
+  --primary: #534fe0;
+  --primary-foreground: #ffffff;
+  --secondary: #ff8a78;
+  --secondary-foreground: #1a1512;
+  --card: #1f1a15;
+  --card-foreground: #f5f1eb;
+  --popover: #1f1a15;
+  --popover-foreground: #f5f1eb;
+  --muted-foreground: #a69c90;
+  --accent: #2a241d;
+  --accent-foreground: #f5f1eb;
+  --destructive: #ff5c5c;
+  --input: oklch(1 0 0 / 15%);
+  --ring: #534fe0;
+  --chart-1: oklch(0.828 0.111 230.318);
+  --chart-2: oklch(0.685 0.169 237.323);
+  --chart-3: oklch(0.588 0.158 241.966);
+  --chart-4: oklch(0.5 0.134 242.749);
+  --chart-5: oklch(0.443 0.11 240.79);
+  --sidebar: #1f1a15;
+  --sidebar-foreground: #f5f1eb;
+  --sidebar-primary: #534fe0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2a241d;
+  --sidebar-accent-foreground: #f5f1eb;
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: #534fe0;
+}
+
+/* Fullscreen lesson mode — hides the app navbar */
+.lesson-mode header {
+  display: none !important;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  /* Zero-specificity default keyboard-focus ring, themed from the brand
+     accent instead of the browser's default blue. Any component that sets
+     its own focus-visible ring/outline (Button, OptionButton, etc.) still
+     wins outright, since even a single utility class outranks :where(). This
+     exists so the many raw <button>/<a> elements across quiz interactives,
+     admin tables, and teacher forms that never defined their own focus
+     state still get one, instead of being invisible to keyboard users. */
+  :where(button, a, [role="button"], input, select, textarea, summary):focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 30%, transparent);
+    color: var(--foreground);
+  }
+  html {
+    scrollbar-color: var(--border) transparent;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+}
