@@ -1,4 +1,5 @@
 import "server-only";
+import { encode } from "@toon-format/toon";
 import { chatJson, hackClubFetch, type ProviderConfig } from "./client";
 import type { MarkPoint } from "./questions";
 
@@ -110,19 +111,24 @@ export async function markAnswersBatch(
     required: ["results"],
   };
 
+  // TOON instead of hand-built prompt text: items is a uniform array of
+  // flat objects (markscheme points joined into one string, rather than a
+  // nested array, so the whole table stays tabular) — TOON's best case,
+  // 30-60% fewer tokens than the JSON/prose equivalent for this shape.
+  const encoded = encode({
+    items: items.map((item) => ({
+      questionId: item.questionId,
+      question: item.question,
+      markscheme: item.markscheme.map((m, i) => `${i + 1}. ${m.point}`).join(" | "),
+      studentAnswer: item.studentAnswer,
+    })),
+  });
+
   const prompt =
     `You are marking GCSE diagnostic answers strictly to each question's markscheme. ` +
-    `For each question, evaluate every markscheme point and say whether the student's ` +
-    `answer meets it. Respond with the questionId exactly as given.\n\n` +
-    items
-      .map(
-        (item) =>
-          `---\nquestionId: ${item.questionId}\n` +
-          `Question: ${item.question}\n` +
-          `Markscheme:\n${item.markscheme.map((m, i) => `${i + 1}. ${m.point}`).join("\n")}\n` +
-          `Student answer: ${item.studentAnswer}`
-      )
-      .join("\n\n");
+    `For each question, evaluate every markscheme point (given as "1. ... | 2. ...") ` +
+    `and say whether the student's answer meets it. Respond with the questionId exactly ` +
+    `as given.\n\nData (TOON format):\n${encoded}`;
 
   const parsed = await chatJson<{ results: Array<{ questionId: string; feedback: PointFeedback[] }> }>(
     prompt,

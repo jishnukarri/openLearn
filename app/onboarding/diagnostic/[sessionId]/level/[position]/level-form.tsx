@@ -34,11 +34,17 @@ export function LevelForm({
   position,
   isLast,
   question,
+  action = submitDiagnosticLevelAction,
+  backHref,
 }: {
   sessionId: string;
   position: number;
   isLast: boolean;
   question: ClientDiagnosticQuestion;
+  // Guest diagnostics (no account yet) submit through a different action
+  // and live under a different URL — see app/start/diagnostic/*.
+  action?: (formData: FormData) => void | Promise<void>;
+  backHref?: string;
 }) {
   const [mcqIndex, setMcqIndex] = useState<number | null>(null);
   const [blankText, setBlankText] = useState("");
@@ -69,7 +75,7 @@ export function LevelForm({
             : false;
 
   return (
-    <form action={submitDiagnosticLevelAction} className="flex flex-col gap-5">
+    <form action={action} className="flex flex-col gap-5">
       <PendingOverlay isLast={isLast} />
       <input type="hidden" name="sessionId" value={sessionId} />
       <input type="hidden" name="position" value={position} />
@@ -151,7 +157,7 @@ export function LevelForm({
       <div className="flex items-center gap-2">
         {position > 0 && (
           <Link
-            href={`/onboarding/diagnostic/${sessionId}/level/${position - 1}`}
+            href={backHref ?? `/onboarding/diagnostic/${sessionId}/level/${position - 1}`}
             className="rounded-lg border border-border px-4 py-3 text-sm font-medium text-muted transition-colors hover:border-primary hover:text-foreground"
           >
             ← Back

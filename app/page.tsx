@@ -34,7 +34,7 @@ export default async function Home() {
             style={{ animationDelay: "200ms" }}
             className="animate-fade-slide-up mt-8 flex flex-col items-center gap-3"
           >
-            <ButtonLink href="/signup">Join now</ButtonLink>
+            <ButtonLink href="/start">Join now</ButtonLink>
             <ButtonLink
               href="/login"
               variant="secondary"
@@ -66,7 +66,7 @@ export default async function Home() {
           Ready to see your own work marked this way?
         </h2>
         <div className="mt-6 flex flex-col items-center gap-3">
-          <ButtonLink href="/signup">Join now</ButtonLink>
+          <ButtonLink href="/start">Join now</ButtonLink>
           <ButtonLink
             href="/login"
             variant="secondary"

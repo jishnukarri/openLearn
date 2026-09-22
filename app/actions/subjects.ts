@@ -21,6 +21,8 @@ import {
 import { generateTopicsForSubject, generateSingleTopic } from "@/lib/ai/topics";
 import { generateLesson, tweakLesson } from "@/lib/ai/lessons";
 import { resolveProviderConfig } from "@/lib/ai/client";
+import { generateTopicDiagnosticPool } from "@/lib/ai/diagnostic-pool";
+import { saveTopicDiagnosticPool } from "@/lib/supabase/topic-diagnostic-questions";
 import {
   createTopics,
   createCustomTopic,
@@ -218,12 +220,32 @@ export async function generateTopicsAction(formData: FormData): Promise<void> {
     created = await createTopics(subjectId, generated);
   }
 
-  await Promise.allSettled(created.map((t) => pregenerateTopicContent(t.id, profile.id)));
+  await Promise.allSettled([
+    ...created.map((t) => pregenerateTopicContent(t.id, profile.id)),
+    ...created.map((t) => pregenerateDiagnosticPool(t.id, t.name, subject.name, profile.id)),
+  ]);
 
   revalidatePath("/admin/subjects");
   revalidatePath("/admin/subjects/[subjectId]", "page");
   revalidatePath("/teacher/subjects");
   revalidatePath("/teacher/subjects/[subjectId]", "page");
+}
+
+// Admin-time cost, paid once per topic: a bank of 10 diagnostic questions
+// the guest-onboarding flow samples from later at zero marginal AI cost
+// (see lib/supabase/topic-diagnostic-questions.ts). Failure here shouldn't
+// block topic creation — a topic without a pool just isn't offered in the
+// guest diagnostic yet, same "don't block on this" posture as lesson
+// pregeneration.
+async function pregenerateDiagnosticPool(
+  topicId: string,
+  topicName: string,
+  subjectName: string,
+  profileId: string
+): Promise<void> {
+  const config = await resolveProviderConfig(profileId);
+  const questions = await generateTopicDiagnosticPool(topicName, subjectName, config);
+  await saveTopicDiagnosticPool(topicId, questions);
 }
 
 export async function generateSingleTopicAction(formData: FormData): Promise<void> {
@@ -252,7 +274,10 @@ export async function generateSingleTopicAction(formData: FormData): Promise<voi
     config
   );
   const [created] = await createTopics(subjectId, [generated], boardId);
-  await pregenerateTopicContent(created.id, profile.id);
+  await Promise.allSettled([
+    pregenerateTopicContent(created.id, profile.id),
+    pregenerateDiagnosticPool(created.id, created.name, subject.name, profile.id),
+  ]);
 
   revalidatePath("/admin/subjects");
   revalidatePath("/admin/subjects/[subjectId]", "page");

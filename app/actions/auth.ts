@@ -13,6 +13,8 @@ import { SESSION_COOKIE } from "@/lib/appwrite/session";
 import { createProfile, getProfileByAppwriteId } from "@/lib/supabase/profiles";
 import { roleHome } from "@/lib/roles";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getGuestToken, clearGuestToken } from "@/lib/guest-session";
+import { getActiveGuestSession, convertGuestSession, buildKnowledgeModel } from "@/lib/supabase/diagnostic";
 
 export type AuthFormState =
   | {
@@ -68,6 +70,7 @@ export async function signup(
   const { name, email, password } = validated.data;
 
   const isTeacher = formData.get("isTeacher") === "1";
+  let profileId: string;
 
   try {
     const users = createServerUsers();
@@ -80,17 +83,37 @@ export async function signup(
     const session = await users.createSession({ userId: user.$id });
     await setSessionCookie(session.secret, session.expire);
 
-    await createProfile({
+    const profile = await createProfile({
       appwriteUserId: user.$id,
       email,
       fullName: name,
       role: isTeacher ? "pending_teacher" : "student",
     });
+    profileId = profile.id;
   } catch {
     // Generic message for all failures, including "email already exists"
     // (Appwrite 409) — a distinct message here would let an attacker
     // enumerate registered emails.
     return { message: "Something went wrong creating your account." };
+  }
+
+  // A student who did the guest diagnostic before signing up gets it
+  // attached as their real onboarding diagnostic instead of starting over —
+  // their effort isn't thrown away just because they created an account
+  // after, not before, doing the work. Outside the try/catch: redirect()
+  // works by throwing, which the catch above would otherwise swallow into
+  // a false "something went wrong" after the account was actually created.
+  if (!isTeacher) {
+    const guestToken = await getGuestToken();
+    if (guestToken) {
+      const guestSession = await getActiveGuestSession(guestToken);
+      if (guestSession) {
+        await convertGuestSession(guestSession.id, profileId);
+        await buildKnowledgeModel(guestSession.id, profileId);
+        await clearGuestToken();
+        redirect(`/onboarding/diagnostic/${guestSession.id}/results`);
+      }
+    }
   }
 
   redirect(isTeacher ? "/pending-approval" : "/onboarding");

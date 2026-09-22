@@ -14,6 +14,7 @@
     "@google/genai": "^2.16.0",
     "@react-spring/web": "^10.1.2",
     "@supabase/supabase-js": "^2.112.2",
+    "@toon-format/toon": "^4.1.1",
     "@uiw/react-md-editor": "^4.1.1",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",

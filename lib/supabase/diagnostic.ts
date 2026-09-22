@@ -22,15 +22,23 @@ export type DiagnosticQuestion = {
 };
 
 export async function createDiagnosticSession(input: {
-  studentId: string;
+  studentId?: string;
+  guestToken?: string;
   mode: "fresh" | "recap";
   questions: GeneratedDiagnosticQuestion[];
   subjectNameToId: Map<string, string>;
 }): Promise<string> {
+  if (!input.studentId && !input.guestToken) {
+    throw new Error("createDiagnosticSession needs either a studentId or a guestToken.");
+  }
 
   const { data: session, error: sessionError } = await db
     .from("diagnostic_sessions")
-    .insert({ student_id: input.studentId, mode: input.mode })
+    .insert({
+      student_id: input.studentId ?? null,
+      guest_token: input.guestToken ?? null,
+      mode: input.mode,
+    })
     .select("id")
     .single();
   if (sessionError) throw sessionError;
@@ -81,6 +89,44 @@ export async function createDiagnosticSession(input: {
   return session.id;
 }
 
+// Same shape as createDiagnosticSession, but for questions that already
+// exist (sampled from a topic's pre-generated pool) instead of freshly
+// AI-generated ones — used by the guest-onboarding diagnostic.
+export async function createDiagnosticSessionFromPool(input: {
+  guestToken: string;
+  questions: Array<{
+    subjectId: string;
+    topicName: string | null;
+    type: QuestionType;
+    prompt: string;
+    maxMarks: number;
+    content: DiagnosticQuestion["content"];
+  }>;
+}): Promise<string> {
+  const { data: session, error: sessionError } = await db
+    .from("diagnostic_sessions")
+    .insert({ guest_token: input.guestToken, mode: "fresh" })
+    .select("id")
+    .single();
+  if (sessionError) throw sessionError;
+
+  const rows = input.questions.map((q, i) => ({
+    session_id: session.id,
+    subject_id: q.subjectId,
+    topic_name: q.topicName,
+    type: q.type,
+    prompt: q.prompt,
+    max_marks: q.maxMarks,
+    content: q.content,
+    position: i,
+  }));
+
+  const { error: questionsError } = await db.from("diagnostic_questions").insert(rows);
+  if (questionsError) throw questionsError;
+
+  return session.id;
+}
+
 // Verifies a diagnostic session belongs to the given student before any
 // page or action reads/writes it — session IDs are plain UUIDs in the URL,
 // so without this check any logged-in student could view or answer
@@ -96,6 +142,63 @@ export async function isDiagnosticSessionOwner(
     .maybeSingle();
   if (error) throw error;
   return data?.student_id === studentId;
+}
+
+export async function isGuestSessionOwner(
+  sessionId: string,
+  guestToken: string
+): Promise<boolean> {
+  const { data, error } = await db
+    .from("diagnostic_sessions")
+    .select("guest_token")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (error) throw error;
+  return !!data?.guest_token && data.guest_token === guestToken;
+}
+
+// Finds this browser's in-progress guest session, if the 2-day window
+// hasn't lapsed — used to offer "continue where you left off?" on return.
+// An expired, never-converted row is deleted rather than reused.
+export async function getActiveGuestSession(
+  guestToken: string
+): Promise<{ id: string; createdAt: string } | null> {
+  const { data, error } = await db
+    .from("diagnostic_sessions")
+    .select("id, created_at, status")
+    .eq("guest_token", guestToken)
+    .eq("status", "active")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  const ageMs = Date.now() - new Date(data.created_at).getTime();
+  const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+  if (ageMs > twoDaysMs) {
+    await db.from("diagnostic_sessions").delete().eq("id", data.id);
+    return null;
+  }
+  return { id: data.id, createdAt: data.created_at };
+}
+
+export async function deleteDiagnosticSession(sessionId: string): Promise<void> {
+  const { error } = await db.from("diagnostic_sessions").delete().eq("id", sessionId);
+  if (error) throw error;
+}
+
+// Attaches a completed guest diagnostic to a brand-new account — the guest's
+// effort becomes their real onboarding diagnostic instead of being thrown
+// away. Caller still needs to run buildKnowledgeModel afterward (it needs a
+// real studentId, which this session didn't have until now).
+export async function convertGuestSession(
+  sessionId: string,
+  studentId: string
+): Promise<void> {
+  const { error } = await db
+    .from("diagnostic_sessions")
+    .update({ student_id: studentId, status: "converted" })
+    .eq("id", sessionId);
+  if (error) throw error;
 }
 
 export async function getDiagnosticQuestions(
