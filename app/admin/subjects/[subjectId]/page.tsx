@@ -469,6 +469,7 @@ export async function SubjectDetailPage({
                           <div className="mt-3 border-t border-border pt-3">
                             <AdminQuestionBankEditor
                               topicId={topic.id}
+                              topicName={topic.name}
                               initialQuestions={questionBanksByTopicId.get(topic.id) ?? []}
                             />
                           </div>
