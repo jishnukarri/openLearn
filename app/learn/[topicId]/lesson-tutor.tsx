@@ -1,15 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { X, Sparkles } from "lucide-react";
+import { Check, X, Sparkles } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 import { askLessonTutorAction } from "@/app/actions/lessons";
+import type { CoachTurn } from "@/lib/ai/lesson-tutor";
 
 const SUGGESTIONS = [
-  "Explain this more simply",
-  "Give me a hint",
-  "Check my understanding",
+  { label: "Quiz me", message: "Quiz me with a multiple-choice question on this step." },
+  { label: "Ask me a question", message: "Ask me a direct question on this step." },
+  { label: "Explain simply", message: "Explain this step more simply." },
+  { label: "Give me a hint", message: "Give me a hint for this step." },
 ];
+
+type Msg =
+  | { role: "student"; text: string }
+  | { role: "coach"; turn: CoachTurn; picked?: number };
 
 export function LessonTutor({
   topicId,
@@ -19,7 +25,7 @@ export function LessonTutor({
   context: string;
 }) {
   const [question, setQuestion] = useState("");
-  const [thread, setThread] = useState<{ q: string; a: string }[]>([]);
+  const [thread, setThread] = useState<Msg[]>([]);
   const [pendingQ, setPendingQ] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -33,13 +39,26 @@ export function LessonTutor({
     const trimmed = prompt.trim();
     if (!trimmed || isPending) return;
 
+    const history = thread.map((m) =>
+      m.role === "student"
+        ? { role: "student" as const, text: m.text }
+        : {
+            role: "coach" as const,
+            text:
+              m.turn.kind === "mcq"
+                ? `${m.turn.reply} Options: ${m.turn.options.join(" | ")}${m.picked !== undefined ? ` (student chose: ${m.turn.options[m.picked]})` : ""}`
+                : m.turn.reply,
+          }
+    );
+
     setQuestion("");
     setError(null);
     setPendingQ(trimmed);
+    setThread((t) => [...t, { role: "student", text: trimmed }]);
     startTransition(async () => {
       try {
-        const answer = await askLessonTutorAction({ topicId, context, question: trimmed });
-        setThread((t) => [...t, { q: trimmed, a: answer }]);
+        const turn = await askLessonTutorAction({ topicId, context, question: trimmed, history });
+        setThread((t) => [...t, { role: "coach", turn }]);
         if (!open) setHasUnseenReply(true);
       } catch {
         setError("I couldn't reach your study coach. Please try again.");
@@ -47,6 +66,12 @@ export function LessonTutor({
         setPendingQ(null);
       }
     });
+  }
+
+  function pick(msgIndex: number, optionIdx: number) {
+    setThread((t) =>
+      t.map((m, i) => (i === msgIndex && m.role === "coach" && m.picked === undefined ? { ...m, picked: optionIdx } : m))
+    );
   }
 
   return (
@@ -102,32 +127,71 @@ export function LessonTutor({
       <div className="mt-4 flex flex-wrap gap-2">
         {SUGGESTIONS.map((suggestion) => (
           <button
-            key={suggestion}
+            key={suggestion.label}
             type="button"
             disabled={isPending}
-            onClick={() => ask(suggestion)}
+            onClick={() => ask(suggestion.message)}
             className="rounded-full border border-border px-3 py-1.5 text-sm text-muted transition-colors hover:border-primary hover:text-foreground disabled:opacity-50"
           >
-            {suggestion}
+            {suggestion.label}
           </button>
         ))}
       </div>
 
       <div className="mt-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto text-sm leading-6" aria-live="polite">
         {thread.length === 0 && !pendingQ && (
-          <p className="text-muted">Stuck on this step? Tap a suggestion or ask your own question.</p>
+          <p className="text-muted">Stuck, or want to test yourself? Tap Quiz me, or ask your own question.</p>
         )}
-        {thread.map((m, i) => (
-          <div key={i} className="flex flex-col gap-2">
-            <p className="self-end rounded-2xl rounded-br-md bg-primary/15 px-3 py-2 text-foreground">{m.q}</p>
-            <p className="rounded-2xl rounded-bl-md bg-background px-3 py-2 text-foreground">{m.a}</p>
-          </div>
-        ))}
+        {thread.map((m, i) =>
+          m.role === "student" ? (
+            <p key={i} className="self-end rounded-2xl rounded-br-md bg-primary/15 px-3 py-2 text-foreground">{m.text}</p>
+          ) : m.turn.kind === "mcq" ? (
+            <div key={i} className="flex flex-col gap-2 rounded-2xl rounded-bl-md bg-background p-3">
+              <p className="font-medium text-foreground">{m.turn.reply}</p>
+              <div className="flex flex-col gap-1.5">
+                {m.turn.options.map((o, oi) => {
+                  const answered = m.picked !== undefined;
+                  const right = oi === m.turn.correctIndex;
+                  const chosen = m.picked === oi;
+                  return (
+                    <button
+                      key={oi}
+                      type="button"
+                      disabled={answered}
+                      onClick={() => pick(i, oi)}
+                      className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${
+                        !answered
+                          ? "border-border hover:border-primary"
+                          : right
+                            ? "border-success bg-success/10"
+                            : chosen
+                              ? "border-error bg-error/10"
+                              : "border-border opacity-60"
+                      }`}
+                    >
+                      <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-current text-xs">
+                        {answered && right ? <Check className="size-3" strokeWidth={3} /> : String.fromCharCode(65 + oi)}
+                      </span>
+                      <span className="text-foreground">{o}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {m.picked !== undefined && (
+                <p className="text-muted">
+                  <span className={m.picked === m.turn.correctIndex ? "font-semibold text-success" : "font-semibold text-error"}>
+                    {m.picked === m.turn.correctIndex ? "Correct. " : "Not quite. "}
+                  </span>
+                  {m.turn.explanation}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p key={i} className="rounded-2xl rounded-bl-md bg-background px-3 py-2 text-foreground">{m.turn.reply}</p>
+          )
+        )}
         {pendingQ && (
-          <div className="flex flex-col gap-2">
-            <p className="self-end rounded-2xl rounded-br-md bg-primary/15 px-3 py-2 text-foreground">{pendingQ}</p>
-            <p className="rounded-2xl rounded-bl-md bg-background px-3 py-2 text-muted">Thinking through this with you…</p>
-          </div>
+          <p className="rounded-2xl rounded-bl-md bg-background px-3 py-2 text-muted">Thinking…</p>
         )}
         {error && <p className="text-error">{error}</p>}
       </div>
@@ -146,7 +210,7 @@ export function LessonTutor({
           maxLength={500}
           disabled={isPending}
           onChange={(event) => setQuestion(event.target.value)}
-          placeholder="Ask about this step…"
+          placeholder="Ask, or type your answer…"
           className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
         />
         <button

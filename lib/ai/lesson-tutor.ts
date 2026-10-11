@@ -5,10 +5,24 @@ import { chatJson, type ProviderConfig } from "./client";
 const TUTOR_SCHEMA = {
   type: "object",
   properties: {
+    kind: { type: "string", enum: ["text", "mcq", "question"] },
     reply: { type: "string" },
+    options: { type: "array", items: { type: "string" } },
+    correctIndex: { type: "number" },
+    explanation: { type: "string" },
   },
-  required: ["reply"],
+  required: ["kind", "reply", "options", "correctIndex", "explanation"],
 };
+
+export type CoachTurn = {
+  kind: "text" | "mcq" | "question";
+  reply: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+};
+
+export type CoachHistoryItem = { role: "student" | "coach"; text: string };
 
 const REWRITE_SCHEMA = {
   type: "object",
@@ -20,27 +34,61 @@ const REWRITE_SCHEMA = {
   required: ["reply", "explanation", "example"],
 };
 
+// One turn of the study coach. It can answer, explain, hint, set a
+// multiple-choice question (kind "mcq", marked in the browser), or ask a
+// direct question the student types an answer to (kind "question"; their
+// next message arrives as the answer and is marked via the history).
 export async function askLessonTutor(
   topicName: string,
   subjectName: string,
   lessonContext: string,
-  question: string,
+  history: CoachHistoryItem[],
+  message: string,
   config: ProviderConfig
-): Promise<string> {
-  const result = await chatJson<{ reply: string }>(
-    `You are a warm, concise GCSE study coach helping a student while they ` +
-      `work through a lesson on "${topicName}" in ${subjectName}. The active ` +
-      `lesson step is:\n${lessonContext}\n\nThe student asks: "${question}"\n\n` +
-      `Answer only their question. Be encouraging, use plain English, and keep ` +
-      `the answer to 2-4 short sentences. Teach the idea rather than just ` +
-      `giving an answer. If they ask for a hint, give one useful next step and ` +
-      `do not reveal the final answer. Do not use markdown headings, lists, or ` +
-      `formatting symbols.`,
+): Promise<CoachTurn> {
+  const transcript = history
+    .slice(-8)
+    .map((h) => `${h.role === "student" ? "Student" : "Coach"}: ${h.text}`)
+    .join("\n");
+
+  const result = await chatJson<CoachTurn>(
+    `You are a friendly, sharp GCSE study coach. The student is working ` +
+      `through a lesson on "${topicName}" in ${subjectName}. The step on ` +
+      `screen is:\n${lessonContext}\n\n` +
+      (transcript ? `Conversation so far:\n${transcript}\n\n` : "") +
+      `Student now says: "${message}"\n\n` +
+      `Reply as JSON. Choose "kind":\n` +
+      `- "mcq": when they ask to be quizzed or tested, or want a multiple ` +
+      `choice question. Write one question about THIS step in "reply", 4 ` +
+      `plausible options in "options", the right one's 0-based "correctIndex", ` +
+      `and a 1-2 sentence "explanation" of why it is right.\n` +
+      `- "question": when they ask you to ask them something. Put one ` +
+      `direct, answerable question about this step in "reply" (options: [], ` +
+      `correctIndex: 0, explanation: ""). Their next message is their answer: ` +
+      `tell them if it is right, correct any mistake kindly, and say what ` +
+      `the full answer is.\n` +
+      `- "text": for everything else (explain, hint, their own question).\n\n` +
+      `Rules: stay at GCSE level and within what the step teaches (no A-level ` +
+      `ideas such as E=mc^2); questions must have one clearly correct answer. ` +
+      `Never ask the student to clarify what to explain; just explain ` +
+      `the step shown, in simpler words with an everyday example. "Check my ` +
+      `understanding" means ask a direct question (kind "question"). A hint ` +
+      `is one useful nudge that does not reveal the answer. Use plain ` +
+      `English, 2-4 short sentences for text, no markdown, headings or ` +
+      `lists. For "text" and "question" set options to [], correctIndex 0 ` +
+      `and explanation "" unless told otherwise.`,
     TUTOR_SCHEMA,
     config
   );
 
-  return result.reply.trim();
+  const kind = result.kind === "mcq" && (result.options?.length ?? 0) >= 2 ? "mcq" : result.kind === "question" ? "question" : "text";
+  return {
+    kind,
+    reply: (result.reply ?? "").trim(),
+    options: kind === "mcq" ? result.options.map((o) => String(o).trim()) : [],
+    correctIndex: kind === "mcq" ? Math.min(Math.max(0, Math.round(result.correctIndex ?? 0)), result.options.length - 1) : 0,
+    explanation: (result.explanation ?? "").trim(),
+  };
 }
 
 export async function rewriteLessonStep(

@@ -11,7 +11,7 @@ import {
   createLessonForSubtopic,
 } from "@/lib/supabase/lessons";
 import { generateLesson, tweakLesson } from "@/lib/ai/lessons";
-import { askLessonTutor, rewriteLessonStep, adaptNextSection } from "@/lib/ai/lesson-tutor";
+import { askLessonTutor, rewriteLessonStep, adaptNextSection, type CoachTurn, type CoachHistoryItem } from "@/lib/ai/lesson-tutor";
 import { explainAnswer } from "@/lib/ai/explain";
 import { resolveProviderConfig } from "@/lib/ai/client";
 import { finalizeLessonContent, resanitizeLessonContent } from "@/lib/lesson-finalize";
@@ -52,11 +52,13 @@ export async function askLessonTutorAction({
   topicId,
   context,
   question,
+  history = [],
 }: {
   topicId: string;
   context: string;
   question: string;
-}): Promise<string> {
+  history?: CoachHistoryItem[];
+}): Promise<CoachTurn> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
   if (question.trim().length === 0 || question.length > 500) {
     throw new Error("Please enter a question of up to 500 characters.");
@@ -70,6 +72,7 @@ export async function askLessonTutorAction({
     topic.name,
     topic.subject.name,
     context.slice(0, 4000),
+    history.slice(-8).map((h) => ({ role: h.role === "student" ? "student" : "coach", text: String(h.text).slice(0, 600) })),
     question.trim(),
     config
   );
@@ -278,13 +281,9 @@ export async function markOpenAnswerAction({
   const context = `Section: ${sectionHeading}. ${explanation}`.slice(0, 2000);
   const prompt = `MARKING TASK. You are a tutor. Mark this student answer out of 3 marks, GCSE standard.\n\nQuestion: ${question}\n\nModel answer (key points): ${explanation}\n\nStudent answer: "${answer}"\n\nStart with the marks like "2/3" then give specific feedback naming what was correct or missing, and the correct answer in 1 sentence. Be encouraging but accurate. Under 60 words.`;
 
-  const feedback = await askLessonTutor(
-    topic.name,
-    topic.subject.name,
-    context,
-    prompt,
-    config
-  );
+  const feedback = (
+    await askLessonTutor(topic.name, topic.subject.name, context, [], prompt, config)
+  ).reply;
 
   const match = feedback.match(/(\d)\/3/);
   const marks = match ? parseInt(match[1]) : Math.min(2, Math.ceil(answer.trim().length / 60));
