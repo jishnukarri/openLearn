@@ -14,7 +14,7 @@ export function CreateSubjectForm({ examBoards }: { examBoards: ExamBoard[] }) {
   return (
     <form
       action={action}
-      className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6"
+      className="flex flex-col gap-4"
     >
       <div className="flex flex-col gap-1.5">
         <label htmlFor="name" className="text-sm font-medium text-foreground">
@@ -47,7 +47,7 @@ export function CreateSubjectForm({ examBoards }: { examBoards: ExamBoard[] }) {
       </div>
 
       {state?.error && (
-        <p className="text-sm text-red-500">{state.error}</p>
+        <p className="text-sm text-error">{state.error}</p>
       )}
 
       <SubmitButton size="compact" className="self-start" pendingText="Creating…">

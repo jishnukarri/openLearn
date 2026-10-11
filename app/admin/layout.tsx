@@ -1,11 +1,12 @@
+import { BookOpen, Flag, Settings2, Users } from "lucide-react";
 import { requireRole } from "@/lib/appwrite/session";
 import { SidebarNav } from "@/components/sidebar-nav";
 
 const NAV_ITEMS = [
-  { href: "/admin/subjects", label: "Subjects" },
-  { href: "/admin/users", label: "Accounts" },
-  { href: "/admin/reports", label: "Reports" },
-  { href: "/admin/settings", label: "AI Settings" },
+  { href: "/admin/subjects", label: "Subjects", icon: <BookOpen /> },
+  { href: "/admin/users", label: "Accounts", icon: <Users /> },
+  { href: "/admin/reports", label: "Reports", icon: <Flag /> },
+  { href: "/admin/settings", label: "AI Settings", icon: <Settings2 /> },
 ];
 
 export default async function AdminLayout({
@@ -16,8 +17,8 @@ export default async function AdminLayout({
   await requireRole("admin");
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col sm:flex-row">
-      <SidebarNav items={NAV_ITEMS} />
+    <div className="mx-auto flex w-full max-w-7xl flex-col sm:flex-row">
+      <SidebarNav items={NAV_ITEMS} title="Admin" />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );

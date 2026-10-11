@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Check } from "lucide-react";
 import { Question } from "@/lib/supabase/questions";
 import { updateQuestionVerificationAction } from "@/app/actions/subjects";
 
@@ -50,20 +51,20 @@ export function AdminQuestionBankEditor({
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 sm:p-6">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">
-            Question Bank ({questions.length}/10)
+            Question bank ({questions.length}/10)
           </h3>
-          <p className="text-xs text-muted">
+          <p className="text-sm text-muted">
             Batch-generated 10-question bank across lesson sections.
           </p>
         </div>
       </div>
 
       {questions.length === 0 ? (
-        <p className="text-xs text-muted">No question bank generated yet for this topic.</p>
+        <p className="text-sm text-muted">No question bank generated yet for this topic.</p>
       ) : (
         <div className="flex flex-col gap-3">
           {questions.map((q, idx) => (
@@ -81,11 +82,11 @@ export function AdminQuestionBankEditor({
                     #{idx + 1} (Sec {q.section_index ?? 0})
                   </span>
                   {q.verified ? (
-                    <span className="rounded-full bg-success/20 px-2 py-0.5 text-3xs font-semibold text-success">
-                      ✓ Verified
+                    <span className="inline-flex items-center gap-1 rounded-full bg-success/20 px-2 py-0.5 text-xs font-semibold text-success">
+                      <Check className="size-2.5" strokeWidth={3} /> Verified
                     </span>
                   ) : (
-                    <span className="rounded-full bg-muted/20 px-2 py-0.5 text-3xs text-muted">
+                    <span className="rounded-full bg-muted/20 px-2 py-0.5 text-xs text-muted">
                       Unverified
                     </span>
                   )}
@@ -95,7 +96,7 @@ export function AdminQuestionBankEditor({
                   {editingId === q.id ? (
                     <button
                       onClick={() => handleSaveVerify(q.id, true)}
-                      className="rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-white hover:opacity-90"
+                      className="rounded-lg bg-primary px-3 py-1 text-sm font-semibold text-white hover:opacity-90"
                     >
                       Save &amp; Verify
                     </button>
@@ -103,17 +104,17 @@ export function AdminQuestionBankEditor({
                     <>
                       <button
                         onClick={() => handleStartEdit(q)}
-                        className="text-xs text-muted hover:text-foreground"
+                        className="text-sm text-muted hover:text-foreground"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleSaveVerify(q.id, !q.verified)}
-                        className={`text-xs font-medium ${
+                        className={`text-sm font-medium ${
                           q.verified ? "text-muted hover:text-error" : "text-success hover:underline"
                         }`}
                       >
-                        {q.verified ? "Unverify" : "Verify ✓"}
+                        {q.verified ? "Unverify" : "Verify"}
                       </button>
                     </>
                   )}
@@ -122,25 +123,27 @@ export function AdminQuestionBankEditor({
 
               {editingId === q.id ? (
                 <div className="flex flex-col gap-2 mt-2">
-                  <label className="text-2xs text-muted">Question Prompt:</label>
+                  <label htmlFor={`qp-${q.id}`} className="text-sm text-muted">Question prompt</label>
                   <textarea
+                    id={`qp-${q.id}`}
                     rows={2}
                     value={editPrompt}
                     onChange={(e) => setEditPrompt(e.target.value)}
-                    className="rounded-lg border border-border bg-surface p-2 text-xs text-foreground"
+                    className="rounded-lg border border-border bg-surface p-2 text-sm text-foreground"
                   />
-                  <label className="text-2xs text-muted">Model Answer:</label>
+                  <label htmlFor={`qa-${q.id}`} className="text-sm text-muted">Model answer</label>
                   <textarea
+                    id={`qa-${q.id}`}
                     rows={2}
                     value={editModelAnswer}
                     onChange={(e) => setEditModelAnswer(e.target.value)}
-                    className="rounded-lg border border-border bg-surface p-2 text-xs text-foreground"
+                    className="rounded-lg border border-border bg-surface p-2 text-sm text-foreground"
                   />
                 </div>
               ) : (
                 <>
-                  <p className="text-xs font-medium text-foreground">{q.prompt}</p>
-                  <p className="text-2xs text-muted">Model Answer: {q.model_answer}</p>
+                  <p className="text-sm font-medium text-foreground">{q.prompt}</p>
+                  <p className="text-sm text-muted">Model answer: {q.model_answer}</p>
                 </>
               )}
             </div>

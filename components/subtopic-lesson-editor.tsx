@@ -3,7 +3,7 @@
 import "@uiw/react-md-editor/markdown-editor.css";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { X, ImageIcon } from "lucide-react";
+import { X, ImageIcon, Pencil } from "lucide-react";
 import type { LessonCheck, LessonContent, LessonSection, LessonVisual } from "@/lib/ai/lessons";
 import { saveSubtopicLessonAction, uploadLessonImageAction } from "@/app/actions/lessons";
 import { Button } from "@/components/button";
@@ -59,7 +59,7 @@ function ImagePanel({
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-foreground">Section image</span>
         {imageVisual && (
-          <button type="button" onClick={() => onVisualChange(null)} className="text-2xs text-muted hover:text-error">
+          <button type="button" onClick={() => onVisualChange(null)} className="text-xs text-muted hover:text-error">
             Remove
           </button>
         )}
@@ -69,7 +69,7 @@ function ImagePanel({
         <div className="flex flex-col gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imageVisual.url} alt={imageVisual.alt || "Section image"} className="max-h-36 rounded-lg object-contain" />
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="self-start text-2xs text-muted underline hover:text-foreground">
+          <button type="button" onClick={() => fileInputRef.current?.click()} className="self-start text-xs text-muted underline hover:text-foreground">
             Replace
           </button>
         </div>
@@ -84,7 +84,7 @@ function ImagePanel({
             <>
               <ImageIcon className="size-5" strokeWidth={1.75} />
               <span>Click to upload image</span>
-              <span className="text-3xs">JPG · PNG · GIF · WebP, max 10 MB</span>
+              <span className="text-xs">JPG · PNG · GIF · WebP, max 10 MB</span>
             </>
           )}
         </button>
@@ -93,7 +93,7 @@ function ImagePanel({
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
 
-      {error && <p className="text-2xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-red-500">{error}</p>}
 
       {imageVisual && (
         <>
@@ -211,7 +211,7 @@ export function SubtopicLessonEditor({
           onClick={() => setOpen(true)}
           className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-primary/90 active:scale-95 transition-transform"
         >
-          <span>✏</span> Edit lesson
+          <Pencil className="size-4" strokeWidth={2} /> Edit lesson
         </button>
       </div>
 
@@ -258,7 +258,7 @@ export function SubtopicLessonEditor({
                 selectedSection === i ? "bg-primary text-white" : "text-muted hover:bg-background hover:text-foreground"
               }`}
             >
-              <span className="flex size-4 items-center justify-center rounded-full border border-current text-3xs">{i + 1}</span>
+              <span className="flex size-4 items-center justify-center rounded-full border border-current text-xs">{i + 1}</span>
               Section {i + 1}
             </button>
           ))}

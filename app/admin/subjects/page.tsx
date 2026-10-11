@@ -1,6 +1,8 @@
 import { requireRole } from "@/lib/appwrite/session";
 import { listSubjectSummaries, listExamBoards } from "@/lib/supabase/subjects";
 import { AdminSubjectGrid } from "@/components/admin-subject-grid";
+import { AsideBlock, PageHeader, PageShell } from "@/components/page-shell";
+import { Rise, Stagger } from "@/components/motion";
 import { CreateSubjectForm } from "./create-subject-form";
 import { AddExamBoardForm } from "./add-exam-board-form";
 
@@ -12,29 +14,54 @@ export default async function AdminSubjectsPage() {
     listExamBoards(),
   ]);
 
+  const publishedCount = subjects.filter((s) => s.status === "published").length;
+  const totalTopics = subjects.reduce((sum, s) => sum + s.topicCount, 0);
+
+  const overview = [
+    ["Subjects", subjects.length],
+    ["Published", publishedCount],
+    ["Exam boards", examBoards.length],
+    ["Total topics", totalTopics],
+  ] as const;
+
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-10 px-6 py-16">
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-foreground">
-          Subjects
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          Create a subject, add exam boards, paste a spec (optional), generate
-          topics, then publish. Lessons and a practice question generate
-          automatically as soon as each topic exists.
-        </p>
-      </div>
-
-      <CreateSubjectForm examBoards={examBoards} />
-
-      <AddExamBoardForm />
+    <PageShell
+      size="wide"
+      aside={
+        <>
+          <AsideBlock title="New subject">
+            <CreateSubjectForm examBoards={examBoards} />
+          </AsideBlock>
+          <AsideBlock title="Exam boards">
+            <AddExamBoardForm />
+          </AsideBlock>
+          <AsideBlock title="Content overview">
+            <dl className="flex flex-col gap-2">
+              {overview.map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between text-sm">
+                  <dt>{label}</dt>
+                  <dd className="font-[family-name:var(--font-mono)] text-foreground">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </AsideBlock>
+        </>
+      }
+    >
+      <PageHeader
+        title="Subjects"
+        description="Create a subject, add exam boards, paste a spec (optional), generate topics, then publish. Lessons and a practice question generate automatically as soon as each topic exists."
+      />
 
       {subjects.length === 0 ? (
-        <p className="text-sm text-muted">No subjects yet, add the first one above.</p>
+        <p className="text-sm text-muted">No subjects yet, add the first one in the panel.</p>
       ) : (
-        <AdminSubjectGrid initialSubjects={subjects} />
+        <Stagger>
+          <Rise>
+            <AdminSubjectGrid initialSubjects={subjects} />
+          </Rise>
+        </Stagger>
       )}
-    </main>
+    </PageShell>
   );
 }
-
