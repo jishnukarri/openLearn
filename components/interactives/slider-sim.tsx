@@ -98,22 +98,32 @@ export function SliderSim({ interactive, onContinue }: { interactive: Interactiv
               />
 
               {i === 0 && outcomes.length > 0 && (
-                <div className="relative">
-                  <div className="flex h-12 overflow-hidden rounded-xl border border-border">
+                <div className="flex flex-col gap-1.5">
+                  {/* Caret tracks the thumb: native range thumbs travel an
+                      inset track (~half a thumb in from each edge). */}
+                  <div className="relative h-2.5">
+                    <motion.span
+                      aria-hidden
+                      className="absolute top-0 -translate-x-1/2 border-x-[7px] border-t-[9px] border-x-transparent border-t-primary"
+                      animate={{ left: `calc(8px + (100% - 16px) * ${sp / 100})` }}
+                      transition={{ duration: 0.15, ease: EASE_OUT }}
+                    />
+                  </div>
+                  <div className="flex gap-1">
                     {outcomes.map((o, oi) => {
-                      const width = Math.max(0, Math.min(100, o.maxThreshold) - Math.max(0, o.minThreshold));
+                      const width = Math.max(1, Math.min(100, o.maxThreshold) - Math.max(0, o.minThreshold));
                       const active = oi === outcomeIdx;
                       const seen = found.has(oi);
                       return (
                         <div
                           key={oi}
-                          style={{ width: `${width}%` }}
-                          className={`flex items-center justify-center border-r border-border px-2 text-center text-sm font-medium transition-colors duration-200 last:border-r-0 ${
+                          style={{ flexGrow: width, flexBasis: 0 }}
+                          className={`flex h-12 min-w-0 items-center justify-center rounded-lg px-2 text-center text-sm font-medium transition-colors duration-200 ${
                             active
                               ? "bg-primary text-white"
                               : seen
                                 ? "bg-primary/15 text-foreground"
-                                : "bg-surface text-muted"
+                                : "border border-dashed border-border text-muted"
                           }`}
                         >
                           <span className="truncate">{seen || active ? o.label : "?"}</span>
@@ -121,12 +131,6 @@ export function SliderSim({ interactive, onContinue }: { interactive: Interactiv
                       );
                     })}
                   </div>
-                  <motion.span
-                    aria-hidden
-                    className="absolute -top-2 h-16 w-0.5 rounded-full bg-foreground"
-                    animate={{ left: `${sp}%` }}
-                    transition={{ duration: 0.15, ease: EASE_OUT }}
-                  />
                 </div>
               )}
 
