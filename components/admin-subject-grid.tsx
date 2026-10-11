@@ -65,13 +65,13 @@ export function AdminSubjectGrid({
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-4">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4">
         {initialSubjects.map((subject, i) => (
           <button
             type="button"
             key={subject.id}
             onClick={(e) => handleCardClick(subject, e.currentTarget)}
-            className={`card-lift flex min-h-40 cursor-pointer flex-col justify-between rounded-2xl p-5 text-left text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+            className={`card-lift flex min-h-56 cursor-pointer flex-col justify-between rounded-2xl p-5 text-left text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
               SUBJECT_COLOURS[i % SUBJECT_COLOURS.length]
             }`}
           >
@@ -90,7 +90,7 @@ export function AdminSubjectGrid({
               </span>
             </span>
             <span className="block w-full">
-              <span className="block font-[family-name:var(--font-display)] text-xl font-semibold">
+              <span className="block font-[family-name:var(--font-display)] text-3xl font-semibold leading-tight">
                 {subject.name}
               </span>
               <span className="mt-3 flex items-center justify-between text-sm text-white/85">
