@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { animated, useSpring, useTrail } from "@react-spring/web";
-import { X, AlertTriangle, MoreHorizontal } from "lucide-react";
+import { X, AlertTriangle, MoreHorizontal, Check, Trophy, PartyPopper, Puzzle, Sparkles, NotebookPen, Lightbulb } from "lucide-react";
 import type { LessonCheck, LessonSection, LessonInteractive } from "@/lib/ai/lessons";
 import { LessonInteractiveWidget } from "@/components/interactives/lesson-interactive";
 import { completeLessonAction, adaptNextSectionAction, markOpenAnswerAction } from "@/app/actions/lessons";
@@ -163,7 +163,7 @@ function ScrollHint() {
   if (!visible) return null;
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-10 flex justify-center">
-      <div className="animate-bounce rounded-full border border-border bg-surface/90 px-3 py-1.5 text-muted shadow-lg backdrop-blur-sm">
+      <div className="rounded-full border border-border bg-surface/90 px-3 py-1.5 text-muted shadow-lg backdrop-blur-sm">
         <MoreHorizontal className="size-4" strokeWidth={2} />
       </div>
     </div>
@@ -439,8 +439,8 @@ export function LessonPlayer({
         )}
 
         {/* ── Content ─────────────────────────────────────────────────── */}
-        <div className="mx-auto grid w-full max-w-[90rem] flex-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-          <div key={stepKey} className="animate-step-in">
+        <div className="mx-auto grid w-full max-w-[80rem] flex-1 gap-6 lg:gap-10 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+          <div key={stepKey} className="animate-step-in mx-auto w-full max-w-4xl">
 
             {/* ── Interactive pre-lesson widget ───────────────────────── */}
             {!isDone && step?.phase === "interactive" && interactive && (
@@ -453,13 +453,15 @@ export function LessonPlayer({
             {!isDone && step?.phase === "hook" && (
               <div className="w-full px-4 py-16 sm:px-6">
                 <div className="mx-auto flex max-w-lg flex-col items-center gap-6 rounded-2xl border border-border bg-surface p-8 text-center sm:p-12">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-4xl">🧩</div>
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <Puzzle className="size-8" strokeWidth={1.75} />
+                  </div>
                   {title && (
                     <div>
                       {subtitle && (
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted">{subtitle}</p>
+                        <p className="text-sm text-muted">{subtitle}</p>
                       )}
-                      <h1 className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
+                      <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold text-foreground sm:text-4xl">
                         {title}
                       </h1>
                     </div>
@@ -487,14 +489,16 @@ export function LessonPlayer({
                       {sec.heading}
                     </span>
                     {adaptedSections.has(step.sectionIndex) && (
-                      <span className="text-xs font-medium text-primary">✦ Adapted to your progress</span>
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                        <Sparkles className="size-3.5" strokeWidth={2} /> Adapted to your progress
+                      </span>
                     )}
                   </div>
 
                   <div className={`grid gap-8 ${hasVisual ? "lg:grid-cols-2 lg:items-start" : ""}`}>
                     {/* Left: explanation + example reveal */}
                     <div>
-                      <p className="text-lg leading-relaxed text-foreground">
+                      <p className="max-w-[65ch] text-lg leading-relaxed text-foreground">
                         <RichText text={sec.explanation} />
                       </p>
 
@@ -504,7 +508,7 @@ export function LessonPlayer({
                           onClick={() => setExampleRevealed(true)}
                           className="mt-6 inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
                         >
-                          📝 See a worked example →
+                          <NotebookPen className="size-4" strokeWidth={2} /> See a worked example →
                         </button>
                       ) : (
                         <div className="mt-6 animate-fade-slide-up rounded-xl border border-border bg-surface p-5">
@@ -554,7 +558,9 @@ export function LessonPlayer({
                           {sec.heading}
                         </span>
                         {adaptedSections.has(step.sectionIndex) && (
-                          <span className="text-xs font-medium text-primary">✦ Adapted</span>
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                            <Sparkles className="size-3.5" strokeWidth={2} /> Adapted
+                          </span>
                         )}
                       </div>
 
@@ -566,9 +572,9 @@ export function LessonPlayer({
                         <button
                           type="button"
                           onClick={() => setHintOpen(true)}
-                          className="self-start text-xs text-muted underline underline-offset-2 hover:text-foreground"
+                          className="inline-flex items-center gap-1 self-start text-xs text-muted underline underline-offset-2 hover:text-foreground"
                         >
-                          💡 Not sure? See a hint
+                          <Lightbulb className="size-3.5" strokeWidth={2} /> Not sure? See a hint
                         </button>
                       )}
                       {hintOpen && checkResult === null && (
@@ -613,7 +619,11 @@ export function LessonPlayer({
                               checkResult ? "bg-success text-white" : "bg-error text-white"
                             }`}
                           >
-                            {checkResult ? "✓" : "✗"}
+                            {checkResult ? (
+                              <Check className="size-4" strokeWidth={2.5} />
+                            ) : (
+                              <X className="size-4" strokeWidth={2.5} />
+                            )}
                           </span>
                           <span className={`text-sm font-semibold ${checkResult ? "text-success" : "text-error"}`}>
                             {checkResult ? "Correct!" : `Answer: ${getCorrectAnswerLabel(sec.check)}`}
@@ -730,8 +740,8 @@ export function LessonPlayer({
                           className="flex-1 rounded-xl border-2 border-error/30 bg-error/10 px-3 py-3 text-center transition-colors hover:bg-error/20"
                         >
                           <p className="text-sm font-semibold text-error">Hard</p>
-                          <p className="mt-0.5 text-3xs text-muted">see again soon</p>
-                          <p className="mt-1 font-[family-name:var(--font-mono)] text-3xs text-muted">1</p>
+                          <p className="mt-0.5 text-xs text-muted">see again soon</p>
+                          <p className="mt-1 font-[family-name:var(--font-mono)] text-xs text-muted">1</p>
                         </button>
                         <button
                           type="button"
@@ -739,8 +749,8 @@ export function LessonPlayer({
                           className="flex-1 rounded-xl border-2 border-primary/30 bg-primary/10 px-3 py-3 text-center transition-colors hover:bg-primary/20"
                         >
                           <p className="text-sm font-semibold text-primary">Good</p>
-                          <p className="mt-0.5 text-3xs text-muted">~1 day</p>
-                          <p className="mt-1 font-[family-name:var(--font-mono)] text-3xs text-muted">2</p>
+                          <p className="mt-0.5 text-xs text-muted">~1 day</p>
+                          <p className="mt-1 font-[family-name:var(--font-mono)] text-xs text-muted">2</p>
                         </button>
                         <button
                           type="button"
@@ -748,8 +758,8 @@ export function LessonPlayer({
                           className="flex-1 rounded-xl border-2 border-success/30 bg-success/10 px-3 py-3 text-center transition-colors hover:bg-success/20"
                         >
                           <p className="text-sm font-semibold text-success">Easy</p>
-                          <p className="mt-0.5 text-3xs text-muted">learned ✓</p>
-                          <p className="mt-1 font-[family-name:var(--font-mono)] text-3xs text-muted">3</p>
+                          <p className="mt-0.5 text-xs text-muted">learned</p>
+                          <p className="mt-1 font-[family-name:var(--font-mono)] text-xs text-muted">3</p>
                         </button>
                       </div>
                     </div>
@@ -897,8 +907,8 @@ export function LessonPlayer({
                           key={sec.heading}
                           className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3"
                         >
-                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/20 text-xs text-success">
-                            ✓
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/20 text-success">
+                            <Check className="size-3" strokeWidth={2.5} />
                           </span>
                           <div>
                             <p className="text-sm font-medium text-foreground">{sec.heading}</p>
@@ -1006,7 +1016,7 @@ function DoneCard({
   const trail = useTrail(3, {
     from: { opacity: 0, y: 16, scale: 0.95 },
     to: { opacity: 1, y: 0, scale: 1 },
-    config: springs.wobbly,
+    config: springs.gentle,
   });
 
   const xpSpring = useSpring({
@@ -1022,8 +1032,17 @@ function DoneCard({
         perfect ? "border-highlight/40 bg-highlight/10" : "border-success/30 bg-success/10"
       }`}
     >
-      <animated.div style={trail[0]} className="text-5xl">
-        {perfect ? "🏆" : "🎉"}
+      <animated.div
+        style={trail[0]}
+        className={`flex size-16 items-center justify-center rounded-full ${
+          perfect ? "bg-highlight/15 text-highlight" : "bg-success/15 text-success"
+        }`}
+      >
+        {perfect ? (
+          <Trophy className="size-9" strokeWidth={1.75} />
+        ) : (
+          <PartyPopper className="size-9" strokeWidth={1.75} />
+        )}
       </animated.div>
 
       <animated.p

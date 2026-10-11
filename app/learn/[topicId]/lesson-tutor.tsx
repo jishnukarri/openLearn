@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { X } from "lucide-react";
+import { X, Sparkles } from "lucide-react";
+import { BrandMark } from "@/components/brand-mark";
 import { askLessonTutorAction } from "@/app/actions/lessons";
 
 const SUGGESTIONS = [
@@ -53,11 +54,11 @@ export function LessonTutor({
           setHasUnseenReply(false);
         }}
         aria-label="Open your AI study coach"
-        className={`fixed bottom-5 right-5 z-40 flex size-14 items-center justify-center rounded-full bg-primary text-2xl text-white shadow-[0_8px_24px_-6px_var(--primary)] transition-transform hover:scale-105 active:scale-95 lg:hidden ${
+        className={`fixed bottom-5 right-5 z-40 flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-[0_8px_24px_-6px_var(--primary)] transition-transform hover:scale-105 active:scale-95 lg:hidden ${
           open ? "hidden" : "flex"
         }`}
       >
-        ✦
+        <Sparkles className="size-6" strokeWidth={1.75} />
         {hasUnseenReply && (
           <span className="absolute right-0 top-0 size-3.5 animate-pop-in rounded-full border-2 border-background bg-error" />
         )}
@@ -78,7 +79,7 @@ export function LessonTutor({
         } lg:sticky lg:top-6 lg:z-auto lg:block lg:inset-auto lg:max-h-none lg:shadow-none`}
       >
         <div className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-sm">✦</span>
+          <BrandMark size={28} />
           <div className="flex-1">
             <h2 className="text-sm font-semibold text-foreground">Your AI study coach</h2>
             <p className="text-xs text-muted">Here for this step of the lesson</p>

@@ -1,4 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { MotionConfig, motion } from "framer-motion";
+import { Trophy, Check, Play, Lock } from "lucide-react";
+import { EASE_OUT } from "@/components/motion";
 
 export type PathUnit = {
   id: string;
@@ -7,38 +12,26 @@ export type PathUnit = {
   diagnosticScore?: number | null;
 };
 
-const NODE = 64;
-const GAP = 108;
-const AMPLITUDE = 84;
+const NODE = 44;
 
-function LockIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <rect x="3" y="11" width="18" height="11" rx="2" />
-      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-    </svg>
-  );
-}
-
-// A small horizontal battery bar showing diagnostic strength (0–100%).
+// A small horizontal bar showing diagnostic strength (0-100%).
 // Only rendered when diagnosticScore is not null.
 function StrengthBattery({ score }: { score: number }) {
   const pct = Math.round(score * 100);
-  const color =
-    pct >= 80 ? "bg-success" : pct >= 50 ? "bg-highlight" : "bg-error";
+  const color = pct >= 80 ? "bg-success" : pct >= 50 ? "bg-highlight" : "bg-error";
   return (
-    <div className="flex items-center gap-1" title={`Diagnostic: ${pct}%`}>
-      <div className="relative h-2 w-10 overflow-hidden rounded-full bg-border">
+    <div className="flex items-center gap-2" title={`Diagnostic: ${pct}%`}>
+      <div className="relative h-1.5 w-16 overflow-hidden rounded-full bg-border">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-4xs text-muted">{pct}%</span>
+      <span className="text-xs text-muted">{pct}% diagnostic</span>
     </div>
   );
 }
 
-// A winding, Duolingo-style unit path: completed units are filled and
-// clickable, the next unit up is highlighted and clickable, everything
-// after that is locked until the student reaches it.
+// A vertical unit timeline: completed units are filled and clickable, the
+// next unit up is highlighted and clickable, everything after that is locked
+// until the student reaches it.
 export function SubjectPath({
   units,
   completedIds,
@@ -50,107 +43,98 @@ export function SubjectPath({
   const firstIncompleteIndex = units.findIndex((u) => !completed.has(u.id));
   const allDone = firstIncompleteIndex === -1;
 
-  const width = AMPLITUDE * 2 + NODE;
-  const height = units.length * GAP + NODE;
-
-  const centers = units.map((_, i) => ({
-    x: width / 2 + AMPLITUDE * Math.sin(i * 0.9),
-    y: i * GAP + NODE / 2,
-  }));
-
   return (
-    <div className="relative mx-auto" style={{ width, height: height + (allDone ? GAP : 0) }}>
-      <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
-        {centers.slice(1).map((c, i) => (
-          <line
-            key={i}
-            x1={centers[i].x}
-            y1={centers[i].y}
-            x2={c.x}
-            y2={c.y}
-            stroke="var(--border)"
-            strokeWidth={6}
-            strokeLinecap="round"
-          />
-        ))}
-      </svg>
+    <MotionConfig reducedMotion="user">
+      <ol className="relative flex flex-col">
+        {/* The drawn timeline spine, behind the nodes. */}
+        <motion.span
+          aria-hidden
+          initial={{ scaleY: 0 }}
+          animate={{ scaleY: 1 }}
+          transition={{ duration: 0.6, ease: EASE_OUT }}
+          style={{ left: NODE / 2 - 1, top: NODE / 2, bottom: NODE / 2 }}
+          className="absolute w-0.5 origin-top bg-border"
+        />
+        {units.map((unit, i) => {
+          const isDone = completed.has(unit.id);
+          const isCurrent = i === firstIncompleteIndex;
+          const isLocked = !isDone && !isCurrent;
 
-      {units.map((unit, i) => {
-        const isDone = completed.has(unit.id);
-        const isCurrent = i === firstIncompleteIndex;
-        const isLocked = !isDone && !isCurrent;
-        const center = centers[i];
-
-        const node = (
-          <div
-            style={{
-              width: NODE,
-              height: NODE,
-              left: center.x - NODE / 2,
-              top: center.y - NODE / 2,
-            }}
-            className={`animate-pop-in absolute flex flex-col items-center justify-center rounded-full border-4 text-lg font-bold transition-transform ${
-              isDone
-                ? "border-success bg-success text-white hover:-translate-y-1"
-                : isCurrent
-                  ? "border-primary bg-primary text-white shadow-[0_0_0_6px_color-mix(in_srgb,var(--primary)_25%,transparent)] hover:-translate-y-1"
-                  : "border-border bg-surface text-muted"
-            }`}
-          >
-            {isDone ? "★" : isLocked ? <LockIcon /> : "▶"}
-          </div>
-        );
-
-        return (
-          <div key={unit.id} className="group absolute" style={{ left: 0, top: 0 }}>
-            {isLocked ? (
-              node
-            ) : (
-              <Link href={unit.href} className="absolute" style={{ left: 0, top: 0 }}>
-                {node}
-              </Link>
-            )}
-            <div
-              style={{
-                left: center.x,
-                top: center.y + NODE / 2 + 6,
-                transform: "translateX(-50%)",
-                width: 150,
-              }}
-              className="absolute flex flex-col items-center gap-1"
+          const node = (
+            <span
+              style={{ width: NODE, height: NODE }}
+              className={`relative z-[1] flex shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                isDone
+                  ? "border-success bg-success text-white"
+                  : isCurrent
+                    ? "border-primary bg-primary text-white"
+                    : "border-border bg-background text-muted"
+              }`}
             >
-              <p
-                className={`text-center text-xs font-medium ${
-                  isLocked ? "text-muted" : "text-foreground"
-                }`}
-              >
-                {unit.name}
-              </p>
-              {unit.diagnosticScore != null && (
-                <StrengthBattery score={unit.diagnosticScore} />
+              {isDone ? (
+                <Check className="size-5" strokeWidth={2.5} aria-hidden />
+              ) : isLocked ? (
+                <Lock className="size-4" strokeWidth={2.2} aria-hidden />
+              ) : (
+                <Play className="size-5" strokeWidth={2} fill="currentColor" aria-hidden />
               )}
-            </div>
-          </div>
-        );
-      })}
+            </span>
+          );
 
-      {allDone && (
-        <div
-          style={{
-            left: width / 2 - NODE / 2,
-            top: units.length * GAP,
-          }}
-          className="animate-pop-in absolute flex flex-col items-center justify-center gap-1 text-center"
-        >
-          <div
-            style={{ width: NODE, height: NODE }}
-            className="flex items-center justify-center rounded-full border-4 border-highlight bg-highlight text-2xl text-white"
+          const label = (
+            <span className="flex min-w-0 flex-col gap-1">
+              <span className={`text-base font-medium ${isLocked ? "text-muted" : "text-foreground"}`}>
+                {unit.name}
+              </span>
+              <span className="text-sm text-muted">
+                {isDone ? "Complete" : isCurrent ? "Up next" : "Locked until you reach it"}
+              </span>
+              {unit.diagnosticScore != null && <StrengthBattery score={unit.diagnosticScore} />}
+            </span>
+          );
+
+          return (
+            <motion.li
+              key={unit.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: EASE_OUT, delay: 0.08 + Math.min(i, 8) * 0.05 }}
+            >
+              {isLocked ? (
+                <div className="flex items-start gap-4 py-3">
+                  {node}
+                  {label}
+                </div>
+              ) : (
+                <Link
+                  href={unit.href}
+                  className="group flex items-start gap-4 py-3 outline-none focus-visible:[&>span:first-child]:ring-2 focus-visible:[&>span:first-child]:ring-primary"
+                >
+                  {node}
+                  {label}
+                </Link>
+              )}
+            </motion.li>
+          );
+        })}
+
+        {allDone && units.length > 0 && (
+          <motion.li
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: EASE_OUT, delay: 0.5 }}
+            className="flex items-center gap-4 py-3"
           >
-            🏆
-          </div>
-          <p className="text-xs font-medium text-highlight">All units complete</p>
-        </div>
-      )}
-    </div>
+            <span
+              style={{ width: NODE, height: NODE }}
+              className="relative z-[1] flex shrink-0 items-center justify-center rounded-full bg-highlight text-white"
+            >
+              <Trophy className="size-5" strokeWidth={1.75} aria-hidden />
+            </span>
+            <span className="text-base font-medium text-highlight">All units complete</span>
+          </motion.li>
+        )}
+      </ol>
+    </MotionConfig>
   );
 }

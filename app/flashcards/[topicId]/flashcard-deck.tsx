@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { animated, useSpring } from "@react-spring/web";
+import { PartyPopper, ArrowLeft } from "lucide-react";
 import type { Flashcard } from "@/lib/ai/flashcards";
 import { springs, useReducedMotionSafe } from "@/lib/motion";
 import { Button, ButtonLink } from "@/components/button";
@@ -111,8 +112,9 @@ export function FlashcardDeck({
   if (done) {
     return (
       <div className="animate-pop-in flex flex-col items-center gap-4 rounded-2xl border border-success/40 bg-success/10 p-8 text-center">
+        <PartyPopper className="size-8 text-success" strokeWidth={1.75} />
         <p className="font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
-          Deck complete! 🎉
+          Deck complete!
         </p>
         <p className="text-sm text-muted">
           You went through all {total} cards. Come back tomorrow to review the ones scheduled for tomorrow.
@@ -133,11 +135,11 @@ export function FlashcardDeck({
   return (
     <div className="flex flex-col gap-6">
       <ProgressBar value={graduated.size} max={total} />
-      <p className="text-center text-xs text-muted">
+      <p className="text-sm text-muted">
         {graduated.size}/{total} learned · {queue.length} left
       </p>
 
-      <div className="relative h-64 [perspective:1000px]">
+      <div className="relative h-72 [perspective:1000px] lg:h-80">
         <animated.button
           type="button"
           onClick={() => setFlipped((f) => !f)}
@@ -145,18 +147,18 @@ export function FlashcardDeck({
           className="absolute inset-0 h-full w-full cursor-pointer rounded-2xl"
         >
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-surface p-6 text-center [backface-visibility:hidden]">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Term</p>
-            <p className="text-lg font-medium text-foreground">
+            <p className="text-sm font-medium text-muted">Term</p>
+            <p className="text-xl font-medium text-foreground lg:text-2xl">
               <RichText text={card.front} />
             </p>
-            <p className="mt-4 text-xs text-muted">Tap to flip</p>
+            <p className="mt-4 text-sm text-muted">Tap to flip</p>
           </div>
           <div
             style={{ transform: "rotateY(180deg)" }}
             className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 p-6 text-center [backface-visibility:hidden]"
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Answer</p>
-            <p className="text-lg font-medium text-foreground">
+            <p className="text-sm font-medium text-primary">Answer</p>
+            <p className="text-xl font-medium text-foreground lg:text-2xl">
               <RichText text={card.back} />
             </p>
           </div>
@@ -164,44 +166,44 @@ export function FlashcardDeck({
       </div>
 
       {flipped && (
-        <div className="animate-fade-slide-up flex flex-col items-center gap-3">
-          <p className="text-xs text-muted">How well did you know this?</p>
+        <div className="animate-fade-slide-up flex flex-col gap-3">
+          <p className="text-sm text-muted">How well did you know this?</p>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => rate(2)}
-              className="flex flex-col items-center gap-0.5 rounded-xl border border-error/40 bg-error/10 px-4 py-2.5 text-xs font-medium text-error hover:bg-error/20"
+              className="flex flex-col items-center gap-0.5 rounded-xl border border-error/40 bg-error/10 px-5 py-2.5 text-sm font-medium text-error hover:bg-error/20"
             >
               <span>Hard</span>
-              <span className="text-3xs font-normal opacity-70">see again soon</span>
+              <span className="text-xs font-normal opacity-70">see again soon</span>
             </button>
             <button
               type="button"
               onClick={() => rate(4)}
-              className="flex flex-col items-center gap-0.5 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 text-xs font-medium text-primary hover:bg-primary/20"
+              className="flex flex-col items-center gap-0.5 rounded-xl border border-primary/40 bg-primary/10 px-5 py-2.5 text-sm font-medium text-primary hover:bg-primary/20"
             >
               <span>Good</span>
-              <span className="text-3xs font-normal opacity-70">~{intervalDays}d</span>
+              <span className="text-xs font-normal opacity-70">~{intervalDays}d</span>
             </button>
             <button
               type="button"
               onClick={() => rate(5)}
-              className="flex flex-col items-center gap-0.5 rounded-xl border border-success/40 bg-success/10 px-4 py-2.5 text-xs font-medium text-success hover:bg-success/20"
+              className="flex flex-col items-center gap-0.5 rounded-xl border border-success/40 bg-success/10 px-5 py-2.5 text-sm font-medium text-success hover:bg-success/20"
             >
               <span>Easy</span>
-              <span className="text-3xs font-normal opacity-70">learned ✓</span>
+              <span className="text-xs font-normal opacity-70">learned</span>
             </button>
           </div>
           {lastInterval !== null && (
-            <p className="text-2xs text-muted">
+            <p className="text-sm text-muted">
               Last card: scheduled for review in ~{lastInterval} {lastInterval === 1 ? "day" : "days"}
             </p>
           )}
         </div>
       )}
 
-      <Link href={backHref} className="self-center text-xs text-muted hover:text-foreground">
-        ← Back to lesson
+      <Link href={backHref} className="inline-flex items-center gap-1.5 self-start text-sm text-muted hover:text-foreground">
+        <ArrowLeft className="size-4" strokeWidth={2} aria-hidden /> Back to lesson
       </Link>
     </div>
   );

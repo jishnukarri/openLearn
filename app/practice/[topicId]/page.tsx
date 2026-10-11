@@ -3,6 +3,7 @@ import { requireAnyRole } from "@/lib/appwrite/session";
 import { getTopic } from "@/lib/supabase/topics";
 import { resolveQuestionContent } from "@/lib/class-content";
 import { toClientFormat } from "@/lib/question-client";
+import { PageShell, PageHeader } from "@/components/page-shell";
 import { AnswerForm } from "./answer-form";
 import { BankPracticePlayer } from "./bank-player";
 import { ReportButton } from "@/components/report-button";
@@ -27,29 +28,22 @@ export default async function PracticePage({
     : null;
 
   return (
-    <main className="mx-auto flex max-w-4xl flex-col gap-8 px-6 py-16">
+    <PageShell size="wide">
       {profile.role !== "student" && (
-        <div className="rounded-xl border border-highlight/40 bg-highlight/10 px-4 py-2 text-xs text-highlight">
+        <div className="rounded-xl border border-highlight/40 bg-highlight/10 px-4 py-2 text-sm text-highlight">
           Previewing as {profile.role}, answers here won&apos;t earn XP.
         </div>
       )}
 
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-          {topic.subject.name} · {topic.name}
-        </p>
-        <h1 className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
-          Practice
-        </h1>
-      </div>
+      <PageHeader title="Practice" description={`${topic.subject.name} · ${topic.name}`} />
 
       {bank.length > 0 ? (
         <BankPracticePlayer bank={bank} topicId={topicId} />
       ) : fallbackQuestion ? (
         <>
           <div>
-            <h2 className="mt-2 text-lg text-foreground">{fallbackQuestion.prompt}</h2>
-            <p className="mt-1 font-[family-name:var(--font-mono)] text-xs text-highlight">
+            <h2 className="max-w-[65ch] text-xl text-foreground">{fallbackQuestion.prompt}</h2>
+            <p className="mt-1 font-[family-name:var(--font-mono)] text-sm text-highlight">
               {fallbackQuestion.max_marks} marks
             </p>
           </div>
@@ -66,6 +60,6 @@ export default async function PracticePage({
           />
         </>
       ) : null}
-    </main>
+    </PageShell>
   );
 }

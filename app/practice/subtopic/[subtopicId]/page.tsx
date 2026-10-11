@@ -3,6 +3,7 @@ import { requireAnyRole } from "@/lib/appwrite/session";
 import { getSubtopic } from "@/lib/supabase/topics";
 import { resolveQuestionForSubtopic } from "@/lib/subtopic-content";
 import { toClientFormat } from "@/lib/question-client";
+import { PageShell, PageHeader } from "@/components/page-shell";
 import { AnswerForm } from "../../[topicId]/answer-form";
 import { ReportButton } from "@/components/report-button";
 
@@ -20,22 +21,17 @@ export default async function SubtopicPracticePage({
   const question = await resolveQuestionForSubtopic(subtopic, profile.id);
 
   return (
-    <main className="mx-auto flex max-w-4xl flex-col gap-8 px-6 py-16">
+    <PageShell size="wide">
       {profile.role !== "student" && (
-        <div className="rounded-xl border border-highlight/40 bg-highlight/10 px-4 py-2 text-xs text-highlight">
+        <div className="rounded-xl border border-highlight/40 bg-highlight/10 px-4 py-2 text-sm text-highlight">
           Previewing as {profile.role}, answers here won&apos;t earn XP.
         </div>
       )}
+      <PageHeader title="Practice" description={`${subtopic.topic.subject.name} · ${subtopic.name}`} />
+
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-          {subtopic.topic.subject.name} · {subtopic.name}
-        </p>
-        <h1 className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
-          {question.prompt}
-        </h1>
-        <p className="mt-1 font-[family-name:var(--font-mono)] text-xs text-highlight">
-          {question.max_marks} marks
-        </p>
+        <h2 className="max-w-[65ch] text-xl text-foreground">{question.prompt}</h2>
+        <p className="mt-1 font-[family-name:var(--font-mono)] text-sm text-highlight">{question.max_marks} marks</p>
       </div>
 
       <ReportButton
@@ -52,6 +48,6 @@ export default async function SubtopicPracticePage({
         format={toClientFormat(question.format)}
         maxMarks={question.max_marks}
       />
-    </main>
+    </PageShell>
   );
 }

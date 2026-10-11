@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useActionState } from "react";
+import { Check, X, Trophy, Camera, CheckCircle2, LoaderCircle } from "lucide-react";
 import {
   submitBankAnswerAction,
   createBankSessionAction,
@@ -96,7 +97,7 @@ export function BankPracticePlayer({
   if (phase === "loading") {
     return (
       <div className="flex items-center gap-2 py-8 text-sm text-muted">
-        <span className="animate-spin">⟳</span> Starting practice session…
+        <LoaderCircle className="size-4 animate-spin" strokeWidth={2} /> Starting practice session…
       </div>
     );
   }
@@ -280,12 +281,23 @@ function QuestionForm({
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-      <form action={action} className="flex flex-1 flex-col gap-4">
+      <form action={action} className="flex flex-1 flex-col gap-4 rounded-2xl border border-border bg-surface p-6">
         <input type="hidden" name="topicId" value={topicId} />
         <input type="hidden" name="questionId" value={question.id} />
         <input type="hidden" name="answerPayload" value={JSON.stringify(payload)} />
         {sessionId && <input type="hidden" name="sessionId" value={sessionId} />}
         <input type="hidden" name="isRetry" value={String(isRetry)} />
+
+        {question.prompt && (
+          <div>
+            <p className="text-base font-medium text-foreground">
+              <RichText text={question.prompt} />
+            </p>
+            <p className="mt-1 font-[family-name:var(--font-mono)] text-xs text-highlight">
+              {question.max_marks} {question.max_marks === 1 ? "mark" : "marks"}
+            </p>
+          </div>
+        )}
 
         {format.type === "data-analysis" && (
           <div className="lesson-embed overflow-x-auto">
@@ -404,14 +416,15 @@ function QuestionForm({
             <button
               type="button"
               onClick={attachPhoto}
-              className="self-start text-sm font-medium text-primary hover:underline"
+              className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-primary hover:underline"
             >
-              📷 Attach a photo of your handwritten answer instead
+              <Camera className="size-4" strokeWidth={2} /> Attach a photo of your handwritten answer instead
             </button>
           ) : imagePaths.length > 0 ? (
             <div className="flex flex-col gap-2">
-              <p className="text-sm text-success">
-                ✓ {imagePaths.length} photo{imagePaths.length === 1 ? "" : "s"} attached
+              <p className="flex items-center gap-1.5 text-sm text-success">
+                <Check className="size-4 shrink-0" strokeWidth={2.5} />
+                {imagePaths.length} photo{imagePaths.length === 1 ? "" : "s"} attached
               </p>
               <div className="flex gap-2 overflow-x-auto">
                 {imageUrls.map((url, i) => (
@@ -490,8 +503,13 @@ function QuestionForm({
                     : "border-error/40 bg-error/10"
                 }`}
               >
-                <p className={point.met ? "text-success" : "text-error"}>
-                  {point.met ? "✓" : "✗"} <RichText text={point.point} />
+                <p className={`flex items-center gap-1.5 ${point.met ? "text-success" : "text-error"}`}>
+                  {point.met ? (
+                    <Check className="size-3.5 shrink-0" strokeWidth={2.5} />
+                  ) : (
+                    <X className="size-3.5 shrink-0" strokeWidth={2.5} />
+                  )}
+                  <RichText text={point.point} />
                 </p>
                 <p className="mt-1 text-xs text-muted">
                   <RichText text={point.comment} />
@@ -541,7 +559,7 @@ function MasteryScreen({
 }) {
   return (
     <div className="flex flex-col items-center gap-4 py-16 text-center">
-      <p className="text-5xl">🏆</p>
+      <Trophy className="size-12 text-highlight" strokeWidth={1.5} />
       <h2 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
         Mastery achieved!
       </h2>
@@ -567,7 +585,7 @@ function DoneScreen({
 }) {
   return (
     <div className="flex flex-col items-center gap-4 py-16 text-center">
-      <p className="text-5xl">✅</p>
+      <CheckCircle2 className="size-12 text-success" strokeWidth={1.5} />
       <h2 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
         Practice complete
       </h2>

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/appwrite/session";
 import { getUploadSession } from "@/lib/supabase/practice-uploads";
+import { PageShell, PageHeader } from "@/components/page-shell";
 import { UploadForm } from "./upload-form";
 
 // Standalone photo/PDF upload page for a practice answer, reached by
@@ -18,18 +19,13 @@ export default async function PracticeUploadPage({
   if (!session || session.studentId !== profile.id) notFound();
 
   return (
-    <main className="mx-auto flex max-w-md flex-col gap-6 px-6 py-16">
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
-          Upload your answer
-        </h1>
-        <p className="mt-2 text-sm text-muted">
-          Take a photo (or attach a PDF) of your handwritten answer. You can
-          add more than one page.
-        </p>
-      </div>
+    <PageShell size="focus">
+      <PageHeader
+        title="Upload your answer"
+        description="Take a photo (or attach a PDF) of your handwritten answer. You can add more than one page."
+      />
 
       <UploadForm uploadId={uploadId} />
-    </main>
+    </PageShell>
   );
 }

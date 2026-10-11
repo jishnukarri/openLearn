@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { Check, X, Camera } from "lucide-react";
 import {
   submitAnswerAction,
   newSimilarQuestionAction,
@@ -140,7 +141,7 @@ export function AnswerForm({
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-      <form action={action} className="flex flex-1 flex-col gap-4">
+      <form action={action} className="flex flex-1 flex-col gap-4 rounded-2xl border border-border bg-surface p-6">
         <input type="hidden" name="topicId" value={topicId} />
         <input type="hidden" name="questionId" value={questionId} />
         <input
@@ -269,14 +270,15 @@ export function AnswerForm({
             <button
               type="button"
               onClick={attachPhoto}
-              className="self-start text-sm font-medium text-primary hover:underline"
+              className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-primary hover:underline"
             >
-              📷 Attach a photo of your handwritten answer instead
+              <Camera className="size-4" strokeWidth={2} /> Attach a photo of your handwritten answer instead
             </button>
           ) : imagePaths.length > 0 ? (
             <div className="flex flex-col gap-2">
-              <p className="text-sm text-success">
-                ✓ {imagePaths.length} photo{imagePaths.length === 1 ? "" : "s"} attached, this
+              <p className="flex items-center gap-1.5 text-sm text-success">
+                <Check className="size-4 shrink-0" strokeWidth={2.5} />
+                {imagePaths.length} photo{imagePaths.length === 1 ? "" : "s"} attached, this
                 will be marked instead of anything typed above.
               </p>
               <div className="flex gap-2 overflow-x-auto">
@@ -359,7 +361,14 @@ export function AnswerForm({
                     point.met ? "animate-bounce-once" : ""
                   }`}
                 >
-                  {point.met ? "✓" : "✗"} <RichText text={point.point} />
+                  <span className="inline-flex items-center gap-1.5">
+                    {point.met ? (
+                      <Check className="size-3.5 shrink-0" strokeWidth={2.5} />
+                    ) : (
+                      <X className="size-3.5 shrink-0" strokeWidth={2.5} />
+                    )}
+                    <RichText text={point.point} />
+                  </span>
                 </p>
                 <p className="mt-1 text-xs text-muted">
                   <RichText text={point.comment} />

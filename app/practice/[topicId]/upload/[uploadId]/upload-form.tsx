@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { CheckCircle2 } from "lucide-react";
 import {
   uploadPracticeImagesAction,
   type UploadPageState,
@@ -16,7 +17,8 @@ export function UploadForm({ uploadId }: { uploadId: string }) {
   if (state?.success) {
     return (
       <div className="animate-pop-in rounded-2xl border border-success/40 bg-success/10 p-6 text-center">
-        <p className="text-lg font-semibold text-success">Uploaded ✓</p>
+        <CheckCircle2 className="mx-auto mb-2 size-8 text-success" strokeWidth={1.75} />
+        <p className="text-lg font-semibold text-success">Uploaded</p>
         <p className="mt-2 text-sm text-muted">
           If you scanned this from your computer, head back there now, your
           photo is already waiting on the practice page.
