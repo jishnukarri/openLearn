@@ -23,7 +23,7 @@ export function SidebarNav({
   return (
     <nav
       aria-label={title ?? "Section"}
-      className={`flex shrink-0 flex-col border-b border-border bg-surface sm:sticky sm:top-20 sm:h-[calc(100dvh-5rem)] sm:self-start sm:border-b-0 sm:border-r ${
+      className={`flex shrink-0 flex-col border-b border-border bg-surface sm:sticky sm:top-24 sm:m-4 sm:self-start sm:rounded-2xl sm:border ${
         hasIcons ? "sm:w-16 xl:w-56" : "sm:w-56"
       }`}
     >
