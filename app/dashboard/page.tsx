@@ -103,13 +103,13 @@ export default async function DashboardPage() {
         <ul className="grid grid-cols-2 gap-2">
           {continueTopic && (
             <>
-              <QuickTool href={`/learn/${continueTopic}`} icon={Sparkles} label="AI coach" />
-              <QuickTool href={`/practice/${continueTopic}`} icon={ClipboardCheck} label="Practice" />
-              <QuickTool href={`/flashcards/${continueTopic}`} icon={Layers} label="Flashcards" />
+              <QuickTool href={`/learn/${continueTopic}`} icon={Sparkles} label="AI coach" hint="Ask in a lesson" />
+              <QuickTool href={`/practice/${continueTopic}`} icon={ClipboardCheck} label="Practice" hint={continueName} />
+              <QuickTool href={`/flashcards/${continueTopic}`} icon={Layers} label="Flashcards" hint={continueName} />
             </>
           )}
-          <QuickTool href="/onboarding/diagnostic" icon={ListChecks} label="Diagnostic" />
-          <QuickTool href="/dashboard/add-subjects" icon={Plus} label="Subjects" />
+          <QuickTool href="/onboarding/diagnostic" icon={ListChecks} label="Diagnostic" hint="Find your gaps" />
+          <QuickTool href="/dashboard/add-subjects" icon={Plus} label="Add subjects" hint="Manage what you study" />
         </ul>
       </AsideBlock>
     </>
@@ -261,7 +261,7 @@ export default async function DashboardPage() {
   );
 }
 
-function QuickTool({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
+function QuickTool({ href, icon: Icon, label, hint }: { href: string; icon: LucideIcon; label: string; hint?: string }) {
   return (
     <li>
       <Link
@@ -269,7 +269,10 @@ function QuickTool({ href, icon: Icon, label }: { href: string; icon: LucideIcon
         className="flex h-full min-h-[4.5rem] flex-col justify-between gap-3 rounded-2xl border border-border bg-surface p-3.5 text-sm font-semibold text-foreground transition-colors hover:border-primary focus-visible:border-primary"
       >
         <Icon className="size-5 shrink-0 text-primary" strokeWidth={2} aria-hidden />
-        {label}
+        <span className="flex flex-col gap-0.5">
+          {label}
+          {hint && <span className="line-clamp-1 text-sm font-normal text-muted">{hint}</span>}
+        </span>
       </Link>
     </li>
   );
