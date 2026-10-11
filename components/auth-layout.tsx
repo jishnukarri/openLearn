@@ -1,13 +1,27 @@
+import { AuthShowcase } from "./auth-showcase";
+import { BrandMark } from "./brand-mark";
+
+// Desktop: a two-panel split, the product's marking promise on the left and
+// the form on the right. Mobile: just the form under the brand mark.
 export function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main className="relative flex min-h-[calc(100dvh-73px)] items-center justify-center overflow-hidden px-6 py-16">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-primary/20 blur-[120px]"
-      />
-      <div className="relative w-full max-w-sm rounded-2xl border border-border bg-surface p-8 shadow-2xl shadow-black/20">
-        {children}
-      </div>
+    <main className="grid min-h-[calc(100dvh-73px)] lg:grid-cols-2">
+      <section className="relative hidden items-center justify-center overflow-hidden border-r border-border bg-surface p-12 lg:flex">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -left-24 -top-24 size-[28rem] rounded-full bg-primary/15 blur-[120px]"
+        />
+        <div className="relative">
+          <AuthShowcase />
+        </div>
+      </section>
+
+      <section className="flex items-center justify-center px-6 py-14">
+        <div className="animate-fade-slide-up w-full max-w-sm">
+          <BrandMark size={40} className="mb-8 lg:hidden" />
+          {children}
+        </div>
+      </section>
     </main>
   );
 }
