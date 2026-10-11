@@ -41,17 +41,8 @@ export default async function DiagnosticIntroPage() {
 
   return (
     <main className="mx-auto flex max-w-xl flex-col gap-6 px-6 py-16">
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-foreground">
-          Quick knowledge check
-        </h1>
-        <p className="mt-2 text-sm text-muted">
-          A short quiz on {subjectNames}, helps us figure out what to
-          teach first instead of guessing.
-        </p>
-      </div>
-
       <DiagnosticForms
+        subjectNames={subjectNames}
         subjectCount={needing.length}
         hasFirstTopics={firstTopics.size > 0}
       />
