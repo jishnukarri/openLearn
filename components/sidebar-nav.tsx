@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BrandMark } from "@/components/brand-mark";
 
 type Item = { href: string; label: string; icon?: React.ReactNode };
 
@@ -27,22 +26,6 @@ export function SidebarNav({
         hasIcons ? "sm:w-16 xl:w-56" : "sm:w-56"
       }`}
     >
-      {title && (
-        <div
-          className={`flex items-center gap-2.5 px-4 pt-4 sm:pb-2 ${
-            hasIcons ? "sm:justify-center xl:justify-start" : ""
-          }`}
-        >
-          <BrandMark size={28} />
-          <span
-            className={`font-[family-name:var(--font-display)] text-lg font-semibold text-foreground ${
-              hasIcons ? "sm:sr-only xl:not-sr-only" : ""
-            }`}
-          >
-            {title}
-          </span>
-        </div>
-      )}
       <div className="flex gap-1 overflow-x-auto p-3 sm:flex-col sm:overflow-visible sm:p-3 xl:p-4">
         {items.map((item) => {
           const active =

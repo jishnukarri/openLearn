@@ -18,7 +18,7 @@ export default async function AdminLayout({
 
   return (
     <div data-fluid className="flex w-full flex-col sm:flex-row">
-      <SidebarNav items={NAV_ITEMS} title="Admin" />
+      <SidebarNav items={NAV_ITEMS} />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
