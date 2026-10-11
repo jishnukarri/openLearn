@@ -14,6 +14,7 @@ import { Button } from "@/components/button";
 import { RichText } from "@/components/rich-text";
 import { MatchingBoard } from "@/components/matching-board";
 import { ExplainBox } from "@/components/explain-box";
+import { AnswerEditor } from "@/components/answer-editor";
 import { MathAnswerComposer } from "@/components/math-answer-composer";
 import {
   createPracticeUploadSessionAction,
@@ -238,13 +239,10 @@ export function AnswerForm({
                   [{part.marks} {part.marks === 1 ? "mark" : "marks"}]
                 </span>
               </p>
-              <textarea
-                value={parts[i] ?? ""}
-                onChange={(e) =>
-                  setParts((p) => ({ ...p, [i]: e.target.value }))
-                }
-                rows={3}
-                className={inputClass}
+              <AnswerEditor
+                label={`Answer for part (${part.label})`}
+                minRows={3}
+                onChange={(v) => setParts((p) => ({ ...p, [i]: v }))}
               />
             </div>
           ))}
@@ -252,16 +250,14 @@ export function AnswerForm({
         {(format.type === "extended" ||
           format.type === "practical" ||
           format.type === "data-analysis") && (
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={6}
+          <AnswerEditor
+            onChange={setText}
+            minRows={format.type === "extended" ? 10 : 7}
             placeholder={
               format.type === "practical"
                 ? "Describe your method, variables, steps, risks..."
                 : "Write your answer..."
             }
-            className={inputClass}
           />
         )}
 
