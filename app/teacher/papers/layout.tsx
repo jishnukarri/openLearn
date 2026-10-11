@@ -13,7 +13,7 @@ export default function PapersLayout() {
       <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
         Papers is still being built
       </h1>
-      <p className="max-w-md text-sm text-muted">
+      <p className="max-w-md text-base text-muted">
         Uploading question papers, marking student submissions, and reviewing
         results here isn&apos;t ready to use yet. Come back once it&apos;s finished.
       </p>

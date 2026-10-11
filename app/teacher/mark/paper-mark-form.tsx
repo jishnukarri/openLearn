@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { AnimatePresence, MotionConfig, motion } from "framer-motion";
+import { Check, X } from "lucide-react";
+import { EASE_OUT } from "@/components/motion";
 import { markPaperAction, type MarkPaperResult } from "./actions";
 import { Button } from "@/components/button";
 import { AiLoading } from "@/components/ai-loading";
@@ -24,6 +27,7 @@ export function PaperMarkForm() {
   const pct = marksAvailable > 0 ? Math.round((marksAwarded / marksAvailable) * 100) : 0;
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="flex flex-col gap-8">
       {isPending && (
         <AiLoading
@@ -35,8 +39,9 @@ export function PaperMarkForm() {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-foreground">Question</label>
+          <label htmlFor="question" className="text-sm font-medium text-foreground">Question</label>
           <textarea
+            id="question"
             name="question"
             rows={3}
             required
@@ -46,11 +51,12 @@ export function PaperMarkForm() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-foreground">
+          <label htmlFor="markscheme" className="text-sm font-medium text-foreground">
             Markscheme points
-            <span className="ml-2 text-xs text-muted font-normal">one per line</span>
+            <span className="ml-2 text-sm font-normal text-muted">one per line</span>
           </label>
           <textarea
+            id="markscheme"
             name="markscheme"
             rows={5}
             required
@@ -60,18 +66,19 @@ export function PaperMarkForm() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-foreground">
+          <label htmlFor="images" className="text-sm font-medium text-foreground">
             Answer image(s) or PDF
           </label>
           <input
+            id="images"
             type="file"
             name="images"
             accept="image/*,.pdf"
             multiple
             required
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white"
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
           />
-          <p className="text-xs text-muted">Accepts JPG, PNG, HEIC, PDF. Add multiple pages if needed.</p>
+          <p className="text-sm text-muted">Accepts JPG, PNG, HEIC, PDF. Add multiple pages if needed.</p>
         </div>
 
         <Button type="submit" disabled={isPending}>
@@ -79,18 +86,34 @@ export function PaperMarkForm() {
         </Button>
       </form>
 
+      <AnimatePresence>
       {result && !result.ok && (
-        <div className="rounded-xl border border-error/40 bg-error/10 px-4 py-3 text-sm text-error">
+        <motion.div
+          key="error"
+          role="alert"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2, ease: EASE_OUT }}
+          className="rounded-xl border border-error/40 bg-error/10 px-4 py-3 text-sm text-error"
+        >
           {result.error}
-        </div>
+        </motion.div>
       )}
 
       {result?.ok && (
-        <div className="flex flex-col gap-4">
+        <motion.div
+          key="result"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3, ease: EASE_OUT }}
+          className="flex flex-col gap-4"
+        >
           <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4">
             <div>
               <p className="text-sm font-medium text-foreground">Total score</p>
-              <p className="mt-0.5 text-xs text-muted">{pct}%, {marksAwarded} of {marksAvailable} marks</p>
+              <p className="mt-0.5 text-sm text-muted">{pct}%, {marksAwarded} of {marksAvailable} marks</p>
             </div>
             <div
               className={`flex h-14 w-14 items-center justify-center rounded-full border-4 text-lg font-bold ${
@@ -121,11 +144,11 @@ export function PaperMarkForm() {
                       f.met ? "bg-success/20 text-success" : "bg-error/20 text-error"
                     }`}
                   >
-                    {f.met ? "✓" : "✗"}
+                    {f.met ? <Check className="size-3" strokeWidth={2.5} /> : <X className="size-3" strokeWidth={2.5} />}
                   </span>
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-foreground">{f.point}</p>
-                    <p className="mt-1 text-xs text-muted">{f.comment}</p>
+                    <p className="text-sm font-medium text-foreground">{f.point}</p>
+                    <p className="mt-1 text-sm text-muted">{f.comment}</p>
                   </div>
                 </div>
               </div>
@@ -139,8 +162,10 @@ export function PaperMarkForm() {
           >
             Mark another paper
           </Button>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
+    </MotionConfig>
   );
 }

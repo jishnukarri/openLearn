@@ -64,7 +64,7 @@ export function PaperReviewForm({
       {questions.map((q, qIndex) => (
         <div key={qIndex} className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-5">
           <div className="flex items-center gap-3">
-            <label className="flex flex-col gap-1 text-xs text-muted">
+            <label className="flex flex-col gap-1 text-sm text-muted">
               Question #
               <input
                 type="number"
@@ -73,7 +73,7 @@ export function PaperReviewForm({
                 className="w-20 rounded-lg border border-border bg-background px-2 py-1 text-sm text-foreground"
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-muted">
+            <label className="flex flex-col gap-1 text-sm text-muted">
               Max marks
               <input
                 type="number"
@@ -84,7 +84,7 @@ export function PaperReviewForm({
             </label>
           </div>
 
-          <label className="flex flex-col gap-1 text-xs text-muted">
+          <label className="flex flex-col gap-1 text-sm text-muted">
             Prompt
             <textarea
               value={q.prompt}
@@ -95,18 +95,18 @@ export function PaperReviewForm({
           </label>
 
           <div className="flex flex-col gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted">Markscheme points</span>
+            <span className="text-sm font-medium text-foreground">Markscheme points</span>
             {q.markscheme.map((m, pIndex) => (
               <div key={pIndex} className="flex items-center gap-2">
                 <input
                   value={m.point}
                   onChange={(e) => updatePoint(qIndex, pIndex, e.target.value)}
-                  className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground"
+                  className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                 />
                 <button
                   type="button"
                   onClick={() => removePoint(qIndex, pIndex)}
-                  className="shrink-0 text-xs text-error hover:underline"
+                  className="shrink-0 text-sm text-error hover:underline"
                 >
                   Remove
                 </button>
@@ -115,7 +115,7 @@ export function PaperReviewForm({
             <button
               type="button"
               onClick={() => addPoint(qIndex)}
-              className="self-start text-xs text-primary hover:underline"
+              className="self-start text-sm text-primary hover:underline"
             >
               + Add point
             </button>

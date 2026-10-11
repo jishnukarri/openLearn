@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/appwrite/session";
 import { getPaper, getRosterForPaper } from "@/lib/supabase/papers";
 import { markSubmissionsAction } from "@/app/actions/paper-marking";
 import { Button } from "@/components/button";
+import { AsideBlock, PageHeader, PageShell } from "@/components/page-shell";
 
 export default async function MarkSubmissionsPage({
   params,
@@ -19,18 +20,29 @@ export default async function MarkSubmissionsPage({
   const roster = await getRosterForPaper(paperId);
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-16">
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-foreground">
-          Mark submissions: {paper.title}
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          Upload every student&apos;s answer script in one go, PDFs, images, or a .zip of
-          either. AI reads each student&apos;s reference code to split the upload into one
-          submission per student. You&apos;ll review the split on the next page before any
-          marking happens.
-        </p>
-      </div>
+    <PageShell
+      size="wide"
+      aside={
+        <>
+          <AsideBlock title="What happens next">
+            <ol className="flex list-decimal flex-col gap-2 pl-5">
+              <li>AI reads each student&apos;s reference code to split the upload into one submission per student.</li>
+              <li>You review the split on the results page.</li>
+              <li>Marking only starts once you ask for it.</li>
+            </ol>
+          </AsideBlock>
+          <AsideBlock title="Roster">
+            <p>
+              {roster.length} student{roster.length === 1 ? "" : "s"} on this paper&apos;s roster.
+            </p>
+          </AsideBlock>
+        </>
+      }
+    >
+      <PageHeader
+        title={`Mark submissions: ${paper.title}`}
+        description="Upload every student's answer script in one go, PDFs, images, or a .zip of either."
+      />
 
       {roster.length === 0 ? (
         <p className="text-sm text-error">
@@ -49,9 +61,9 @@ export default async function MarkSubmissionsPage({
               type="file"
               accept=".pdf,.zip,image/*"
               multiple
-              className="text-xs text-foreground file:mr-2 file:rounded-md file:border-0 file:bg-primary file:px-2 file:py-1 file:text-xs file:font-semibold file:text-white"
+              className="text-sm text-foreground file:mr-2 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
             />
-            <p className="text-2xs text-muted">
+            <p className="max-w-[65ch] text-sm text-muted">
               A student who writes their code once (e.g. only on page 1) is fine, any file
               with no readable code is grouped with the previous one.
             </p>
@@ -61,6 +73,6 @@ export default async function MarkSubmissionsPage({
           </Button>
         </form>
       )}
-    </main>
+    </PageShell>
   );
 }
