@@ -27,6 +27,8 @@ import type { Question } from "@/lib/supabase/questions";
 
 const MASTERY_THRESHOLD = 4;
 
+const photoAllowed = (t: string) => t !== "multiple-choice" && t !== "matching";
+
 const inputClass =
   "rounded-2xl border border-border bg-surface p-4 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
@@ -121,27 +123,36 @@ export function BankPracticePlayer({
   }
 
   const remaining = queue.length;
-  const progress = Math.min(
-    Math.round(((bank.length - remaining) / bank.length) * 100),
-    100
-  );
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Progress bar */}
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between text-xs text-muted">
-          <span>
-            {firstAttemptCorrect} / {MASTERY_THRESHOLD} correct for mastery
-          </span>
-          <span className="font-mono">{remaining} left in queue</span>
-        </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-border">
+      {/* Mastery: one pip per first-try correct answer needed. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+        <div className="flex items-center gap-3">
           <div
-            className="h-full rounded-full bg-primary transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
+            role="meter"
+            aria-label="Questions correct first time"
+            aria-valuemin={0}
+            aria-valuemax={MASTERY_THRESHOLD}
+            aria-valuenow={firstAttemptCorrect}
+            className="flex items-center gap-1.5"
+          >
+            {Array.from({ length: MASTERY_THRESHOLD }).map((_, i) => (
+              <span
+                key={i}
+                className={`flex size-6 items-center justify-center rounded-full border-2 transition-colors duration-300 ${
+                  i < firstAttemptCorrect ? "border-success bg-success text-white" : "border-border text-transparent"
+                }`}
+              >
+                <Check className="size-3.5" strokeWidth={3} aria-hidden />
+              </span>
+            ))}
+          </div>
+          <p className="text-sm text-muted">
+            {firstAttemptCorrect} of {MASTERY_THRESHOLD} right first time to master this topic
+          </p>
         </div>
+        <p className="font-[family-name:var(--font-mono)] text-sm text-muted">{remaining} left in this round</p>
       </div>
 
       {/* Question image */}
@@ -280,8 +291,8 @@ function QuestionForm({
   }
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-      <form action={action} className="flex flex-1 flex-col gap-4 rounded-2xl border border-border bg-surface p-6">
+    <div className="grid gap-x-12 gap-y-8 lg:grid-cols-[minmax(0,1fr)_26rem] lg:items-start">
+      <form action={action} className="flex min-w-0 flex-col gap-6">
         <input type="hidden" name="topicId" value={topicId} />
         <input type="hidden" name="questionId" value={question.id} />
         <input type="hidden" name="answerPayload" value={JSON.stringify(payload)} />
@@ -289,11 +300,11 @@ function QuestionForm({
         <input type="hidden" name="isRetry" value={String(isRetry)} />
 
         {question.prompt && (
-          <div>
-            <p className="text-base font-medium text-foreground">
+          <div className="flex flex-col gap-2">
+            <p className="font-[family-name:var(--font-display)] text-2xl leading-snug text-foreground lg:text-3xl">
               <RichText text={question.prompt} />
             </p>
-            <p className="mt-1 font-[family-name:var(--font-mono)] text-xs text-highlight">
+            <p className="font-[family-name:var(--font-mono)] text-sm text-highlight">
               {question.max_marks} {question.max_marks === 1 ? "mark" : "marks"}
             </p>
           </div>
@@ -324,19 +335,28 @@ function QuestionForm({
 
         {format.type === "multiple-choice" && (
           <div className="flex flex-col gap-2">
-            {format.multi && <p className="text-xs text-muted">Select all that apply.</p>}
+            {format.multi && <p className="text-sm text-muted">Select all that apply.</p>}
             {format.options.map((option, idx) => (
               <button
                 key={idx}
                 type="button"
+                aria-pressed={selected.includes(idx)}
+                disabled={!!result}
                 onClick={() => toggleOption(idx, format.multi)}
-                className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                className={`flex items-center gap-4 rounded-2xl border px-4 py-3.5 text-left text-base transition-colors ${
                   selected.includes(idx)
                     ? "border-primary bg-primary/10 text-foreground"
                     : "border-border bg-surface text-foreground hover:border-primary/50"
                 }`}
               >
-                <RichText text={option} />
+                <span
+                  className={`flex size-7 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${
+                    selected.includes(idx) ? "border-primary bg-primary text-white" : "border-border text-muted"
+                  }`}
+                >
+                  {String.fromCharCode(65 + idx)}
+                </span>
+                <span className="flex-1"><RichText text={option} /></span>
               </button>
             ))}
           </div>
@@ -410,7 +430,8 @@ function QuestionForm({
           />
         )}
 
-        {/* Photo upload */}
+        {/* Photo upload (written answers only) */}
+        {photoAllowed(format.type) && (
         <div className="flex flex-col gap-3 rounded-xl border border-dashed border-border p-4">
           {!uploadId ? (
             <button
@@ -466,6 +487,7 @@ function QuestionForm({
             </div>
           )}
         </div>
+        )}
 
         {state && "message" in state && (
           <p className="text-sm text-error">{state.message}</p>
@@ -478,17 +500,30 @@ function QuestionForm({
         )}
       </form>
 
+      {!result && (
+        <aside className="hidden flex-col gap-3 border-t border-border pt-4 lg:sticky lg:top-24 lg:flex">
+          <h3 className="font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">How this works</h3>
+          <p className="max-w-[40ch] text-sm text-muted">
+            Answer in your own words. Each answer is marked against the exam board&apos;s mark scheme and you see
+            exactly which points you earned.
+          </p>
+          <p className="max-w-[40ch] text-sm text-muted">
+            Questions you miss come back at the end of the round. Get four right first time to master the topic.
+          </p>
+        </aside>
+      )}
+
       {result && (
-        <div className="animate-pop-in flex flex-1 flex-col gap-3 rounded-2xl border border-border bg-surface p-5 lg:sticky lg:top-6">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-foreground">Feedback</p>
-            <span className="animate-pop-in inline-block font-[family-name:var(--font-mono)] text-lg text-highlight">
+        <div className="animate-fade-slide-up flex min-w-0 flex-col gap-4 border-t border-border pt-4 lg:sticky lg:top-24">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">Feedback</h3>
+            <span className="font-[family-name:var(--font-mono)] text-2xl font-semibold text-highlight">
               {result.marksAwarded} / {result.maxMarks}
             </span>
           </div>
 
           {isRetry && (
-            <p className="rounded-lg bg-highlight/10 px-3 py-1.5 text-xs text-highlight">
+            <p className="rounded-lg bg-highlight/10 px-3 py-1.5 text-sm text-highlight">
               Retry question
             </p>
           )}
@@ -511,7 +546,7 @@ function QuestionForm({
                   )}
                   <RichText text={point.point} />
                 </p>
-                <p className="mt-1 text-xs text-muted">
+                <p className="mt-1 text-sm text-muted">
                   <RichText text={point.comment} />
                 </p>
               </div>
@@ -535,9 +570,7 @@ function QuestionForm({
 
           <Button
             type="button"
-            variant="secondary"
-            size="compact"
-            className="!shadow-none"
+            className="w-full"
             onClick={() => onNext(lastCorrect ?? false)}
           >
             {lastCorrect ? "Next question →" : "Retry later, next question →"}
