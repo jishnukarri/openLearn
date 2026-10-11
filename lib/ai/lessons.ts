@@ -307,11 +307,14 @@ const VISUAL_GUIDE =
 
 // AI picks the best interactive kind for the topic — no admin input needed.
 const INTERACTIVE_GUIDE =
-  `\n\nAlso generate an "interactive" field. Choose the kind that best fits ` +
-  `this specific topic — pick the one that will give students the most ` +
-  `intuitive "aha" moment before any explanation:\n\n` +
+  `\n\nAlso generate an "interactive" field: a short visual explainer shown ` +
+  `BEFORE the lesson that teaches ONE core idea of the topic. Students do ` +
+  `not need to work anything out; it must make sense on its own, with no ` +
+  `prior knowledge, and every label, option and sentence must be factually ` +
+  `correct for GCSE. Choose the kind that shows this topic's core idea most ` +
+  `clearly:\n\n` +
   `- "slider_sim": best for cause-and-effect topics (physics, chemistry, ` +
-  `biology). Add exactly 1 slider for the single key variable (outcomes can only depend on that one slider). Provide 3 outcome bands ordered from the slider's low end to its high end, each describing what that slider value causes ` +
+  `biology). Add exactly 1 slider for the single key variable (outcomes can only depend on that one slider). Provide 3 outcome bands ordered from the slider's low end to its high end. Each band's label names the result and its description says WHAT happens and WHY in one or two plain sentences; the three bands together must show one consistent rule (for example: more insulation means less heat escapes, so less energy is needed). ` +
   `(minThreshold/maxThreshold as 0-100% of slider range, label, description). ` +
   `title + description set the scene. Example: concentration slider that ` +
   `speeds up a reaction.\n\n` +
@@ -342,9 +345,14 @@ const INTERACTIVE_GUIDE =
   `correctMapping=[0,1,0]. correctMapping MUST be 0-indexed and the same ` +
   `length as items. ALWAYS use "categorize" for classification — ` +
   `never use "block_sort" for grouping.\n\n` +
-  `Choose whichever creates the biggest "I just discovered something" moment ` +
-  `before reading a single definition. The interactive runs BEFORE the hook ` +
-  `and sections.`;
+  `Quality rules for every kind: (1) it explains the idea, it is not a ` +
+  `trick or a guessing game; (2) use plain words and define any term the ` +
+  `first time it appears; (3) never include an item, label or outcome that ` +
+  `is wrong, ambiguous or belongs to a different idea (for example do not ` +
+  `put forces or power into a list of energy stores); (4) the "codify" ` +
+  `sentence states the rule in one clear sentence that follows directly ` +
+  `from what was shown; (5) outcomes and observations must agree with real ` +
+  `science: check the direction of every cause and effect before writing it.`;
 
 export async function generateLesson(
   topicName: string,
@@ -369,31 +377,43 @@ export async function generateLesson(
     : "";
 
   return chatJson<LessonContent>(
-    `Write a short interactive GCSE lesson on "${topicName}" for the ` +
-      `subject "${subjectName}" following the Duolingo/Brilliant model: ` +
-      `bite-sized, interactive-first, never a wall of text.\n\n` +
-      `START with a "hook" — one punchy sentence that frames the whole ` +
-      `lesson as a puzzle or challenge (e.g. "Can you figure out what the ` +
-      `atomic number actually counts?"). No markdown. No question mark at ` +
-      `the end — it should feel like a dare, not an exam prompt.\n\n` +
-      `Then write 3-5 sections. Each section:\n` +
-      `1. heading — 2-5 words naming the concept (chip label only, not a ` +
-      `sentence).\n` +
-      `2. check — the QUESTION the student answers first, before any ` +
-      `explanation. Make it self-contained: the question + options/pairs ` +
-      `must carry enough context that the student can attempt it from ` +
-      `intuition.\n` +
-      `3. explanation — post-answer teaching: WHY that is right. 2-3 ` +
-      `sentences, conversational, no filler.\n` +
-      `4. example — one short concrete worked example shown as feedback.\n\n` +
-      `Vary check "kind" across sections:\n` +
+    `Write a clear, short GCSE lesson on "${topicName}" for the ` +
+      `subject "${subjectName}". The student reads each section's teaching ` +
+      `FIRST and is quizzed on it straight after, so every section must ` +
+      `actually teach before it asks. Principles: explain one idea at a ` +
+      `time, define key terms in plain words, say why it matters, show one ` +
+      `worked example, then check understanding of exactly what was taught.\n\n` +
+      `START with a "hook": ONE plain sentence saying what the student will ` +
+      `be able to do or explain by the end (e.g. "By the end you will be ` +
+      `able to explain what the atomic number counts and use it to find ` +
+      `the number of protons."). No markdown, no question mark, no riddle.\n\n` +
+      `Then write 3-5 sections. Each section, in the order the student ` +
+      `sees them:\n` +
+      `1. heading — 2-5 words naming the concept (chip label only).\n` +
+      `2. explanation — the teaching. 3-5 short sentences: define the key ` +
+      `term, explain how or why it works in everyday words, add one ` +
+      `memorable analogy or comparison if it helps, and name one common ` +
+      `mistake to avoid. Never assume knowledge from a later section.\n` +
+      `3. example — one concrete worked example that applies the explanation ` +
+      `step by step, with real numbers or a real situation, ending on the ` +
+      `answer.\n` +
+      `4. check — a question that can be answered using ONLY the explanation ` +
+      `and example just shown (no outside knowledge, no trick wording). Wrong ` +
+      `options should be plausible mistakes, not nonsense. Never use "all ` +
+      `of the above" or "none of the above".\n\n` +
+      `Accuracy: only state facts that are true and in the GCSE specification; ` +
+      `do not contradict an earlier section; make sure every example's ` +
+      `numbers and units are correct.\n\n` +
+    `Vary check "kind" across sections:\n` +
       `- "mcq": 4 options, exactly 1 correct (set correctIndex). Default ` +
       `choice for science, maths, geography, history, economics — any ` +
       `factual or conceptual question.\n` +
       `- "multi": 4-5 options, 2+ correct (set correctIndexes). Use when ` +
       `multiple things are simultaneously true.\n` +
       `- "matching": 3-4 left/right pairs. Use for definitions, ` +
-      `term↔example, cause↔effect.\n` +
+      `term↔example, cause↔effect. Every left item must be the same kind ` +
+      `of thing and every right item the same kind of thing, and each ` +
+      `left item must match exactly one right item (no overlaps).\n` +
       `- "short" WITH "wordBank": ONLY for modern foreign language lessons ` +
       `(word order, sentence construction) or early English literacy. ` +
       `NEVER use wordBank for science, maths, history, geography, ` +

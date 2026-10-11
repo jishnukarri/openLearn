@@ -476,7 +476,7 @@ export function LessonPlayer({
                       </h1>
                     </div>
                   )}
-                  <p className="max-w-xs text-lg font-semibold leading-snug text-foreground">{hook}</p>
+                  <p className="max-w-md text-lg leading-snug text-foreground">{hook}</p>
                   <p className="text-sm text-muted">
                     {sections.length} concepts · ~{Math.ceil(sections.length * 1.5)} min
                   </p>
