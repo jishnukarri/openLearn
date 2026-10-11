@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { useFormStatus } from "react-dom";
 import { useState } from "react";
 import { submitDiagnosticLevelAction } from "@/app/actions/diagnostic";
@@ -75,7 +76,7 @@ export function LevelForm({
             : false;
 
   return (
-    <form action={action} className="flex flex-col gap-5">
+    <form action={action} className="flex flex-col gap-6">
       <PendingOverlay isLast={isLast} />
       <input type="hidden" name="sessionId" value={sessionId} />
       <input type="hidden" name="position" value={position} />
@@ -105,7 +106,7 @@ export function LevelForm({
         if (parts.length !== 2) {
           return (
             <>
-              <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
+              <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground lg:text-3xl">
                 {question.prompt}
               </h1>
               <TextInput
@@ -119,7 +120,7 @@ export function LevelForm({
         const [before, after] = parts;
         return (
           <div className="flex flex-col gap-2">
-            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-2 font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
+            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-2 font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground lg:text-3xl">
               <span>{before}</span>
               <input
                 value={blankText}
@@ -130,7 +131,7 @@ export function LevelForm({
               />
               <span>{after}</span>
             </p>
-            <p className="text-2xs text-muted">Type your answer into the blank above.</p>
+            <p className="text-sm text-muted">Type your answer into the blank above.</p>
           </div>
         );
       })()}
@@ -158,9 +159,10 @@ export function LevelForm({
         {position > 0 && (
           <Link
             href={backHref ?? `/onboarding/diagnostic/${sessionId}/level/${position - 1}`}
-            className="rounded-lg border border-border px-4 py-3 text-sm font-medium text-muted transition-colors hover:border-primary hover:text-foreground"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-4 py-3 text-sm font-medium text-muted transition-colors hover:border-primary hover:text-foreground"
           >
-            ← Back
+            <ArrowLeft className="size-4" strokeWidth={2} aria-hidden />
+            Back
           </Link>
         )}
         <Button type="submit" disabled={!canSubmit}>

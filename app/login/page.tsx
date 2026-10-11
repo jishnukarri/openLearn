@@ -14,13 +14,13 @@ export default function LoginPage() {
 
   return (
     <AuthLayout>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Welcome back</h1>
-        <p className="mt-1 text-sm text-muted">Pick up right where you left off.</p>
+        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold leading-tight text-foreground lg:text-4xl">Welcome back</h1>
+        <p className="mt-2 text-base text-muted">Pick up right where you left off.</p>
       </div>
 
-      <form action={action} className="flex flex-col gap-4">
+      <form action={action} className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="email" className="text-sm font-medium text-foreground">
             Email
@@ -29,11 +29,12 @@ export default function LoginPage() {
             id="email"
             name="email"
             type="email"
+            autoComplete="email"
             placeholder="you@example.com"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="rounded-lg border border-border bg-background px-3 py-2.5 text-base text-foreground outline-none transition-colors placeholder:text-muted/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40"
           />
           {state?.errors?.email && (
-            <p className="text-xs text-error">{state.errors.email[0]}</p>
+            <p className="text-sm text-error">{state.errors.email[0]}</p>
           )}
         </div>
 
@@ -48,10 +49,11 @@ export default function LoginPage() {
             id="password"
             name="password"
             type="password"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            autoComplete="current-password"
+            className="rounded-lg border border-border bg-background px-3 py-2.5 text-base text-foreground outline-none transition-colors placeholder:text-muted/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40"
           />
           {state?.errors?.password && (
-            <p className="text-xs text-error">{state.errors.password[0]}</p>
+            <p className="text-sm text-error">{state.errors.password[0]}</p>
           )}
         </div>
 
@@ -64,7 +66,7 @@ export default function LoginPage() {
 
       <p className="text-sm text-muted">
         Don&apos;t have an account?{" "}
-        <Link href="/signup" className="text-primary hover:underline">
+        <Link href="/signup" className="font-medium text-primary hover:underline">
           Sign up
         </Link>
       </p>

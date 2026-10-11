@@ -3,14 +3,8 @@ import { getGuestToken } from "@/lib/guest-session";
 import { getDiagnosticQuestions, isGuestSessionOwner } from "@/lib/supabase/diagnostic";
 import { toClientDiagnosticQuestion } from "@/lib/diagnostic-client";
 import { submitGuestDiagnosticLevelAction } from "@/app/actions/guest";
-import { ProgressBar } from "@/components/progress-bar";
 import { LevelForm } from "@/app/onboarding/diagnostic/[sessionId]/level/[position]/level-form";
-
-const TOPIC_INTROS = [
-  "Let's see what you remember about",
-  "A few questions on",
-  "Time to check your knowledge of",
-];
+import { LevelShell } from "@/app/onboarding/diagnostic/[sessionId]/level/[position]/level-shell";
 
 export default async function GuestDiagnosticLevelPage({
   params,
@@ -31,34 +25,17 @@ export default async function GuestDiagnosticLevelPage({
   if (!question) notFound();
 
   const isLast = position === questions.length - 1;
-  const intro = TOPIC_INTROS[position % TOPIC_INTROS.length];
 
   return (
-    <main className="mx-auto flex max-w-xl flex-col gap-8 px-6 py-16">
-      <div className="flex flex-col gap-2">
-        <ProgressBar value={position} max={questions.length} />
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Question {position + 1} of {questions.length}
-          {question.topic_name ? ` · ${question.topic_name}` : ""}
-        </p>
-      </div>
-
-      <div>
-        {question.topic_name && (
-          <p className="text-xs text-muted">
-            {intro} {question.topic_name.toLowerCase()}.
-          </p>
-        )}
-        {question.type !== "fill_blank" && (
-          <h1 className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
-            {question.prompt}
-          </h1>
-        )}
-        <p className="mt-1 font-[family-name:var(--font-mono)] text-xs text-highlight">
-          {question.max_marks} {question.max_marks === 1 ? "mark" : "marks"}
-        </p>
-      </div>
-
+    <LevelShell
+      position={position}
+      total={questions.length}
+      unitLabel="Question"
+      topicName={question.topic_name ?? null}
+      prompt={question.prompt}
+      showPrompt={question.type !== "fill_blank"}
+      maxMarks={question.max_marks}
+    >
       <LevelForm
         sessionId={sessionId}
         position={position}
@@ -67,6 +44,6 @@ export default async function GuestDiagnosticLevelPage({
         action={submitGuestDiagnosticLevelAction}
         backHref={`/start/diagnostic/${sessionId}/level/${position - 1}`}
       />
-    </main>
+    </LevelShell>
   );
 }

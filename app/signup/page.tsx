@@ -15,17 +15,17 @@ export default function SignupPage() {
 
   return (
     <AuthLayout>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">
+        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold leading-tight text-foreground lg:text-4xl">
           Create your account
         </h1>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-2 text-base text-muted">
           Let&apos;s help you study smarter for your GCSEs.
         </p>
       </div>
 
-      <form action={action} className="flex flex-col gap-4">
+      <form action={action} className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="name" className="text-sm font-medium text-foreground">
             Name
@@ -33,11 +33,12 @@ export default function SignupPage() {
           <input
             id="name"
             name="name"
+            autoComplete="name"
             placeholder="Your name"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="rounded-lg border border-border bg-background px-3 py-2.5 text-base text-foreground outline-none transition-colors placeholder:text-muted/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40"
           />
           {state?.errors?.name && (
-            <p className="text-xs text-error">{state.errors.name[0]}</p>
+            <p className="text-sm text-error">{state.errors.name[0]}</p>
           )}
         </div>
 
@@ -49,11 +50,12 @@ export default function SignupPage() {
             id="email"
             name="email"
             type="email"
+            autoComplete="email"
             placeholder="you@example.com"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="rounded-lg border border-border bg-background px-3 py-2.5 text-base text-foreground outline-none transition-colors placeholder:text-muted/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40"
           />
           {state?.errors?.email && (
-            <p className="text-xs text-error">{state.errors.email[0]}</p>
+            <p className="text-sm text-error">{state.errors.email[0]}</p>
           )}
         </div>
 
@@ -68,10 +70,11 @@ export default function SignupPage() {
             id="password"
             name="password"
             type="password"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            autoComplete="new-password"
+            className="rounded-lg border border-border bg-background px-3 py-2.5 text-base text-foreground outline-none transition-colors placeholder:text-muted/70 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40"
           />
           {state?.errors?.password && (
-            <p className="text-xs text-error">{state.errors.password[0]}</p>
+            <p className="text-sm text-error">{state.errors.password[0]}</p>
           )}
         </div>
 
@@ -79,16 +82,16 @@ export default function SignupPage() {
 
         <input type="hidden" name="isTeacher" value={isTeacher ? "1" : "0"} />
 
-        <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5">
+        <label className="flex cursor-pointer items-start gap-3 border-t border-border pt-5">
           <input
             type="checkbox"
             checked={isTeacher}
             onChange={(e) => setIsTeacher(e.target.checked)}
-            className="h-4 w-4 accent-primary"
+            className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
           />
           <div>
             <p className="text-sm font-medium text-foreground">I&apos;m a teacher</p>
-            <p className="text-xs text-muted">Your account will need admin approval before you can access the teacher dashboard.</p>
+            <p className="mt-0.5 text-sm text-muted">Your account will need admin approval before you can access the teacher dashboard.</p>
           </div>
         </label>
 
@@ -99,7 +102,7 @@ export default function SignupPage() {
 
       <p className="text-sm text-muted">
         Already have an account?{" "}
-        <Link href="/login" className="text-primary hover:underline">
+        <Link href="/login" className="font-medium text-primary hover:underline">
           Log in
         </Link>
       </p>

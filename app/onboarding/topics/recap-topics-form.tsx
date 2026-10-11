@@ -34,27 +34,27 @@ export function RecapTopicsForm({
   return (
     <form
       action={startRecapDiagnosticAction}
-      className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6"
+      className="flex flex-col gap-7"
     >
       <PendingOverlay />
       {topicsBySubject.map(
         ({ subject, topics }) =>
           topics.length > 0 && (
-            <div key={subject.subject_id} className="flex flex-col gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+            <div key={subject.subject_id} className="flex flex-col gap-3">
+              <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">
                 {subject.subject_name}
-              </p>
+              </h2>
               <FieldGroup className="gap-2">
                 {topics.map((topic) => {
                   const id = `topic-${topic.id}`;
                   return (
-                    <Field key={topic.id} orientation="horizontal" className="rounded-lg border border-border bg-background px-3 py-2 has-[[data-checked]]:border-primary">
+                    <Field key={topic.id} orientation="horizontal" className="rounded-lg border border-border bg-background px-3 py-2.5 has-[[data-checked]]:border-primary">
                       <Checkbox
                         id={id}
                         name="topic"
                         value={`${subject.subject_id}::${topic.name}`}
                       />
-                      <FieldLabel htmlFor={id} className="cursor-pointer text-sm text-foreground">
+                      <FieldLabel htmlFor={id} className="cursor-pointer text-base text-foreground">
                         {topic.name}
                       </FieldLabel>
                     </Field>

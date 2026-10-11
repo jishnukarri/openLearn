@@ -7,6 +7,8 @@ import { JoinClassForm } from "./join-class-form";
 import { Button } from "@/components/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { PageShell, AsideBlock } from "@/components/page-shell";
+import { Rise, Stagger } from "@/components/motion";
 
 export default async function OnboardingPage() {
   const { session, profile } = await requireRole("student");
@@ -18,75 +20,82 @@ export default async function OnboardingPage() {
   const subjects = await listPublishedSubjects();
 
   return (
-    <main className="mx-auto flex max-w-xl flex-col gap-10 px-6 py-16">
-      <div className="animate-fade-slide-up">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-foreground">
-          Welcome, {session.name.split(" ")[0]}
-        </h1>
-        <p className="mt-1 text-sm text-muted">
-          Let&apos;s get your subjects set up.
-        </p>
-      </div>
-
-      <section
-        style={{ animationDelay: "80ms" }}
-        className="animate-fade-slide-up flex flex-col gap-3 rounded-2xl border border-border bg-surface p-6"
-      >
-        <h2 className="text-sm font-semibold text-foreground">
-          Join a class (optional)
-        </h2>
-        <p className="text-xs text-muted">
-          Got an invite code from a teacher? Enter it here, you can skip this
-          and study on your own instead.
-        </p>
-        <JoinClassForm />
-      </section>
-
-      <section
-        style={{ animationDelay: "160ms" }}
-        className="animate-fade-slide-up flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6"
-      >
-        <h2 className="text-sm font-semibold text-foreground">Your subjects</h2>
-        {subjects.length === 0 ? (
-          <p className="text-sm text-muted">
-            No subjects have been published yet, check back soon.
+    <PageShell
+      size="form"
+      aside={
+        <>
+          <AsideBlock title="Join a class (optional)">
+            <p>
+              Got an invite code from a teacher? Enter it here, you can skip this
+              and study on your own instead.
+            </p>
+            <JoinClassForm />
+          </AsideBlock>
+          <AsideBlock title="What happens next">
+            <ol className="flex list-decimal flex-col gap-1.5 pl-4 marker:text-muted">
+              <li>Choose your subjects.</li>
+              <li>Take a short diagnostic quiz.</li>
+              <li>See where you stand and start your lessons.</li>
+            </ol>
+          </AsideBlock>
+        </>
+      }
+    >
+      <Stagger className="flex flex-col gap-8">
+        <Rise>
+          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold leading-tight text-foreground lg:text-5xl lg:leading-[1.1]">
+            Welcome, {session.name.split(" ")[0]}
+          </h1>
+          <p className="mt-3 max-w-[60ch] text-base text-muted">
+            Let&apos;s get your subjects set up.
           </p>
-        ) : (
-          <form action={saveSubjectSelectionAction} className="flex flex-col gap-4">
-            <FieldGroup className="gap-2">
-              {subjects.map((subject) =>
-                subject.exam_boards.map((board) => {
-                  const id = `subject-${subject.id}-${board.id}`;
-                  return (
-                    <Field key={`${subject.id}:${board.id}`} orientation="horizontal" className="rounded-lg border border-border bg-background px-3 py-2 has-[[data-checked]]:border-primary">
-                      <Checkbox
-                        id={id}
-                        name="subjectExamBoard"
-                        value={`${subject.id}:${board.id}`}
-                      />
-                      <FieldLabel htmlFor={id} className="cursor-pointer text-sm text-foreground">
-                        {subject.name}{" "}
-                        <span className="text-xs text-muted">({board.name})</span>
-                      </FieldLabel>
-                    </Field>
-                  );
-                })
-              )}
-            </FieldGroup>
+        </Rise>
 
-            <Field orientation="horizontal" className="py-1">
-              <Checkbox id="startedSyllabus" name="startedSyllabus" />
-              <FieldLabel htmlFor="startedSyllabus" className="cursor-pointer text-sm text-foreground">
-                I&apos;ve already started this syllabus at school
-              </FieldLabel>
-            </Field>
+        <Rise>
+          <h2 className="mb-4 font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">
+            Your subjects
+          </h2>
+          {subjects.length === 0 ? (
+            <p className="text-base text-muted">
+              No subjects have been published yet, check back soon.
+            </p>
+          ) : (
+            <form action={saveSubjectSelectionAction} className="flex flex-col gap-5">
+              <FieldGroup className="gap-2">
+                {subjects.map((subject) =>
+                  subject.exam_boards.map((board) => {
+                    const id = `subject-${subject.id}-${board.id}`;
+                    return (
+                      <Field key={`${subject.id}:${board.id}`} orientation="horizontal" className="rounded-lg border border-border bg-background px-3 py-2.5 has-[[data-checked]]:border-primary">
+                        <Checkbox
+                          id={id}
+                          name="subjectExamBoard"
+                          value={`${subject.id}:${board.id}`}
+                        />
+                        <FieldLabel htmlFor={id} className="cursor-pointer text-base text-foreground">
+                          {subject.name}{" "}
+                          <span className="text-sm text-muted">({board.name})</span>
+                        </FieldLabel>
+                      </Field>
+                    );
+                  })
+                )}
+              </FieldGroup>
 
-            <Button type="submit" className="self-start">
-              Continue
-            </Button>
-          </form>
-        )}
-      </section>
-    </main>
+              <Field orientation="horizontal" className="border-t border-border pt-5">
+                <Checkbox id="startedSyllabus" name="startedSyllabus" />
+                <FieldLabel htmlFor="startedSyllabus" className="cursor-pointer text-base text-foreground">
+                  I&apos;ve already started this syllabus at school
+                </FieldLabel>
+              </Field>
+
+              <Button type="submit" className="self-start">
+                Continue
+              </Button>
+            </form>
+          )}
+        </Rise>
+      </Stagger>
+    </PageShell>
   );
 }

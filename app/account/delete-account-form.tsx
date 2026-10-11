@@ -22,12 +22,12 @@ export function DeleteAccountForm() {
         value={confirmation}
         onChange={(e) => setConfirmation(e.target.value)}
         placeholder="DELETE"
-        className="rounded-lg border border-error/40 bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-error"
+        className="rounded-lg border border-error/40 bg-background px-3 py-2.5 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-error"
       />
       <Button
         type="submit"
         disabled={confirmation !== "DELETE"}
-        className="self-start !bg-error !shadow-[0_4px_0_0_#c23f3f]"
+        className="self-start !bg-error !shadow-none"
       >
         Delete my account
       </Button>
