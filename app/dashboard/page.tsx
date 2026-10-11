@@ -101,9 +101,13 @@ export default async function DashboardPage() {
 
       <AsideBlock title="Quick tools">
         <ul className="flex flex-col divide-y divide-border">
-          <QuickTool href={continueTopic ? `/learn/${continueTopic}` : "/dashboard"} icon={Sparkles} label="AI coach" />
-          <QuickTool href={continueTopic ? `/practice/${continueTopic}` : "/dashboard"} icon={ClipboardCheck} label="Practice" />
-          <QuickTool href={continueTopic ? `/flashcards/${continueTopic}` : "/dashboard"} icon={Layers} label="Flashcards" />
+          {continueTopic && (
+            <>
+              <QuickTool href={`/learn/${continueTopic}`} icon={Sparkles} label="AI coach" />
+              <QuickTool href={`/practice/${continueTopic}`} icon={ClipboardCheck} label="Practice" />
+              <QuickTool href={`/flashcards/${continueTopic}`} icon={Layers} label="Flashcards" />
+            </>
+          )}
           <QuickTool href="/onboarding/diagnostic" icon={ListChecks} label="Diagnostic" />
           <QuickTool href="/dashboard/add-subjects" icon={Plus} label="Subjects" />
         </ul>

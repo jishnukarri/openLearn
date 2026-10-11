@@ -8,6 +8,7 @@ import {
 } from "@/app/actions/diagnostic";
 import { PendingAiOverlay } from "@/components/pending-ai-overlay";
 import { Button } from "@/components/button";
+import { BrandMark } from "@/components/brand-mark";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
@@ -55,14 +56,9 @@ export function DiagnosticForms({
       variants={{ show: { transition: { staggerChildren: 0.5, delayChildren: 0.15 } } }}
       className="flex flex-col gap-6"
     >
-      <motion.div variants={item} className="flex items-start gap-3">
-        <span
-          aria-hidden
-          className="mt-1 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary font-[family-name:var(--font-display)] text-base font-semibold text-white"
-        >
-          o
-        </span>
-        <div className="rounded-2xl rounded-tl-sm bg-surface px-5 py-4">
+      <motion.div variants={item} className="flex items-end gap-3">
+        <BrandMark size={40} />
+        <div className="rounded-3xl rounded-bl-md bg-surface px-5 py-4">
           <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold leading-snug text-foreground">
             Want to take a quick diagnostic before we start?
           </h1>

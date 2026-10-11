@@ -125,7 +125,7 @@ export default async function SubjectPathPage({
     <PageShell size="content" aside={aside}>
       <Stagger className="flex flex-col gap-8">
         <Rise>
-          <PageHeader title={subject.name} description="Work through your units in order, or jump to revision for weak spots." className="animate-none" />
+          <PageHeader title={subject.name} description="Every unit is open. Follow the path in order, jump to any unit, or use revision for weak spots." className="animate-none" />
         </Rise>
 
         <Rise>

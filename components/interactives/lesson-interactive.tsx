@@ -25,12 +25,12 @@ export function LessonInteractiveWidget({
   onContinue: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-6 rounded-2xl border border-border bg-surface p-6">
+    <div className="flex flex-col gap-6">
       <div className="flex items-center gap-2">
-        <span className="rounded-full bg-highlight/15 px-2.5 py-0.5 text-xs font-semibold text-highlight">
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
           {ARCHETYPE_LABELS[interactive.kind] ?? "Interactive"}
         </span>
-        <span className="text-xs text-muted">before the lesson</span>
+        <span className="text-sm text-muted">before the lesson</span>
       </div>
 
       {interactive.kind === "slider_sim" && (

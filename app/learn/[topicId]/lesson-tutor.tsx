@@ -19,7 +19,8 @@ export function LessonTutor({
   context: string;
 }) {
   const [question, setQuestion] = useState("");
-  const [reply, setReply] = useState<string | null>(null);
+  const [thread, setThread] = useState<{ q: string; a: string }[]>([]);
+  const [pendingQ, setPendingQ] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   // Mobile-only: the panel collapses into a floating bubble, like a
@@ -34,18 +35,22 @@ export function LessonTutor({
 
     setQuestion("");
     setError(null);
+    setPendingQ(trimmed);
     startTransition(async () => {
       try {
-        setReply(await askLessonTutorAction({ topicId, context, question: trimmed }));
+        const answer = await askLessonTutorAction({ topicId, context, question: trimmed });
+        setThread((t) => [...t, { q: trimmed, a: answer }]);
         if (!open) setHasUnseenReply(true);
       } catch {
         setError("I couldn't reach your study coach. Please try again.");
+      } finally {
+        setPendingQ(null);
       }
     });
   }
 
   return (
-    <div>
+    <div className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
       {/* Mobile-only floating bubble, the panel itself stays permanently open on desktop (lg:block below overrides `open`). */}
       <button
         type="button"
@@ -74,15 +79,15 @@ export function LessonTutor({
       )}
 
       <aside
-        className={`fixed inset-x-4 bottom-5 z-50 max-h-[80dvh] overflow-y-auto rounded-2xl border border-primary/30 bg-surface p-4 shadow-2xl ${
-          open ? "animate-pop-in block" : "hidden"
-        } lg:sticky lg:top-6 lg:z-auto lg:block lg:inset-auto lg:max-h-none lg:shadow-none`}
+        className={`fixed inset-x-4 bottom-5 z-50 max-h-[80dvh] flex-col rounded-2xl border border-primary/30 bg-surface p-4 shadow-2xl ${
+          open ? "animate-fade-slide-up flex" : "hidden"
+        } lg:static lg:z-auto lg:flex lg:h-full lg:max-h-none lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none`}
       >
         <div className="flex items-center gap-2">
           <BrandMark size={28} />
           <div className="flex-1">
-            <h2 className="text-sm font-semibold text-foreground">Your AI study coach</h2>
-            <p className="text-xs text-muted">Here for this step of the lesson</p>
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">Your AI study coach</h2>
+            <p className="text-sm text-muted">Here for this step of the lesson</p>
           </div>
           <button
             type="button"
@@ -101,20 +106,31 @@ export function LessonTutor({
             type="button"
             disabled={isPending}
             onClick={() => ask(suggestion)}
-            className="rounded-full border border-border px-2.5 py-1 text-xs text-muted transition-colors hover:border-primary hover:text-foreground disabled:opacity-50"
+            className="rounded-full border border-border px-3 py-1.5 text-sm text-muted transition-colors hover:border-primary hover:text-foreground disabled:opacity-50"
           >
             {suggestion}
           </button>
         ))}
       </div>
 
-      {(isPending || reply || error) && (
-        <div className="mt-4 rounded-xl bg-background p-3 text-sm leading-6">
-          {isPending && <p className="text-muted">Thinking through this with you…</p>}
-          {!isPending && reply && <p className="text-foreground">{reply}</p>}
-          {!isPending && error && <p className="text-error">{error}</p>}
-        </div>
-      )}
+      <div className="mt-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto text-sm leading-6" aria-live="polite">
+        {thread.length === 0 && !pendingQ && (
+          <p className="text-muted">Stuck on this step? Tap a suggestion or ask your own question.</p>
+        )}
+        {thread.map((m, i) => (
+          <div key={i} className="flex flex-col gap-2">
+            <p className="self-end rounded-2xl rounded-br-md bg-primary/15 px-3 py-2 text-foreground">{m.q}</p>
+            <p className="rounded-2xl rounded-bl-md bg-background px-3 py-2 text-foreground">{m.a}</p>
+          </div>
+        ))}
+        {pendingQ && (
+          <div className="flex flex-col gap-2">
+            <p className="self-end rounded-2xl rounded-br-md bg-primary/15 px-3 py-2 text-foreground">{pendingQ}</p>
+            <p className="rounded-2xl rounded-bl-md bg-background px-3 py-2 text-muted">Thinking through this with you…</p>
+          </div>
+        )}
+        {error && <p className="text-error">{error}</p>}
+      </div>
 
       <form
         className="mt-4 flex gap-2"

@@ -118,9 +118,19 @@ function ScrollTrigger({
     firedRef.current = false;
     const el = ref.current;
     if (!el) return;
+    // Only a real scroll counts: if the button is already on screen when it
+    // mounts (short steps), the student must click it, otherwise revealing
+    // content would skip straight past it before it can be read.
+    let initial = true;
+    let startedOffscreen = false;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !firedRef.current) {
+        if (initial) {
+          initial = false;
+          startedOffscreen = !entry.isIntersecting;
+          return;
+        }
+        if (startedOffscreen && entry.isIntersecting && !firedRef.current) {
           firedRef.current = true;
           onReached();
         }
@@ -439,8 +449,8 @@ export function LessonPlayer({
         )}
 
         {/* ── Content ─────────────────────────────────────────────────── */}
-        <div className="mx-auto grid w-full max-w-[80rem] flex-1 gap-6 lg:gap-10 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-          <div key={stepKey} className="animate-step-in mx-auto w-full max-w-4xl">
+        <div className="grid w-full flex-1 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_28rem]">
+          <div key={stepKey} className="animate-step-in mx-auto w-full max-w-4xl px-2 py-4 sm:px-4 lg:px-10 lg:py-10">
 
             {/* ── Interactive pre-lesson widget ───────────────────────── */}
             {!isDone && step?.phase === "interactive" && interactive && (
@@ -452,7 +462,7 @@ export function LessonPlayer({
             {/* ── Hook screen ─────────────────────────────────────────── */}
             {!isDone && step?.phase === "hook" && (
               <div className="w-full px-4 py-16 sm:px-6">
-                <div className="mx-auto flex max-w-lg flex-col items-center gap-6 rounded-2xl border border-border bg-surface p-8 text-center sm:p-12">
+                <div className="mx-auto flex max-w-xl flex-col items-center gap-6 text-center">
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                     <Puzzle className="size-8" strokeWidth={1.75} />
                   </div>
@@ -512,10 +522,10 @@ export function LessonPlayer({
                         </button>
                       ) : (
                         <div className="mt-6 animate-fade-slide-up rounded-xl border border-border bg-surface p-5">
-                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                          <h3 className="mb-2 font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">
                             Worked example
-                          </p>
-                          <p className="text-sm leading-relaxed text-foreground">
+                          </h3>
+                          <p className="max-w-[65ch] text-base leading-relaxed text-foreground">
                             <RichText text={sec.example} />
                           </p>
                         </div>
@@ -551,8 +561,8 @@ export function LessonPlayer({
               if (!sec) return null;
               return (
                 <div className="w-full px-4 py-8 sm:px-6">
-                  <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-                    <div className="flex flex-col gap-5 p-6">
+                  <div className="overflow-hidden rounded-2xl">
+                    <div className="flex flex-col gap-6 pb-6">
                       <div className="flex items-center gap-2">
                         <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
                           {sec.heading}
@@ -564,7 +574,7 @@ export function LessonPlayer({
                         )}
                       </div>
 
-                      <p className="text-base font-medium text-foreground">
+                      <p className="font-[family-name:var(--font-display)] text-2xl leading-snug text-foreground">
                         <RichText text={sec.check.question} />
                       </p>
 
@@ -716,7 +726,7 @@ export function LessonPlayer({
                       {!flashcardFlipped ? (
                         <>
                           <p className="text-2xl font-semibold text-foreground">{card.term}</p>
-                          <p className="mt-3 text-xs text-muted">Tap to reveal definition</p>
+                          <p className="mt-3 text-sm text-muted">Tap to reveal definition</p>
                         </>
                       ) : (
                         <>
@@ -732,11 +742,12 @@ export function LessonPlayer({
                   {/* How well did you know this? */}
                   {flashcardFlipped && !currentRating && (
                     <div className="mt-4 animate-fade-slide-up">
-                      <p className="mb-2 text-center text-xs text-muted">How well did you know this?</p>
+                      <p className="mb-2 text-center text-sm text-muted">How well did you know this?</p>
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => rateCard("hard")}
+                          aria-label="Hard, see again soon"
                           className="flex-1 rounded-xl border-2 border-error/30 bg-error/10 px-3 py-3 text-center transition-colors hover:bg-error/20"
                         >
                           <p className="text-sm font-semibold text-error">Hard</p>
@@ -746,6 +757,7 @@ export function LessonPlayer({
                         <button
                           type="button"
                           onClick={() => rateCard("good")}
+                          aria-label="Good, see again in about a day"
                           className="flex-1 rounded-xl border-2 border-primary/30 bg-primary/10 px-3 py-3 text-center transition-colors hover:bg-primary/20"
                         >
                           <p className="text-sm font-semibold text-primary">Good</p>
@@ -755,6 +767,7 @@ export function LessonPlayer({
                         <button
                           type="button"
                           onClick={() => rateCard("easy")}
+                          aria-label="Easy, learned"
                           className="flex-1 rounded-xl border-2 border-success/30 bg-success/10 px-3 py-3 text-center transition-colors hover:bg-success/20"
                         >
                           <p className="text-sm font-semibold text-success">Easy</p>
@@ -780,7 +793,7 @@ export function LessonPlayer({
                         <ScrollTrigger onReached={next}>
                           <Button onClick={next} className="px-6">Continue →</Button>
                         </ScrollTrigger>
-                      ) : flashcardIdx < cards.length - 1 ? (
+                      ) : flashcardIdx < cards.length - 1 && currentRating ? (
                         <button
                           type="button"
                           onClick={() => { setFlashcardIdx((i) => i + 1); setFlashcardFlipped(false); }}
@@ -789,7 +802,7 @@ export function LessonPlayer({
                           Next →
                         </button>
                       ) : (
-                        <span className="text-xs text-muted">Rate all cards to continue</span>
+                        <span className="text-sm text-muted">{currentRating ? "Rate all cards to continue" : "Tap the card, then rate it"}</span>
                       )}
                     </div>
                   )}
@@ -811,9 +824,9 @@ export function LessonPlayer({
               return (
                 <div className="w-full px-4 py-8 sm:px-6">
                   <div className="mb-4 flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                    <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">
                       Open practice
-                    </span>
+                    </h2>
                     <span className="rounded-full border border-border px-2.5 py-0.5 font-[family-name:var(--font-mono)] text-xs text-muted">
                       3 marks
                     </span>
@@ -826,7 +839,7 @@ export function LessonPlayer({
                         <RichText text={sec.check.question} />
                       </p>
                       <div className="rounded-lg border border-border bg-background p-3">
-                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+                        <p className="mb-1 text-sm font-semibold text-foreground">
                           Context
                         </p>
                         <p className="text-sm leading-relaxed text-muted">
@@ -898,9 +911,9 @@ export function LessonPlayer({
                 <div className="grid gap-8 lg:grid-cols-2">
                   {/* Key takeaways */}
                   <div>
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+                    <h3 className="mb-3 font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">
                       Key takeaways
-                    </p>
+                    </h3>
                     <ul className="flex flex-col gap-3">
                       {sections.map((sec) => (
                         <li
@@ -912,7 +925,7 @@ export function LessonPlayer({
                           </span>
                           <div>
                             <p className="text-sm font-medium text-foreground">{sec.heading}</p>
-                            <p className="mt-0.5 text-xs text-muted">{cardDefinition(sec.explanation)}</p>
+                            <p className="mt-0.5 text-sm text-muted">{cardDefinition(sec.explanation)}</p>
                           </div>
                         </li>
                       ))}
@@ -922,9 +935,9 @@ export function LessonPlayer({
                   {/* Score + actions */}
                   <div className="flex flex-col gap-5">
                     <div>
-                      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
-                        Your score
-                      </p>
+                      <h3 className="mb-3 font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">
+                      Your score
+                    </h3>
                       <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
                         <p className="font-[family-name:var(--font-mono)] text-2xl font-bold text-foreground">
                           {correctCount}/{sections.length}
@@ -934,9 +947,9 @@ export function LessonPlayer({
                     </div>
 
                     <div>
-                      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
-                        Continue with
-                      </p>
+                      <h3 className="mb-3 font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">
+                      Continue with
+                    </h3>
                       <div className="flex flex-col gap-2">
                         <Link
                           href={practiceHref ?? `/practice/${topicId}`}
@@ -980,8 +993,8 @@ export function LessonPlayer({
 
           {/* ── AI tutor sidebar ──────────────────────────────────── */}
           {!isDone && (
-            <div className="flex flex-col gap-4 lg:sticky lg:top-20">
-              <LessonTutor topicId={coachTopicId ?? topicId} context={tutorContext} />
+            <div className="flex flex-col gap-4 lg:sticky lg:top-[var(--lesson-bar,3.5rem)] lg:h-[calc(100dvh-var(--lesson-bar,3.5rem))] lg:border-l lg:border-border lg:bg-surface/40 lg:p-6">
+              <LessonTutor key={stepKey} topicId={coachTopicId ?? topicId} context={tutorContext} />
               <div className="px-1">
                 <ReportButton
                   contextLabel={`Lesson: ${title ?? topicId}`}

@@ -90,13 +90,20 @@ export function Categorize({
     const isWrong = checked && inColumn && !isCorrect;
 
     return (
-      <div
+      <button
+        type="button"
         key={itemIdx}
         draggable={!checked}
+        disabled={checked}
+        aria-pressed={!inColumn ? isSelected : undefined}
         onDragStart={() => onDragStart(itemIdx)}
-        onClick={() => (inColumn ? returnToPool(itemIdx) : tapItem(itemIdx))}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (inColumn) returnToPool(itemIdx);
+          else tapItem(itemIdx);
+        }}
         className={[
-          "select-none text-sm px-3 py-2 rounded-md border transition-all",
+          "select-none text-left text-sm px-3 py-2 rounded-md border transition-all",
           checked
             ? isCorrect
               ? "bg-success/10 border-success/40 text-success cursor-default"
@@ -109,12 +116,12 @@ export function Categorize({
         ].join(" ")}
       >
         {isWrong && (
-          <span className="block text-xs mb-0.5 opacity-60">
+          <span className="mb-0.5 block text-sm opacity-80">
             → {categories[correctMapping[itemIdx] ?? 0]?.label}
           </span>
         )}
         <RichText text={item} />
-      </div>
+      </button>
     );
   }
 
@@ -126,7 +133,7 @@ export function Categorize({
         </p>
       )}
 
-      <p className="text-xs text-muted">
+      <p className="text-sm text-muted">
         Drag cards into the correct column, or tap a card then tap a column.
       </p>
 
@@ -145,7 +152,7 @@ export function Categorize({
                 onDragOver={!checked ? prevent : undefined}
                 onDrop={!checked ? () => onDropInCategory(catIdx) : undefined}
                 className={[
-                  "text-sm font-semibold px-3 py-2 rounded-lg border-2 transition-all",
+                  "flex min-h-[3.25rem] items-center justify-center text-sm font-semibold px-3 py-2 rounded-lg border-2 transition-all",
                   selected !== null && !checked
                     ? "border-primary bg-primary/10 cursor-pointer"
                     : "border-border bg-surface cursor-default",
@@ -155,9 +162,15 @@ export function Categorize({
               </button>
 
               <div
+                onClick={() => tapCategory(catIdx)}
                 onDragOver={!checked ? prevent : undefined}
                 onDrop={!checked ? () => onDropInCategory(catIdx) : undefined}
-                className="min-h-[72px] flex flex-col gap-2 rounded-lg border border-dashed border-border p-2"
+                className={[
+                  "min-h-[72px] flex flex-col gap-2 rounded-lg border border-dashed p-2 transition-colors",
+                  selected !== null && !checked
+                    ? "cursor-pointer border-primary/60 bg-primary/5"
+                    : "border-border",
+                ].join(" ")}
               >
                 {placed.map((i) => itemCard(i, true))}
               </div>

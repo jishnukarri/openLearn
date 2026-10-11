@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { MotionConfig, motion } from "framer-motion";
-import { Trophy, Check, Play, Lock } from "lucide-react";
+import { Trophy, Check, Play } from "lucide-react";
 import { EASE_OUT } from "@/components/motion";
 
 export type PathUnit = {
@@ -29,9 +29,8 @@ function StrengthBattery({ score }: { score: number }) {
   );
 }
 
-// A vertical unit timeline: completed units are filled and clickable, the
-// next unit up is highlighted and clickable, everything after that is locked
-// until the student reaches it.
+// A vertical unit timeline. Every unit is open; completed ones are ticked
+// and the first unfinished one is highlighted as the suggested next step.
 export function SubjectPath({
   units,
   completedIds,
@@ -58,7 +57,6 @@ export function SubjectPath({
         {units.map((unit, i) => {
           const isDone = completed.has(unit.id);
           const isCurrent = i === firstIncompleteIndex;
-          const isLocked = !isDone && !isCurrent;
 
           const node = (
             <span
@@ -73,8 +71,6 @@ export function SubjectPath({
             >
               {isDone ? (
                 <Check className="size-5" strokeWidth={2.5} aria-hidden />
-              ) : isLocked ? (
-                <Lock className="size-4" strokeWidth={2.2} aria-hidden />
               ) : (
                 <Play className="size-5" strokeWidth={2} fill="currentColor" aria-hidden />
               )}
@@ -83,11 +79,11 @@ export function SubjectPath({
 
           const label = (
             <span className="flex min-w-0 flex-col gap-1">
-              <span className={`text-base font-medium ${isLocked ? "text-muted" : "text-foreground"}`}>
+              <span className="text-base font-medium text-foreground">
                 {unit.name}
               </span>
               <span className="text-sm text-muted">
-                {isDone ? "Complete" : isCurrent ? "Up next" : "Locked until you reach it"}
+                {isDone ? "Complete" : isCurrent ? "Up next" : "Not started"}
               </span>
               {unit.diagnosticScore != null && <StrengthBattery score={unit.diagnosticScore} />}
             </span>
@@ -100,20 +96,13 @@ export function SubjectPath({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, ease: EASE_OUT, delay: 0.08 + Math.min(i, 8) * 0.05 }}
             >
-              {isLocked ? (
-                <div className="flex items-start gap-4 py-3">
-                  {node}
-                  {label}
-                </div>
-              ) : (
-                <Link
-                  href={unit.href}
-                  className="group flex items-start gap-4 py-3 outline-none focus-visible:[&>span:first-child]:ring-2 focus-visible:[&>span:first-child]:ring-primary"
-                >
-                  {node}
-                  {label}
-                </Link>
-              )}
+              <Link
+                href={unit.href}
+                className="group flex items-start gap-4 py-3 outline-none focus-visible:[&>span:first-child]:ring-2 focus-visible:[&>span:first-child]:ring-primary"
+              >
+                {node}
+                {label}
+              </Link>
             </motion.li>
           );
         })}
