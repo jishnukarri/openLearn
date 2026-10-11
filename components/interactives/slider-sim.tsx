@@ -17,7 +17,9 @@ function pct(value: number, min: number, max: number) {
 // so moving the slider is a hunt ("what's over here?") instead of a text
 // swap. The explanation unlocks once the student has found a contrast.
 export function SliderSim({ interactive, onContinue }: { interactive: InteractiveSliderSim; onContinue: () => void }) {
-  const sliders = interactive.sliders ?? [];
+  // Outcome bands are thresholds on the first slider only, so any extra
+  // slider an older lesson generated would move nothing; show just the one.
+  const sliders = (interactive.sliders ?? []).slice(0, 1);
   const outcomes = interactive.outcomes ?? [];
   const [values, setValues] = useState(() => sliders.map((s) => s.default));
   const [found, setFound] = useState<Set<number>>(() => new Set());

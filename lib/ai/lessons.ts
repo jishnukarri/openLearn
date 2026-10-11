@@ -311,7 +311,7 @@ const INTERACTIVE_GUIDE =
   `this specific topic — pick the one that will give students the most ` +
   `intuitive "aha" moment before any explanation:\n\n` +
   `- "slider_sim": best for cause-and-effect topics (physics, chemistry, ` +
-  `biology). Add 1-2 sliders for key variables. Provide 3 outcome bands ` +
+  `biology). Add exactly 1 slider for the single key variable (outcomes can only depend on that one slider). Provide 3 outcome bands ordered from the slider's low end to its high end, each describing what that slider value causes ` +
   `(minThreshold/maxThreshold as 0-100% of slider range, label, description). ` +
   `title + description set the scene. Example: concentration slider that ` +
   `speeds up a reaction.\n\n` +
