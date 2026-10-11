@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { Check, X } from "lucide-react";
 import type { InteractiveBranching } from "@/lib/ai/lessons";
 import { Button } from "@/components/button";
 import { RichText } from "@/components/rich-text";
+import { shortTakeaway } from "@/lib/text-sanitize";
 
 type Phase = "choose" | "consequence" | "codify";
 
@@ -51,7 +53,11 @@ export function BranchingDilemma({ interactive, onContinue }: { interactive: Int
         <div className="animate-fade-slide-up flex flex-col gap-4">
           <div className={`rounded-xl border p-5 ${choice.isOptimal ? "border-success/30 bg-success/8" : "border-error/30 bg-error/8"}`}>
             <div className="flex items-center gap-2 mb-3">
-              <span className={`text-lg`}>{choice.isOptimal ? "✓" : "✗"}</span>
+              {choice.isOptimal ? (
+                <Check className="size-4 text-success" strokeWidth={2.5} />
+              ) : (
+                <X className="size-4 text-error" strokeWidth={2.5} />
+              )}
               <p className={`text-xs font-semibold uppercase tracking-wide ${choice.isOptimal ? "text-success" : "text-error"}`}>
                 {choice.isOptimal ? "That worked out" : "That caused problems"}
               </p>
@@ -76,7 +82,7 @@ export function BranchingDilemma({ interactive, onContinue }: { interactive: Int
         <div className="animate-fade-slide-up flex flex-col gap-3 rounded-xl border border-border bg-surface p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">The history</p>
           <p className="text-sm text-foreground leading-relaxed">
-            <RichText text={interactive.codify} />
+            <RichText text={shortTakeaway(interactive.codify)} />
           </p>
           <Button onClick={onContinue} className="self-start mt-2">
             Start the lesson →

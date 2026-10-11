@@ -7,7 +7,7 @@ import type { InteractiveSliderSim } from "@/lib/ai/lessons";
 import { Button } from "@/components/button";
 import { RichText } from "@/components/rich-text";
 import { EASE_OUT } from "@/components/motion";
-import { collapseRepeatedChars } from "@/lib/text-sanitize";
+import { collapseRepeatedChars, shortTakeaway } from "@/lib/text-sanitize";
 
 const TRAVEL_S = 1.4;
 const DWELL_MS = 3200;
@@ -216,7 +216,7 @@ export function SliderSim({ interactive, onContinue }: { interactive: Interactiv
             >
               <h4 className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">What this means</h4>
               <p className="max-w-[60ch] text-base leading-relaxed text-foreground">
-                <RichText text={interactive.codify} />
+                <RichText text={shortTakeaway(interactive.codify)} />
               </p>
               <Button onClick={onContinue} className="w-full self-start sm:w-auto">
                 Start the lesson →

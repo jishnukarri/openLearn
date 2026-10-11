@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { InteractiveGraph } from "@/lib/ai/lessons";
 import { Button } from "@/components/button";
 import { RichText } from "@/components/rich-text";
-import { collapseRepeatedChars } from "@/lib/text-sanitize";
+import { collapseRepeatedChars, shortTakeaway } from "@/lib/text-sanitize";
 
 // SVG viewport constants
 const W = 380;
@@ -152,7 +152,7 @@ export function GraphTransformer({ interactive, onContinue }: { interactive: Int
       {showCodify ? (
         <div className="animate-fade-slide-up flex flex-col gap-3 rounded-xl border border-success/30 bg-success/8 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-success">What you just discovered</p>
-          <p className="text-sm text-foreground"><RichText text={interactive.codify} /></p>
+          <p className="text-sm text-foreground"><RichText text={shortTakeaway(interactive.codify)} /></p>
           <Button onClick={onContinue} className="self-start">Start the lesson →</Button>
         </div>
       ) : interacted ? (

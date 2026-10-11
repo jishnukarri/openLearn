@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { GripVertical, PartyPopper } from "lucide-react";
 import type { InteractiveFlowchart } from "@/lib/ai/lessons";
 import { Button } from "@/components/button";
 import { RichText } from "@/components/rich-text";
+import { shortTakeaway } from "@/lib/text-sanitize";
 
 type Phase = "arrange" | "feedback" | "codify";
 
@@ -93,7 +95,7 @@ export function FlowchartSort({ interactive, onContinue }: { interactive: Intera
                 <p className="text-xs text-muted mt-0.5">{step.description}</p>
               </div>
               {phase === "arrange" && !isSelected && (
-                <span className="shrink-0 text-muted text-xs self-center">⇅</span>
+                <GripVertical className="size-4 shrink-0 self-center text-muted" strokeWidth={2} />
               )}
             </button>
           );
@@ -111,8 +113,15 @@ export function FlowchartSort({ interactive, onContinue }: { interactive: Intera
       {/* Feedback */}
       {phase === "feedback" && (
         <div className={`animate-fade-slide-up rounded-xl border p-4 ${correct ? "border-success/30 bg-success/8" : "border-error/30 bg-error/8"}`}>
-          <p className={`font-semibold text-sm mb-2 ${correct ? "text-success" : "text-error"}`}>
-            {correct ? "Perfect order! 🎉" : "Not quite right"}
+          <p className={`flex items-center gap-1.5 font-semibold text-sm mb-2 ${correct ? "text-success" : "text-error"}`}>
+            {correct ? (
+              <>
+                <PartyPopper className="size-4" strokeWidth={2} />
+                Perfect order!
+              </>
+            ) : (
+              "Not quite right"
+            )}
           </p>
           {!correct && (
             <div className="mb-3">
@@ -142,7 +151,7 @@ export function FlowchartSort({ interactive, onContinue }: { interactive: Intera
       {phase === "codify" && (
         <div className="animate-fade-slide-up flex flex-col gap-3 rounded-xl border border-border bg-surface p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">How it works</p>
-          <p className="text-sm text-foreground"><RichText text={interactive.codify} /></p>
+          <p className="text-sm text-foreground"><RichText text={shortTakeaway(interactive.codify)} /></p>
           <Button onClick={onContinue} className="self-start">Start the lesson →</Button>
         </div>
       )}

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { PartyPopper } from "lucide-react";
 import type { InteractiveBlockSort } from "@/lib/ai/lessons";
 import { Button } from "@/components/button";
 import { RichText } from "@/components/rich-text";
+import { shortTakeaway } from "@/lib/text-sanitize";
 
 type Phase = "arrange" | "feedback" | "codify";
 
@@ -106,8 +108,15 @@ export function BlockSort({ interactive, onContinue }: { interactive: Interactiv
       {/* Feedback */}
       {phase === "feedback" && (
         <div className={`animate-fade-slide-up rounded-xl border p-4 ${correct ? "border-success/30 bg-success/8" : "border-error/30 bg-error/8"}`}>
-          <p className={`font-semibold text-sm mb-1 ${correct ? "text-success" : "text-error"}`}>
-            {correct ? "Correct! 🎉" : "Not quite"}
+          <p className={`flex items-center gap-1.5 font-semibold text-sm mb-1 ${correct ? "text-success" : "text-error"}`}>
+            {correct ? (
+              <>
+                <PartyPopper className="size-4" strokeWidth={2} />
+                Correct!
+              </>
+            ) : (
+              "Not quite"
+            )}
           </p>
           {!correct && (
             <div className="flex flex-col gap-1 mb-3">
@@ -134,7 +143,7 @@ export function BlockSort({ interactive, onContinue }: { interactive: Interactiv
       {phase === "codify" && (
         <div className="animate-fade-slide-up flex flex-col gap-3 rounded-xl border border-border bg-surface p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">The rule</p>
-          <p className="text-sm text-foreground"><RichText text={interactive.codify} /></p>
+          <p className="text-sm text-foreground"><RichText text={shortTakeaway(interactive.codify)} /></p>
           <Button onClick={onContinue} className="self-start">Start the lesson →</Button>
         </div>
       )}

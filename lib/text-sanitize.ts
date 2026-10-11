@@ -22,3 +22,23 @@ export function deepCollapseRepeatedChars<T>(value: T): T {
   }
   return value;
 }
+
+
+// Older stored lessons narrate the activity ("The interactive demonstrates
+// that ..."). Drop that framing so the sentence states the idea itself.
+export function stripActivityFraming(text: string): string {
+  const t = text
+    .trim()
+    .replace(
+      /^(?:the |this )?(?:interactive|simulation|demonstration|activity|animation|exercise)\s+(?:demonstrates|shows|illustrates|reveals|highlights)\s+(?:that\s+)?/i,
+      ""
+    );
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+// One short sentence for the "what this means" panel.
+export function shortTakeaway(text: string): string {
+  const t = stripActivityFraming(text);
+  const first = t.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? t;
+  return first.length > 30 ? first : t;
+}

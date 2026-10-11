@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import type { InteractiveCategorize } from "@/lib/ai/lessons";
 import { RichText } from "@/components/rich-text";
+import { shortTakeaway } from "@/lib/text-sanitize";
 
 export function Categorize({
   interactive,
@@ -13,7 +14,7 @@ export function Categorize({
 }) {
   const categories = interactive.categories ?? [];
   const items = interactive.items ?? [];
-  const codify = interactive.codify ?? "";
+  const codify = shortTakeaway(interactive.codify ?? "");
   const prompt = interactive.prompt ?? "";
 
   // Normalize to 0-indexed in case AI generates 1-indexed values
