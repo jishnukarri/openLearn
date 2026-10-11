@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { animated, useSpring } from "@react-spring/web";
 import { PartyPopper, ArrowLeft } from "lucide-react";
 import type { Flashcard } from "@/lib/ai/flashcards";
 import { springs, useReducedMotionSafe } from "@/lib/motion";
 import { Button, ButtonLink } from "@/components/button";
+import { completeRevisionDeckAction } from "@/app/actions/lessons";
 import { ProgressBar } from "@/components/progress-bar";
 import { RichText } from "@/components/rich-text";
 
@@ -70,6 +71,13 @@ export function FlashcardDeck({
   const total = cards.length;
   const current = queue[0];
   const done = queue.length === 0;
+  const [earnedXp, setEarnedXp] = useState(0);
+  const awarded = useRef(false);
+  useEffect(() => {
+    if (!done || awarded.current) return;
+    awarded.current = true;
+    completeRevisionDeckAction().then((r) => setEarnedXp(r.xp)).catch(() => {});
+  }, [done]);
 
   const flip = useSpring({
     transform: `rotateY(${flipped ? 180 : 0}deg)`,
@@ -119,6 +127,9 @@ export function FlashcardDeck({
         <p className="text-sm text-muted">
           You went through all {total} cards. Come back tomorrow to review the ones scheduled for tomorrow.
         </p>
+        {earnedXp > 0 && (
+          <p className="font-[family-name:var(--font-mono)] text-lg font-semibold text-highlight">+{earnedXp} XP for revising</p>
+        )}
         <div className="flex gap-3">
           <Button onClick={reset}>Review again</Button>
           <ButtonLink href={backHref} variant="secondary">

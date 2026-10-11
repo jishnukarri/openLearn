@@ -7,10 +7,9 @@ import { getCompletedTopicIds, getCompletedSubtopicIds } from "@/lib/supabase/pr
 import { getStudentSubjects } from "@/lib/supabase/students";
 import { db } from "@/lib/supabase/database-client";
 import { ButtonLink } from "@/components/button";
-import { SubjectPath, type PathUnit } from "./subject-path";
+import { SubjectPath, type PathGroup } from "./subject-path";
 import { PageShell, PageHeader, AsideBlock } from "@/components/page-shell";
 import { Stagger, Rise } from "@/components/motion";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default async function SubjectPathPage({
   params,
@@ -45,19 +44,26 @@ export default async function SubjectPathPage({
     topics.map((t) => listPublishedSubtopicsByTopic(t.id))
   );
 
-  const units: PathUnit[] = topics.flatMap((topic, i) => {
+  const groups: PathGroup[] = topics.map((topic, i) => {
     const subtopics = subtopicsByTopic[i];
     const diagnosticScore = diagnosticByTopic.get(topic.name) ?? null;
-    if (subtopics.length === 0) {
-      return [{ id: topic.id, name: topic.name, href: `/learn/${topic.id}`, diagnosticScore }];
-    }
-    return subtopics.map((sub) => ({
-      id: sub.id,
-      name: sub.name,
-      href: `/learn/subtopic/${sub.id}`,
-      diagnosticScore,
-    }));
+    return {
+      id: topic.id,
+      name: topic.name,
+      summary: topic.summary ?? null,
+      lessons:
+        subtopics.length === 0
+          ? [{ id: topic.id, name: topic.name, href: `/learn/${topic.id}`, kind: "topic" as const, diagnosticScore }]
+          : subtopics.map((sub) => ({
+              id: sub.id,
+              name: sub.name,
+              href: `/learn/subtopic/${sub.id}`,
+              kind: "subtopic" as const,
+              diagnosticScore,
+            })),
+    };
   });
+  const units = groups.flatMap((g) => g.lessons);
   const completedIds = new Set([...completedTopics, ...completedSubtopics]);
 
   // Weak topics = diagnostic score < 0.6, sorted weakest first.
@@ -77,7 +83,7 @@ export default async function SubjectPathPage({
           <>
             <p className="font-[family-name:var(--font-mono)] text-2xl font-semibold text-foreground">
               {doneUnits}
-              <span className="text-base font-normal text-muted"> of {units.length} units complete</span>
+              <span className="text-base font-normal text-muted"> of {units.length} lessons complete</span>
             </p>
             <div
               role="progressbar"
@@ -107,9 +113,14 @@ export default async function SubjectPathPage({
       <AsideBlock title="Weak spots">
         {weakTopics.length > 0 ? (
           <ul className="flex flex-col divide-y divide-border">
-            {weakTopics.slice(0, 3).map(({ topic, score }) => (
+            {weakTopics.slice(0, 3).map(({ topic, subtopics, score }) => (
               <li key={topic.id} className="flex items-center justify-between gap-3 py-2 first:pt-0">
-                <span className="text-sm text-foreground">{topic.name}</span>
+                <Link
+                  href={subtopics[0] ? `/learn/subtopic/${subtopics[0].id}` : `/learn/${topic.id}`}
+                  className="text-sm text-foreground hover:underline"
+                >
+                  {topic.name}
+                </Link>
                 <span className="font-[family-name:var(--font-mono)] text-sm text-error">{Math.round(score * 100)}%</span>
               </li>
             ))}
@@ -125,81 +136,15 @@ export default async function SubjectPathPage({
     <PageShell size="content" aside={aside}>
       <Stagger className="flex flex-col gap-8">
         <Rise>
-          <PageHeader title={subject.name} description="Every unit is open. Follow the path in order, jump to any unit, or use revision for weak spots." className="animate-none" />
+          <PageHeader title={subject.name} description="Every lesson is open. Work through the units in order or jump anywhere. Finished lessons can be revised for more XP." className="animate-none" />
         </Rise>
 
         <Rise>
-          <Tabs defaultValue="path">
-            <TabsList variant="line">
-              <TabsTrigger value="path">Learning path</TabsTrigger>
-              <TabsTrigger value="revision">
-                Revision
-                {weakTopics.length > 0 && (
-                  <span className="ml-1.5 rounded-full bg-error/20 px-1.5 py-0.5 text-xs font-bold text-error">
-                    {weakTopics.length}
-                  </span>
-                )}
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="path">
-              {units.length === 0 ? (
-                <p className="mt-6 text-base text-muted">No units published for this subject yet, check back soon.</p>
-              ) : (
-                <div className="mt-4">
-                  <SubjectPath units={units} completedIds={[...completedIds]} />
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="revision">
-              {weakTopics.length === 0 ? (
-                <div className="mt-6">
-                  <p className="text-base font-medium text-success">All topics looking strong.</p>
-                  <p className="mt-1 max-w-[65ch] text-sm text-muted">
-                    No weak spots from your diagnostic. Keep studying and retake the diagnostic to refresh this.
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-4 flex flex-col gap-3">
-                  <p className="text-sm text-muted">Topics where your diagnostic was below 60%, listed weakest first.</p>
-                  <ul className="flex flex-col divide-y divide-border border-y border-border">
-                    {weakTopics.map(({ topic, subtopics, score }) => {
-                      const pct = Math.round(score * 100);
-                      const firstUnit = subtopics[0] ? `/learn/subtopic/${subtopics[0].id}` : `/learn/${topic.id}`;
-                      return (
-                        <li key={topic.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
-                          <div className="min-w-0">
-                            <p className="text-base font-medium text-foreground">{topic.name}</p>
-                            <div className="mt-1.5 flex items-center gap-2">
-                              <div className="h-1.5 w-24 overflow-hidden rounded-full bg-border">
-                                <div className="h-full rounded-full bg-error" style={{ width: `${pct}%` }} />
-                              </div>
-                              <span className="text-sm text-error">{pct}%</span>
-                            </div>
-                          </div>
-                          <div className="flex shrink-0 gap-2">
-                            <Link
-                              href={firstUnit}
-                              className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
-                            >
-                              Revise
-                            </Link>
-                            <Link
-                              href={`/flashcards/${topic.id}`}
-                              className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted transition-colors hover:border-primary hover:text-foreground"
-                            >
-                              Flashcards
-                            </Link>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+          {units.length === 0 ? (
+            <p className="text-base text-muted">No units published for this subject yet, check back soon.</p>
+          ) : (
+            <SubjectPath groups={groups} completedIds={[...completedIds]} />
+          )}
         </Rise>
       </Stagger>
     </PageShell>

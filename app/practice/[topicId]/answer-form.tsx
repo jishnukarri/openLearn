@@ -265,70 +265,72 @@ export function AnswerForm({
           />
         )}
 
-        <div className="flex flex-col gap-3 rounded-xl border border-dashed border-border p-4">
-          {!uploadId ? (
-            <button
-              type="button"
-              onClick={attachPhoto}
-              className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-primary hover:underline"
-            >
-              <Camera className="size-4" strokeWidth={2} /> Attach a photo of your handwritten answer instead
-            </button>
-          ) : imagePaths.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              <p className="flex items-center gap-1.5 text-sm text-success">
-                <Check className="size-4 shrink-0" strokeWidth={2.5} />
-                {imagePaths.length} photo{imagePaths.length === 1 ? "" : "s"} attached, this
-                will be marked instead of anything typed above.
-              </p>
-              <div className="flex gap-2 overflow-x-auto">
-                {imageUrls.map((url, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element -- signed storage URL, unknown dimensions
-                  <img
-                    key={i}
-                    src={url}
-                    alt={`Uploaded answer page ${i + 1}`}
-                    className="h-20 w-20 shrink-0 rounded-lg border border-border object-cover"
-                  />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-              <label className="flex-1 text-sm text-foreground">
-                <span className="mb-1 block text-xs text-muted">
-                  Upload from this device
-                </span>
-                <input
-                  type="file"
-                  accept="image/*,application/pdf"
-                  multiple
-                  disabled={uploading}
-                  onChange={(e) => uploadFromThisDevice(e.target.files)}
-                  className="w-full rounded-lg border border-border bg-background p-2 text-xs text-foreground file:mr-2 file:rounded-md file:border-0 file:bg-primary file:px-2 file:py-1 file:text-xs file:font-semibold file:text-white"
-                />
-                {uploading && <span className="mt-1 block text-xs text-muted">Uploading…</span>}
-              </label>
-              {qrDataUrl && (
-                // Hidden below sm, scanning a QR code on the same phone
-                // you're already using doesn't make sense; only worth
-                // showing once there's room for it to plausibly be a
-                // second device (tablet/desktop).
-                <div className="hidden shrink-0 flex-col items-center gap-1 sm:flex">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- generated data: URL, not an optimizable remote image */}
-                  <img
-                    src={qrDataUrl}
-                    alt="QR code to upload from your phone"
-                    className="h-28 w-28 rounded-lg border border-border bg-white p-1"
-                  />
-                  <p className="text-center text-xs text-muted">
-                    Or scan with your phone
-                  </p>
+        {format.type !== "multiple-choice" && format.type !== "matching" && (
+          <div className="flex flex-col gap-3 rounded-xl border border-dashed border-border p-4">
+            {!uploadId ? (
+              <button
+                type="button"
+                onClick={attachPhoto}
+                className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-primary hover:underline"
+              >
+                <Camera className="size-4" strokeWidth={2} /> Attach a photo of your handwritten answer instead
+              </button>
+            ) : imagePaths.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                <p className="flex items-center gap-1.5 text-sm text-success">
+                  <Check className="size-4 shrink-0" strokeWidth={2.5} />
+                  {imagePaths.length} photo{imagePaths.length === 1 ? "" : "s"} attached, this
+                  will be marked instead of anything typed above.
+                </p>
+                <div className="flex gap-2 overflow-x-auto">
+                  {imageUrls.map((url, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element -- signed storage URL, unknown dimensions
+                    <img
+                      key={i}
+                      src={url}
+                      alt={`Uploaded answer page ${i + 1}`}
+                      className="h-20 w-20 shrink-0 rounded-lg border border-border object-cover"
+                    />
+                  ))}
                 </div>
-              )}
-            </div>
-          )}
-        </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                <label className="flex-1 text-sm text-foreground">
+                  <span className="mb-1 block text-xs text-muted">
+                    Upload from this device
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    multiple
+                    disabled={uploading}
+                    onChange={(e) => uploadFromThisDevice(e.target.files)}
+                    className="w-full rounded-lg border border-border bg-background p-2 text-xs text-foreground file:mr-2 file:rounded-md file:border-0 file:bg-primary file:px-2 file:py-1 file:text-xs file:font-semibold file:text-white"
+                  />
+                  {uploading && <span className="mt-1 block text-xs text-muted">Uploading…</span>}
+                </label>
+                {qrDataUrl && (
+                  // Hidden below sm, scanning a QR code on the same phone
+                  // you're already using doesn't make sense; only worth
+                  // showing once there's room for it to plausibly be a
+                  // second device (tablet/desktop).
+                  <div className="hidden shrink-0 flex-col items-center gap-1 sm:flex">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- generated data: URL, not an optimizable remote image */}
+                    <img
+                      src={qrDataUrl}
+                      alt="QR code to upload from your phone"
+                      className="h-28 w-28 rounded-lg border border-border bg-white p-1"
+                    />
+                    <p className="text-center text-xs text-muted">
+                      Or scan with your phone
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {state && "message" in state && (
           <p className="text-sm text-error">{state.message}</p>

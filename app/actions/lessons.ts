@@ -34,6 +34,15 @@ export async function completeLessonAction(
   return { xp: profile.xp + 20, streak: profile.streak_count };
 }
 
+// Finishing a recall deck is revision: students earn 10 XP for it. The
+// client calls this once per deck visit; teachers and admins only preview.
+export async function completeRevisionDeckAction(): Promise<{ xp: number }> {
+  const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
+  if (profile.role !== "student") return { xp: 0 };
+  await awardXp(profile.id, 1);
+  return { xp: 10 };
+}
+
 // On-demand "why?" explanation after a wrong quick-check answer — the
 // check itself already reveals the correct answer, this just explains it.
 export async function explainCheckAnswerAction({
