@@ -100,7 +100,7 @@ export default async function DashboardPage() {
       </AsideBlock>
 
       <AsideBlock title="Quick tools">
-        <ul className="flex flex-col divide-y divide-border">
+        <ul className="grid grid-cols-2 gap-2">
           {continueTopic && (
             <>
               <QuickTool href={`/learn/${continueTopic}`} icon={Sparkles} label="AI coach" />
@@ -264,8 +264,11 @@ export default async function DashboardPage() {
 function QuickTool({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
   return (
     <li>
-      <Link href={href} className="flex items-center gap-2 py-2.5 text-sm font-medium text-foreground transition-colors hover:text-primary">
-        <Icon className="size-4 shrink-0 text-primary" strokeWidth={2} aria-hidden />
+      <Link
+        href={href}
+        className="flex h-full min-h-[4.5rem] flex-col justify-between gap-3 rounded-2xl border border-border bg-surface p-3.5 text-sm font-semibold text-foreground transition-colors hover:border-primary focus-visible:border-primary"
+      >
+        <Icon className="size-5 shrink-0 text-primary" strokeWidth={2} aria-hidden />
         {label}
       </Link>
     </li>
