@@ -26,7 +26,7 @@ export default async function AdminSubjectsPage() {
 
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <>
           <AsideBlock title="New subject">

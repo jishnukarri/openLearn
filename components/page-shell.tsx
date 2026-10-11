@@ -10,6 +10,8 @@ const SIZES = {
   form: "max-w-4xl",
   content: "max-w-5xl",
   wide: "max-w-6xl",
+  // Operate surfaces (admin, teacher): use the whole viewport.
+  fluid: "max-w-none lg:px-10 2xl:px-14",
 } as const;
 
 // Standard page frame. With `aside`, desktop gets a two-column composition
@@ -29,7 +31,14 @@ export function PageShell({
   return (
     <main className={cn("mx-auto w-full px-6 py-10 lg:py-14", SIZES[size], className)}>
       {aside ? (
-        <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start xl:grid-cols-[minmax(0,1fr)_19rem]">
+        <div
+          className={cn(
+            "grid gap-x-12 gap-y-10 lg:items-start",
+            size === "fluid"
+              ? "lg:grid-cols-[minmax(0,1fr)_20rem] 2xl:grid-cols-[minmax(0,1fr)_26rem] 2xl:gap-x-16"
+              : "lg:grid-cols-[minmax(0,1fr)_17rem] xl:grid-cols-[minmax(0,1fr)_19rem]"
+          )}
+        >
           <div className="flex min-w-0 flex-col gap-8">{children}</div>
           <aside className="flex flex-col gap-6 lg:sticky lg:top-24">{aside}</aside>
         </div>

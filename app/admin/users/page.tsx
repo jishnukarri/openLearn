@@ -28,7 +28,7 @@ export default async function AdminUsersPage() {
 
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <>
           <AsideBlock title="Roster breakdown">

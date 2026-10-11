@@ -29,7 +29,7 @@ export default async function SubmissionDetailPage({
 
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <>
           <AsideBlock title="Score">

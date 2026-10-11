@@ -83,7 +83,7 @@ export async function SubjectDetailPage({
 
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <>
           <AsideBlock title="Status">

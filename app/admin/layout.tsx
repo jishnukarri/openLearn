@@ -17,7 +17,7 @@ export default async function AdminLayout({
   await requireRole("admin");
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col sm:flex-row">
+    <div data-fluid className="flex w-full flex-col sm:flex-row">
       <SidebarNav items={NAV_ITEMS} title="Admin" />
       <div className="min-w-0 flex-1">{children}</div>
     </div>

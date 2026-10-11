@@ -13,7 +13,7 @@ export default async function TeacherAiSettingsPage() {
 
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <>
           <AsideBlock title="How your key is used">

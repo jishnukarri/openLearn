@@ -47,7 +47,7 @@ export default async function TeacherClassesPage() {
 
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <>
           <AsideBlock title="Teaching overview">

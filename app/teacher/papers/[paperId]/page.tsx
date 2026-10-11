@@ -40,7 +40,7 @@ export default async function PaperDetailPage({
 
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <>
           <AsideBlock title="Paper status">

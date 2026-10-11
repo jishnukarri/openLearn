@@ -15,7 +15,7 @@ export default async function AdminReportsPage() {
 
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <AsideBlock title="Queue">
           <dl className="flex flex-col gap-2">

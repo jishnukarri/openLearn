@@ -6,7 +6,7 @@ export default async function MarkPaperPage() {
   await requireAnyRole(["teacher", "admin"]);
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <>
           <AsideBlock title="How marking works">

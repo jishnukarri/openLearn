@@ -23,7 +23,7 @@ export default async function TeacherPapersPage() {
 
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <>
           <AsideBlock title="Paper workflow">
@@ -63,7 +63,7 @@ export default async function TeacherPapersPage() {
           action={createPaperAction}
           className="animate-fade-slide-up flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6"
         >
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="classId" className="text-sm font-medium text-foreground">
                 Class
@@ -85,7 +85,7 @@ export default async function TeacherPapersPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="questionPaperFiles" className="text-sm font-medium text-foreground">
                 Question paper (PDF or image, one or more files)

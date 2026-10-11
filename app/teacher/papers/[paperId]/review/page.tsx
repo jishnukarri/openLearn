@@ -19,7 +19,7 @@ export default async function PaperReviewPage({
 
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <AsideBlock title="Before you save">
           <p>Check each question&apos;s prompt, marks and markscheme points against your paper.</p>

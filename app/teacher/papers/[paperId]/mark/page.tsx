@@ -21,7 +21,7 @@ export default async function MarkSubmissionsPage({
 
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <>
           <AsideBlock title="What happens next">

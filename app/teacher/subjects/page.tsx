@@ -20,7 +20,7 @@ export default async function TeacherSubjectsPage() {
 
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <>
           <AsideBlock title="From idea to published">

@@ -44,7 +44,7 @@ export default async function AdminSettingsPage() {
 
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <>
           <AsideBlock title="Current provider">

@@ -43,7 +43,7 @@ export default async function PaperResultsPage({
 
   return (
     <PageShell
-      size="wide"
+      size="fluid"
       aside={
         <>
           <AsideBlock title="Summary">
