@@ -34,10 +34,13 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            // 'unsafe-eval' is dev-only: Next.js/React use eval() in dev for
-            // debugging (stack reconstruction) but never in production.
+            // 'unsafe-eval' is for everything except production: Next.js/React
+            // use eval() in dev for debugging (stack reconstruction) but never
+            // in production. Keyed on "not production" rather than "is
+            // development" so a dev server started with NODE_ENV unset or
+            // overridden still gets it.
             value: `default-src 'self'; script-src 'self' 'unsafe-inline'${
-              process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""
+              process.env.NODE_ENV !== "production" ? " 'unsafe-eval'" : ""
             }; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:; frame-ancestors 'none';`,
           },
         ],
