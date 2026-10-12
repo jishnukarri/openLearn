@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { randomUUID } from "node:crypto";
+import { isHttpsRequest } from "@/lib/cookie-options";
 
 // Anonymous visitor identity for the guest-onboarding flow (pick subjects,
 // take a diagnostic, see a teaser — no account yet). Just a high-entropy
@@ -25,7 +26,7 @@ export async function ensureGuestToken(): Promise<string> {
   const cookieStore = await cookies();
   cookieStore.set(GUEST_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: await isHttpsRequest(),
     sameSite: "lax",
     maxAge: GUEST_COOKIE_MAX_AGE_SECONDS,
     path: "/",

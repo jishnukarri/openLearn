@@ -12,6 +12,7 @@ import {
 import { SESSION_COOKIE } from "@/lib/appwrite/session";
 import { createProfile, getProfileByAppwriteId } from "@/lib/supabase/profiles";
 import { roleHome } from "@/lib/roles";
+import { isHttpsRequest } from "@/lib/cookie-options";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getGuestToken, clearGuestToken } from "@/lib/guest-session";
 import { getActiveGuestSession } from "@/lib/supabase/diagnostic";
@@ -39,14 +40,24 @@ const LoginSchema = z.object({
   password: z.string().min(1, "Password is required."),
 });
 
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
 async function setSessionCookie(secret: string, expire: string) {
   const cookieStore = await cookies();
+  // An unparsable or already-past expiry would make the browser treat this
+  // as a session cookie or drop it, so fall back to 30 days.
+  const parsed = new Date(expire);
+  const expires =
+    Number.isFinite(parsed.getTime()) && parsed.getTime() > Date.now()
+      ? parsed
+      : new Date(Date.now() + THIRTY_DAYS_MS);
   cookieStore.set(SESSION_COOKIE, secret, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: await isHttpsRequest(),
     sameSite: "lax",
     path: "/",
-    expires: new Date(expire),
+    expires,
+    maxAge: Math.max(1, Math.floor((expires.getTime() - Date.now()) / 1000)),
   });
 }
 
