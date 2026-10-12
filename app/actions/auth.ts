@@ -13,7 +13,7 @@ import { SESSION_COOKIE } from "@/lib/appwrite/session";
 import { createProfile, getProfileByAppwriteId } from "@/lib/supabase/profiles";
 import { roleHome } from "@/lib/roles";
 import { isHttpsRequest } from "@/lib/cookie-options";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, checkKeyRateLimit } from "@/lib/rate-limit";
 import { getGuestToken, clearGuestToken } from "@/lib/guest-session";
 import { getActiveGuestSession } from "@/lib/supabase/diagnostic";
 import { convertGuestSessionToStudent } from "@/lib/guest-diagnostic";
@@ -145,6 +145,9 @@ export async function login(
 
   if (!(await checkRateLimit("login", 5, 60_000))) {
     return { message: "Too many attempts. Please try again in a minute." };
+  }
+  if (!checkKeyRateLimit("login-email", String(formData.get("email") ?? ""), 10, 10 * 60_000)) {
+    return { message: "Too many attempts. Please try again in a few minutes." };
   }
 
   const { email, password } = validated.data;
