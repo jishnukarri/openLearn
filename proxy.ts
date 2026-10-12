@@ -19,9 +19,14 @@ const protectedRoutes = [
 ];
 const authRoutes = ["/login", "/signup"];
 
+// The phone hand-off upload page is a temporary link that needs no login.
+const publicUploadPath = /^\/practice\/[^/]+\/upload\/[^/]+\/?$/;
+
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = request.cookies.has(SESSION_COOKIE);
+
+  if (publicUploadPath.test(pathname)) return NextResponse.next();
 
   if (protectedRoutes.some((route) => pathname.startsWith(route)) && !hasSession) {
     return NextResponse.redirect(new URL("/login", request.nextUrl));

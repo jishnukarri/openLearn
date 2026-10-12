@@ -1,22 +1,38 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { requireRole } from "@/lib/appwrite/session";
-import { getUploadSession } from "@/lib/supabase/practice-uploads";
+import { getUploadSession, isUploadLinkOpen } from "@/lib/supabase/practice-uploads";
 import { PageShell, PageHeader } from "@/components/page-shell";
 import { UploadForm } from "./upload-form";
 
-// Standalone photo/PDF upload page for a practice answer, reached by
-// scanning the QR code shown on desktop, or directly on the same device.
-// Deliberately its own page (not a modal) so it works from a phone camera.
+// A temporary hand-off link, opened on a phone by scanning the QR code on
+// the practice page. It needs no login: the unguessable id is the credential
+// and it expires, so it is also kept out of search results.
+export const metadata: Metadata = {
+  title: "Upload your answer",
+  robots: { index: false, follow: false, nocache: true },
+  referrer: "no-referrer",
+};
+
 export default async function PracticeUploadPage({
   params,
 }: {
   params: Promise<{ topicId: string; uploadId: string }>;
 }) {
-  const { profile } = await requireRole("student");
   const { uploadId } = await params;
 
   const session = await getUploadSession(uploadId);
-  if (!session || session.studentId !== profile.id) notFound();
+  if (!session) notFound();
+
+  if (!isUploadLinkOpen(session)) {
+    return (
+      <PageShell size="focus">
+        <PageHeader
+          title="This link has expired"
+          description="Upload links only work for a short time. Go back to the practice page and scan a new QR code."
+        />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell size="focus">

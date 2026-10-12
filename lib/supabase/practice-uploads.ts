@@ -9,7 +9,16 @@ export type PracticeUploadSession = {
   questionId: string;
   status: "pending" | "ready";
   imagePaths: string[]; // Appwrite file ids, despite the name (kept for compatibility)
+  createdAt: string;
 };
+
+// The phone hand-off link works without a login, so the unguessable id is
+// the credential and it only lives this long.
+export const UPLOAD_LINK_TTL_MS = 30 * 60 * 1000;
+
+export function isUploadLinkOpen(session: Pick<PracticeUploadSession, "createdAt">): boolean {
+  return Date.now() - new Date(session.createdAt).getTime() < UPLOAD_LINK_TTL_MS;
+}
 
 export async function createUploadSession(input: {
   studentId: string;
@@ -28,7 +37,7 @@ export async function createUploadSession(input: {
 export async function getUploadSession(id: string): Promise<PracticeUploadSession | null> {
   const { data, error } = await db
     .from("practice_uploads")
-    .select("id, student_id, topic_id, question_id, status, image_paths")
+    .select("id, student_id, topic_id, question_id, status, image_paths, created_at")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -40,6 +49,7 @@ export async function getUploadSession(id: string): Promise<PracticeUploadSessio
     questionId: data.question_id,
     status: data.status,
     imagePaths: data.image_paths ?? [],
+    createdAt: data.created_at,
   };
 }
 
