@@ -16,7 +16,12 @@ export type Assignment = {
 // A row's target is either a whole topic (legacy) or a specific subtopic
 // (current) — never both, always at least one (DB check constraint). This
 // resolves either shape into the same flat display fields.
-function resolveAssignmentTarget(row: any): {
+type AssignmentTargetRow = {
+  topics: { id: string; name: string; subjects: { name: string } } | null;
+  subtopics: { id: string; name: string; topics: { name: string; subjects: { name: string } } } | null;
+};
+
+function resolveAssignmentTarget(row: AssignmentTargetRow): {
   topic_id: string | null;
   topic_name: string;
   subtopic_id: string | null;
@@ -32,12 +37,14 @@ function resolveAssignmentTarget(row: any): {
       subject_name: row.subtopics.topics.subjects.name,
     };
   }
+  // The DB check constraint guarantees a target; topics is set when subtopics isn't.
+  const topic = row.topics!;
   return {
-    topic_id: row.topics.id,
-    topic_name: row.topics.name,
+    topic_id: topic.id,
+    topic_name: topic.name,
     subtopic_id: null,
     subtopic_name: null,
-    subject_name: row.topics.subjects.name,
+    subject_name: topic.subjects.name,
   };
 }
 
@@ -51,7 +58,7 @@ export async function listAssignmentsForStudent(
     .eq("student_id", studentId);
   if (memberError) throw memberError;
 
-  const classIds = memberships.map((m: any) => m.class_id);
+  const classIds = memberships.map((m: { class_id: string }) => m.class_id);
   if (classIds.length === 0) return [];
 
   const { data, error } = await db
@@ -63,7 +70,8 @@ export async function listAssignmentsForStudent(
     .order("created_at", { ascending: false });
   if (error) throw error;
 
-  return (data as any[]).map((row) => ({
+  type StudentRow = AssignmentTargetRow & { id: string; notes: string | null; created_at: string; classes: { name: string } };
+  return (data as unknown as StudentRow[]).map((row) => ({
     id: row.id,
     ...resolveAssignmentTarget(row),
     class_name: row.classes.name,
@@ -148,7 +156,8 @@ export async function listAssignmentsForClass(classId: string): Promise<
     .order("created_at", { ascending: false });
   if (error) throw error;
 
-  return (data as any[]).map((row) => {
+  type ClassRow = AssignmentTargetRow & { id: string; notes: string | null; created_at: string };
+  return (data as unknown as ClassRow[]).map((row) => {
     const target = resolveAssignmentTarget(row);
     return {
       id: row.id,
@@ -188,11 +197,11 @@ export async function copyAssignments(input: {
     .select("topic_id, subtopic_id")
     .eq("class_id", input.targetClassId);
   if (existingError) throw existingError;
-  const alreadyAssigned = new Set(existing.map((r: any) => assignmentDedupeKey(r)));
+  const alreadyAssigned = new Set(existing.map((r) => assignmentDedupeKey(r)));
 
   const rows = source
-    .filter((r: any) => !alreadyAssigned.has(assignmentDedupeKey(r)))
-    .map((r: any) => ({
+    .filter((r) => !alreadyAssigned.has(assignmentDedupeKey(r)))
+    .map((r) => ({
       class_id: input.targetClassId,
       topic_id: r.topic_id,
       subtopic_id: r.subtopic_id,
