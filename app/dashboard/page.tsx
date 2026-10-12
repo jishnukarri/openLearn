@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Sparkles, ClipboardCheck, Layers, ListChecks, Plus, Flame, Zap, ArrowRight, type LucideIcon } from "lucide-react";
 import { requireRole } from "@/lib/appwrite/session";
-import { getStudentSubjects, getWeakTopics, getSubjectsNeedingDiagnostic } from "@/lib/supabase/students";
+import { getStudentSubjects, getWeakTopics, getSubjectsNeedingDiagnostic, getTopicScores } from "@/lib/supabase/students";
+import { rankTopics, type Reason } from "@/lib/recommendations";
 import { listPublishedTopicsBySubject } from "@/lib/supabase/topics";
 import { listAssignmentsForStudent } from "@/lib/supabase/assignments";
 import { getCompletedTopicIds } from "@/lib/supabase/progress";
@@ -23,12 +24,13 @@ const SUBJECT_COLOURS = [
 
 export default async function DashboardPage() {
   const { profile } = await requireRole("student");
-  const [subjects, weakTopics, assignments, needingDiagnostic, completedTopicIds] = await Promise.all([
+  const [subjects, weakTopics, assignments, needingDiagnostic, completedTopicIds, topicScores] = await Promise.all([
     getStudentSubjects(profile.id),
     getWeakTopics(profile.id),
     listAssignmentsForStudent(profile.id),
     getSubjectsNeedingDiagnostic(profile.id),
     getCompletedTopicIds(profile.id),
+    getTopicScores(profile.id),
   ]);
   const topicsBySubject = await Promise.all(
     subjects.map(async (subject) => ({
@@ -37,8 +39,32 @@ export default async function DashboardPage() {
     }))
   );
   const allTopics = topicsBySubject.flatMap(({ topics }) => topics);
-  const continueTopic = assignments[0]?.topic_id ?? allTopics[0]?.id;
-  const continueName = assignments[0]?.topic_name ?? allTopics[0]?.name;
+  // Lead with what the diagnostics say the student needs most, mixing
+  // subjects, rather than the first topic of whichever subject is listed first.
+  const ranked = rankTopics(
+    topicsBySubject.flatMap(({ subject, topics }) =>
+      topics.map((t) => ({ id: t.id, name: t.name, subjectId: subject.subject_id, subjectName: subject.subject_name }))
+    ),
+    topicScores,
+    completedTopicIds
+  );
+  const continueTopic = assignments[0]?.topic_id ?? ranked[0]?.id ?? allTopics[0]?.id;
+  const continueName = assignments[0]?.topic_name ?? ranked[0]?.name ?? allTopics[0]?.name;
+  const continueWhy = assignments[0] ? "Set by your teacher" : ranked[0] ? reasonText(ranked[0].reason, ranked[0].score, ranked[0].subjectName) : null;
+  const topicSummary = new Map(allTopics.map((t) => [t.id, t.summary]));
+
+  // Up to two weak topics per subject, so one subject can't crowd out the rest.
+  const focusPerSubject = new Map<string, number>();
+  const focusTopics = weakTopics
+    .slice()
+    .sort((a, b) => a.score - b.score)
+    .filter((t) => {
+      const n = focusPerSubject.get(t.subject_name) ?? 0;
+      if (n >= 2) return false;
+      focusPerSubject.set(t.subject_name, n + 1);
+      return true;
+    })
+    .slice(0, 6);
   const firstName = profile.full_name?.split(" ")[0] ?? "there";
   const completedTotal = allTopics.filter((t) => completedTopicIds.has(t.id)).length;
   const overallPct = allTopics.length ? Math.round((completedTotal / allTopics.length) * 100) : 0;
@@ -72,7 +98,7 @@ export default async function DashboardPage() {
         {weakTopics.length > 0 ? (
           <>
             <ul className="flex flex-col divide-y divide-border">
-              {weakTopics.slice(0, 3).map((topic, index) => (
+              {focusTopics.map((topic, index) => (
                 <li key={`${topic.subject_name}-${index}`} className="py-2 first:pt-0">
                   <p className="text-sm font-medium text-foreground">{topic.topic_name ?? topic.subject_name}</p>
                   <p>
@@ -137,7 +163,7 @@ export default async function DashboardPage() {
             <section className="flex flex-wrap items-center justify-between gap-4 border-y border-border py-6">
               <div className="min-w-0">
                 <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">Continue learning</h2>
-                {continueName && <p className="mt-1 text-base text-muted">{continueName}</p>}
+                {continueName && <p className="mt-1 text-base text-muted">{continueName}{continueWhy && <span> · {continueWhy}</span>}</p>}
               </div>
               <ButtonLink href={`/learn/${continueTopic}`} className="gap-2">
                 Resume <ArrowRight className="size-4" strokeWidth={2} aria-hidden />
@@ -240,15 +266,18 @@ export default async function DashboardPage() {
         <Rise>
           <section>
             <h2 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">Next lessons</h2>
-            {allTopics.length === 0 ? (
-              <p className="mt-3 text-base text-muted">Your teacher or admin has not published a topic yet.</p>
+            {ranked.length === 0 ? (
+              <p className="mt-3 text-base text-muted">
+                {allTopics.length === 0 ? "Your teacher or admin has not published a topic yet." : "You've finished every lesson. Revise from your subject pages to earn more XP."}
+              </p>
             ) : (
               <ul className="mt-3 flex flex-col divide-y divide-border border-y border-border">
-                {allTopics.slice(0, 4).map((topic) => (
+                {ranked.slice(0, 4).map((topic) => (
                   <li key={topic.id}>
                     <Link href={`/learn/${topic.id}`} className="group block py-3">
                       <p className="text-base font-medium text-foreground group-hover:text-primary">{topic.name}</p>
-                      <p className="mt-0.5 line-clamp-2 max-w-[65ch] text-sm text-muted">{topic.summary ?? "Start this lesson"}</p>
+                      <p className="mt-0.5 text-sm text-highlight">{topic.subjectName} · {reasonText(topic.reason, topic.score)}</p>
+                      <p className="mt-0.5 line-clamp-2 max-w-[65ch] text-sm text-muted">{topicSummary.get(topic.id) ?? "Start this lesson"}</p>
                     </Link>
                   </li>
                 ))}
@@ -259,6 +288,15 @@ export default async function DashboardPage() {
       </Stagger>
     </PageShell>
   );
+}
+
+function reasonText(reason: Reason, score: number | null, subjectName?: string): string {
+  const pct = score !== null ? `${Math.round(score * 100)}%` : "";
+  const where = subjectName ? `${subjectName}: ` : "";
+  if (reason === "weak") return `${where}weak spot, ${pct} in your diagnostic`;
+  if (reason === "strong") return `${where}strong in your diagnostic (${pct}), a quick review`;
+  if (reason === "medium") return `${where}${pct} in your diagnostic, room to sharpen`;
+  return `${where}not assessed yet`;
 }
 
 function QuickTool({ href, icon: Icon, label, hint }: { href: string; icon: LucideIcon; label: string; hint?: string }) {

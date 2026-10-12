@@ -51,6 +51,21 @@ export async function saveSubjectSelections(
   if (error) throw error;
 }
 
+// Every diagnosed topic's score (0-1), keyed "subjectId:topicName", so callers
+// can rank topics by need rather than only list the weak ones.
+export async function getTopicScores(studentId: string): Promise<Map<string, number>> {
+  const { data, error } = await db
+    .from("knowledge_model")
+    .select("subject_id, topic_name, score")
+    .eq("student_id", studentId);
+  if (error) throw error;
+  const map = new Map<string, number>();
+  for (const row of (data ?? []) as { subject_id: string; topic_name: string | null; score: number }[]) {
+    if (row.topic_name) map.set(`${row.subject_id}:${row.topic_name}`, row.score);
+  }
+  return map;
+}
+
 export type WeakTopic = { subject_name: string; topic_name: string | null; score: number };
 
 export async function getWeakTopics(studentId: string): Promise<WeakTopic[]> {

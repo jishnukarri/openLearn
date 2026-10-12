@@ -74,7 +74,13 @@ export default async function SubjectPathPage({
 
   const doneUnits = units.filter((u) => completedIds.has(u.id)).length;
   const donePct = units.length ? Math.round((doneUnits / units.length) * 100) : 0;
-  const nextUnit = units.find((u) => !completedIds.has(u.id));
+  // Point "Up next" at the weakest unfinished unit when the diagnostic found
+  // a weak spot, otherwise the next one in syllabus order.
+  const unfinished = units.filter((u) => !completedIds.has(u.id));
+  const weakestUnit = unfinished
+    .filter((u) => u.diagnosticScore != null && u.diagnosticScore < 0.6)
+    .sort((a, b) => (a.diagnosticScore ?? 1) - (b.diagnosticScore ?? 1))[0];
+  const nextUnit = weakestUnit ?? unfinished[0];
 
   const aside = (
     <>
