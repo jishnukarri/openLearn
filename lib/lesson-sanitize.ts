@@ -56,7 +56,27 @@ export function sanitizeLessonSvg(svg: string): string {
   if (!out.startsWith("<svg")) return "";
   // Colors are structural in SVG, so fill/stroke survive the allowlist —
   // but only with theme-token values; anything else is dropped here.
-  return out.replace(/\s(fill|stroke)="([^"]*)"/g, (match, _name, value) =>
+  const themed = out.replace(/\s(fill|stroke)="([^"]*)"/g, (match, _name, value) =>
     THEME_COLOR.test(value) ? match : ""
   );
+  return scopeSvgIds(themed);
+}
+
+// SVG ids share the page's id namespace, so an AI-written id="root" could
+// clobber page elements (DOM clobbering) and marker-* urls could point at an
+// external document. Prefix every id, keep marker references to local
+// #fragments only, and drop anything else.
+const ID_PREFIX = "lv-";
+const SAFE_ID = /^[A-Za-z][A-Za-z0-9_-]{0,40}$/;
+
+// Sanitising runs on save and again on load, so never prefix twice.
+const prefixed = (id: string) => (id.startsWith(ID_PREFIX) ? id : `${ID_PREFIX}${id}`);
+
+function scopeSvgIds(svg: string): string {
+  return svg
+    .replace(/\sid="([^"]*)"/g, (match, id: string) => (SAFE_ID.test(id) ? ` id="${prefixed(id)}"` : ""))
+    .replace(/\s(marker-end|marker-start)="([^"]*)"/g, (match, name: string, value: string) => {
+      const m = /^url\(#([A-Za-z][A-Za-z0-9_-]{0,40})\)$/.exec(value);
+      return m ? ` ${name}="url(#${prefixed(m[1])})"` : "";
+    });
 }

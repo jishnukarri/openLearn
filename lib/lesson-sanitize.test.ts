@@ -55,4 +55,28 @@ describe("sanitizeLessonSvg", () => {
   it("returns empty string for non-svg input", () => {
     expect(sanitizeLessonSvg("<p>hi</p>")).toBe("");
   });
+
+  it("prefixes ids so they cannot clobber page elements", () => {
+    const out = sanitizeLessonSvg(
+      '<svg viewBox="0 0 1 1"><defs><marker id="arrow" markerWidth="1" markerHeight="1" refX="0" refY="0" orient="auto"></marker></defs><line x1="0" y1="0" x2="1" y2="1" marker-end="url(#arrow)"></line><g id="__next"></g></svg>'
+    );
+    expect(out).toContain('id="lv-arrow"');
+    expect(out).toContain('marker-end="url(#lv-arrow)"');
+    expect(out).not.toContain('id="__next"');
+  });
+
+  it("drops marker references to external documents", () => {
+    const out = sanitizeLessonSvg(
+      '<svg viewBox="0 0 1 1"><line x1="0" y1="0" x2="1" y2="1" marker-end="url(https://evil.example/x.svg#m)"></line></svg>'
+    );
+    expect(out).not.toContain("evil.example");
+    expect(out).not.toContain("marker-end");
+  });
+
+  it("is idempotent across the save and load passes", () => {
+    const once = sanitizeLessonSvg(
+      '<svg viewBox="0 0 1 1"><defs><marker id="a" markerWidth="1" markerHeight="1" refX="0" refY="0" orient="auto"></marker></defs><line x1="0" y1="0" x2="1" y2="1" marker-end="url(#a)"></line></svg>'
+    );
+    expect(sanitizeLessonSvg(once)).toBe(once);
+  });
 });
