@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAnyRole } from "@/lib/appwrite/session";
+import { checkKeyRateLimit } from "@/lib/rate-limit";
 import { getTopic, getSubtopic } from "@/lib/supabase/topics";
 import {
   getLessonByTopic,
@@ -69,6 +70,9 @@ export async function askLessonTutorAction({
   history?: CoachHistoryItem[];
 }): Promise<CoachTurn> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
+  if (!checkKeyRateLimit("lesson-coach", profile.id, 20, 60_000)) {
+    throw new Error("You're going a bit fast. Wait a few seconds and try again.");
+  }
   if (question.trim().length === 0 || question.length > 500) {
     throw new Error("Please enter a question of up to 500 characters.");
   }
@@ -95,6 +99,9 @@ export async function rewriteLessonStepAction({
   context: string;
 }): Promise<{ reply: string; explanation: string; example: string }> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
+  if (!checkKeyRateLimit("lesson-rewrite", profile.id, 10, 60_000)) {
+    throw new Error("You're going a bit fast. Wait a few seconds and try again.");
+  }
   const topic = await getTopic(topicId);
   if (!topic) throw new Error("Topic not found.");
 

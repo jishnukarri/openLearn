@@ -10,6 +10,7 @@ import {
   createQuestionSession,
   completeSession,
   recordQuestionSessionAttempt,
+  isQuestionSessionOwner,
 } from "@/lib/supabase/questions";
 import { downloadImageBytes } from "@/lib/supabase/practice-uploads";
 import { markAnswer, markAnswerFromImages } from "@/lib/ai/marking";
@@ -22,6 +23,8 @@ import {
 import { resolveProviderConfig } from "@/lib/ai/client";
 import { resolveQuestionContent } from "@/lib/class-content";
 import { awardXp } from "@/lib/supabase/progress";
+import { checkKeyRateLimit } from "@/lib/rate-limit";
+
 import type { PointFeedback } from "@/lib/ai/marking";
 
 export type PracticeState =
@@ -40,6 +43,12 @@ export async function submitAnswerAction(
   formData: FormData
 ): Promise<PracticeState> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
+  if (!checkKeyRateLimit("practice-mark", profile.id, 15, 60_000)) {
+    return { message: "You're going a bit fast. Wait a few seconds and try again." };
+  }
+  if (!checkKeyRateLimit("practice-mark", profile.id, 15, 60_000)) {
+    return { message: "You're going a bit fast. Wait a few seconds and try again." };
+  }
 
   const questionId = formData.get("questionId");
   const rawPayload = formData.get("answerPayload");
@@ -127,6 +136,9 @@ export async function submitAnswerAction(
 // explains the model answer's reasoning rather than just restating it.
 export async function explainPracticeAnswerAction(questionId: string): Promise<string> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
+  if (!checkKeyRateLimit("practice-explain", profile.id, 10, 60_000)) {
+    throw new Error("You're going a bit fast. Wait a few seconds and try again.");
+  }
   const question = await getQuestionById(questionId);
   if (!question) throw new Error("Question not found.");
 
@@ -165,6 +177,9 @@ export async function submitBankAnswerAction(
   formData: FormData
 ): Promise<PracticeState & { correct?: boolean }> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
+  if (!checkKeyRateLimit("practice-mark", profile.id, 15, 60_000)) {
+    return { message: "You're going a bit fast. Wait a few seconds and try again." };
+  }
 
   const questionId = formData.get("questionId");
   const rawPayload = formData.get("answerPayload");
@@ -231,7 +246,7 @@ export async function submitBankAnswerAction(
     result,
   });
 
-  if (typeof sessionId === "string") {
+  if (typeof sessionId === "string" && (await isQuestionSessionOwner(sessionId, profile.id))) {
     await recordQuestionSessionAttempt({
       questionId: question.id,
       studentId: profile.id,

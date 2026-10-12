@@ -276,6 +276,16 @@ export async function createQuestionSession(
   return data.id;
 }
 
+export async function isQuestionSessionOwner(sessionId: string, studentId: string): Promise<boolean> {
+  const { data } = await db
+    .from("question_sessions")
+    .select("id")
+    .eq("id", sessionId)
+    .eq("student_id", studentId)
+    .maybeSingle();
+  return data !== null;
+}
+
 export async function completeSession(
   sessionId: string,
   masteryExit: boolean
