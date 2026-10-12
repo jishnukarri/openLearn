@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { animated, useSpring, useTrail } from "@react-spring/web";
-import { X, AlertTriangle, MoreHorizontal, Check, Trophy, PartyPopper, Puzzle, Sparkles, NotebookPen, Lightbulb } from "lucide-react";
-import type { LessonCheck, LessonSection, LessonInteractive } from "@/lib/ai/lessons";
+import { X, Check, Trophy, PartyPopper, Puzzle, Sparkles, NotebookPen, Lightbulb } from "lucide-react";
+import type { LessonSection, LessonInteractive } from "@/lib/ai/lessons";
 import { LessonInteractiveWidget } from "@/components/interactives/lesson-interactive";
 import { completeLessonAction, adaptNextSectionAction, markOpenAnswerAction } from "@/app/actions/lessons";
 import { celebrate, burstAt } from "@/lib/confetti";
@@ -16,220 +16,14 @@ import { RichText } from "@/components/rich-text";
 import { LessonVisual } from "./lesson-visual";
 import { QuickCheck } from "./quick-check";
 import { LessonTutor } from "./lesson-tutor";
+import {
+  type Step,
+  buildLessonPlan,
+  getCorrectAnswerLabel,
+  cardDefinition,
+} from "./lesson-plan";
+import { ScrollTrigger, ScrollHint, QuitModal } from "./lesson-parts";
 import { ReportButton } from "@/components/report-button";
-
-// ── Types ──────────────────────────────────────────────────────────────────
-type Step =
-  | { phase: "interactive" }
-  | { phase: "hook" }
-  | { phase: "teach"; sectionIndex: number }
-  | { phase: "check"; sectionIndex: number }
-  | { phase: "flashcard"; cardIndices: number[] }
-  | { phase: "tutor"; sectionIndex: number }
-  | { phase: "recap" }
-  | { phase: "done" };
-
-// Only a "short" check is phrased as a genuinely open-ended question — its
-// text stands alone as a prompt. "matching" reads like "Match X with Y" and
-// "mcq"/"multi" read like "Which of these…", both assuming visible options
-// that never get shown in this free-text format, so reusing their question
-// text here reads as broken/nonsensical rather than as an essay prompt.
-function isTutorFriendly(sec: LessonSection): boolean {
-  return sec.check.kind === "short";
-}
-
-// Picks the best section index for a tutor step within a just-finished
-// group of (up to) two sections, preferring the later one but falling
-// back to the earlier one, or null if neither works as an essay prompt.
-function pickTutorIndex(sections: LessonSection[], i: number): number | null {
-  if (isTutorFriendly(sections[i])) return i;
-  if (i > 0 && isTutorFriendly(sections[i - 1])) return i - 1;
-  return null;
-}
-
-// ── Lesson plan builder ────────────────────────────────────────────────────
-// Sequence: teach → check → (flashcard every even group) → (tutor every odd group) → recap
-function buildLessonPlan(
-  hasInteractive: boolean,
-  hasHook: boolean,
-  sections: LessonSection[]
-): Step[] {
-  const plan: Step[] = [];
-  if (hasInteractive) plan.push({ phase: "interactive" });
-  if (hasHook) plan.push({ phase: "hook" });
-
-  const N = sections.length;
-  let lastWasTutor = false;
-
-  for (let i = 0; i < N; i++) {
-    plan.push({ phase: "teach", sectionIndex: i });
-    plan.push({ phase: "check", sectionIndex: i });
-
-    if (i < N - 1) {
-      const isGroupEnd = (i + 1) % 2 === 0;
-      const groupNum = Math.floor(i / 2);
-      if (isGroupEnd) {
-        if (groupNum % 2 === 0) {
-          plan.push({ phase: "flashcard", cardIndices: [i - 1, i] });
-          lastWasTutor = false;
-        } else {
-          const tutorIndex = pickTutorIndex(sections, i);
-          if (tutorIndex !== null) {
-            plan.push({ phase: "tutor", sectionIndex: tutorIndex });
-            lastWasTutor = true;
-          } else {
-            plan.push({ phase: "flashcard", cardIndices: [i - 1, i] });
-            lastWasTutor = false;
-          }
-        }
-      } else {
-        lastWasTutor = false;
-      }
-    }
-  }
-
-  if (N > 0 && !lastWasTutor) {
-    const finalTutorIndex = pickTutorIndex(sections, N - 1);
-    if (finalTutorIndex !== null) {
-      plan.push({ phase: "tutor", sectionIndex: finalTutorIndex });
-    }
-  }
-  plan.push({ phase: "recap" });
-  return plan;
-}
-
-// ── Scroll-to-advance ──────────────────────────────────────────────────────
-// Wraps a step's primary "Continue"-style button, when the button scrolls
-// into view (student reads to the bottom of the step) it auto-fires the
-// same handler the button would on click. The button itself stays visible
-// and clickable underneath, so it works identically for anyone who prefers
-// clicking, keyboard nav, or reduced motion.
-function ScrollTrigger({
-  onReached,
-  children,
-}: {
-  onReached: () => void;
-  children: ReactNode;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const firedRef = useRef(false);
-
-  useEffect(() => {
-    firedRef.current = false;
-    const el = ref.current;
-    if (!el) return;
-    // Only a real scroll counts: if the button is already on screen when it
-    // mounts (short steps), the student must click it, otherwise revealing
-    // content would skip straight past it before it can be read.
-    let initial = true;
-    let startedOffscreen = false;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (initial) {
-          initial = false;
-          startedOffscreen = !entry.isIntersecting;
-          return;
-        }
-        if (startedOffscreen && entry.isIntersecting && !firedRef.current) {
-          firedRef.current = true;
-          onReached();
-        }
-      },
-      { threshold: 0.6 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return <div ref={ref}>{children}</div>;
-}
-
-// Fixed bottom-center "keep scrolling" hint, shown whenever the page has
-// more content below the fold than the viewport currently shows. Fades out
-// once the student nears the bottom (where the actual button/ScrollTrigger
-// takes over), and reappears on the next step. Purely a visual affordance —
-// scrolling back up always works, this never locks or redirects scroll.
-function ScrollHint() {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    function check() {
-      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
-      const remaining = scrollable - window.scrollY;
-      setVisible(scrollable > 80 && remaining > 120);
-    }
-    check();
-    window.addEventListener("scroll", check, { passive: true });
-    window.addEventListener("resize", check);
-    const id = window.setInterval(check, 500); // catches content growing without a scroll/resize event
-    return () => {
-      window.removeEventListener("scroll", check);
-      window.removeEventListener("resize", check);
-      window.clearInterval(id);
-    };
-  }, []);
-
-  if (!visible) return null;
-  return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-10 flex justify-center">
-      <div className="rounded-full border border-border bg-surface/90 px-3 py-1.5 text-muted shadow-lg backdrop-blur-sm">
-        <MoreHorizontal className="size-4" strokeWidth={2} />
-      </div>
-    </div>
-  );
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-function getCorrectAnswerLabel(check: LessonCheck): string {
-  if (!check.kind || check.kind === "mcq") {
-    return (check as any).options[(check as any).correctIndex] ?? "";
-  }
-  if (check.kind === "multi") {
-    return (check as any).correctIndexes.map((i: number) => (check as any).options[i]).join(", ");
-  }
-  if (check.kind === "short") return (check as any).accepted[0] ?? "";
-  return "";
-}
-
-function cardDefinition(text: string): string {
-  const match = text.match(/^[^.!?]+[.!?]/);
-  if (match && match[0].length < 160) return match[0];
-  return text.slice(0, 130) + (text.length > 130 ? "…" : "");
-}
-
-// ── Quit modal ─────────────────────────────────────────────────────────────
-function QuitModal({ onKeepGoing, onQuit }: { onKeepGoing: () => void; onQuit: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onKeepGoing}
-    >
-      <div
-        className="mx-4 flex w-full max-w-sm flex-col gap-5 rounded-2xl border border-border bg-surface p-6 text-center shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <AlertTriangle className="mx-auto size-8 text-highlight" strokeWidth={1.75} />
-        <div>
-          <p className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">
-            Quit this lesson?
-          </p>
-          <p className="mt-1 text-sm text-muted">Your progress will be lost.</p>
-        </div>
-        <div className="flex flex-col gap-2">
-          <Button onClick={onKeepGoing} className="w-full justify-center">Keep going</Button>
-          <button
-            type="button"
-            onClick={onQuit}
-            className="w-full rounded-xl border border-border px-4 py-3 text-sm font-medium text-error transition-colors hover:border-error hover:bg-error/10"
-          >
-            Quit lesson
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── LessonPlayer ───────────────────────────────────────────────────────────
 export function LessonPlayer({
