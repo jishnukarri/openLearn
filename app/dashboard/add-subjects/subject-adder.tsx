@@ -7,7 +7,13 @@ import { addSubjectsAction } from "@/app/actions/onboarding";
 import { Button } from "@/components/button";
 import { EASE_OUT } from "@/components/motion";
 
-export type Option = { value: string; subject: string; board: string };
+export type Option = {
+  value: string;
+  subject: string;
+  board: string;
+  topicCount: number;
+  topicPreview: string[];
+};
 
 const list = {
   hidden: {},
@@ -35,7 +41,7 @@ export function SubjectAdder({ options }: { options: Option[] }) {
             variants={list}
             initial="hidden"
             animate="show"
-            className="grid gap-3 sm:grid-cols-2"
+            className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3"
           >
             {options.map((o) => {
               const on = picked.includes(o.value);
@@ -53,15 +59,23 @@ export function SubjectAdder({ options }: { options: Option[] }) {
                   />
                   <label
                     htmlFor={id}
-                    className={`flex min-h-24 cursor-pointer items-start justify-between gap-4 rounded-2xl border-2 p-4 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background ${
+                    className={`flex min-h-44 cursor-pointer items-start justify-between gap-4 rounded-2xl border-2 p-5 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background ${
                       on ? "border-primary bg-primary/10" : "border-border bg-surface hover:border-primary/50"
                     }`}
                   >
-                    <span className="flex flex-col gap-1">
-                      <span className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">
+                    <span className="flex min-w-0 flex-col gap-2">
+                      <span className="font-[family-name:var(--font-display)] text-2xl font-semibold leading-tight text-foreground">
                         {o.subject}
                       </span>
-                      <span className="text-sm text-muted">{o.board}</span>
+                      <span className="text-sm font-medium text-muted">
+                        {o.board} · {o.topicCount} {o.topicCount === 1 ? "topic" : "topics"}
+                      </span>
+                      {o.topicPreview.length > 0 && (
+                        <span className="line-clamp-2 text-sm text-muted">
+                          {o.topicPreview.join(", ")}
+                          {o.topicCount > o.topicPreview.length ? "…" : ""}
+                        </span>
+                      )}
                     </span>
                     <motion.span
                       aria-hidden
