@@ -1,3 +1,4 @@
+import { RichText } from "@/components/rich-text";
 import { notFound } from "next/navigation";
 import { requireAnyRole } from "@/lib/appwrite/session";
 import { getTopic } from "@/lib/supabase/topics";
@@ -42,7 +43,7 @@ export default async function PracticePage({
       ) : fallbackQuestion ? (
         <>
           <div>
-            <h2 className="max-w-[65ch] text-xl text-foreground">{fallbackQuestion.prompt}</h2>
+            <h2 className="max-w-[65ch] text-xl text-foreground"><RichText text={fallbackQuestion.prompt} /></h2>
             <p className="mt-1 font-[family-name:var(--font-mono)] text-sm text-highlight">
               {fallbackQuestion.max_marks} marks
             </p>

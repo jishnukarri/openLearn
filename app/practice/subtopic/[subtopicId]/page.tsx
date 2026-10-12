@@ -1,3 +1,4 @@
+import { RichText } from "@/components/rich-text";
 import { notFound } from "next/navigation";
 import { requireAnyRole } from "@/lib/appwrite/session";
 import { getSubtopic } from "@/lib/supabase/topics";
@@ -30,7 +31,7 @@ export default async function SubtopicPracticePage({
       <PageHeader title="Practice" description={`${subtopic.topic.subject.name} · ${subtopic.name}`} />
 
       <div>
-        <h2 className="max-w-[65ch] text-xl text-foreground">{question.prompt}</h2>
+        <h2 className="max-w-[65ch] text-xl text-foreground"><RichText text={question.prompt} /></h2>
         <p className="mt-1 font-[family-name:var(--font-mono)] text-sm text-highlight">{question.max_marks} marks</p>
       </div>
 
