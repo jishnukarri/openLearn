@@ -11,6 +11,7 @@ import { Button } from "@/components/button";
 import { CelebrateOnMount } from "@/components/celebrate-on-mount";
 import { StarRating } from "@/components/star-rating";
 import { Rise, Stagger } from "@/components/motion";
+import { CountUp, ScoreBar } from "@/components/results-motion";
 
 function verdict(score: number): { label: string; tone: "success" | "highlight" | "error" } {
   if (score >= 0.8) return { label: "Strong, you've got this", tone: "success" };
@@ -43,6 +44,10 @@ export default async function DiagnosticResultsPage({
       ? results.reduce((sum, r) => sum + r.score, 0) / results.length
       : 0;
 
+  const sorted = [...results].sort((a, b) => b.score - a.score);
+  const strongest = sorted[0];
+  const weakest = sorted[sorted.length - 1];
+
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-10 lg:py-14">
       <CelebrateOnMount when={overall >= 0.8} />
@@ -53,7 +58,25 @@ export default async function DiagnosticResultsPage({
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold leading-tight text-foreground lg:text-5xl lg:leading-[1.1]">
             Here&apos;s where you&apos;re at
           </h1>
-          <StarRating score={overall} size={34} />
+          <div className="flex w-full flex-col items-center gap-3 self-center lg:items-start lg:self-start">
+            <CountUp
+              value={Math.round(overall * 100)}
+              className="font-[family-name:var(--font-mono)] text-6xl font-semibold tabular-nums text-foreground"
+            />
+            <StarRating score={overall} size={34} />
+          </div>
+          {results.length > 1 && (
+            <dl className="flex max-w-[44ch] flex-col gap-1 text-sm">
+              <div className="flex gap-2">
+                <dt className="text-muted">Strongest:</dt>
+                <dd className="font-medium text-success">{strongest.topicName}</dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="text-muted">Most to gain:</dt>
+                <dd className="font-medium text-highlight">{weakest.topicName}</dd>
+              </div>
+            </dl>
+          )}
           <p className="max-w-[44ch] text-base text-muted">
             {overall >= 0.7
               ? "Good foundation overall, we'll move quickly through what you already know and spend more time where it counts."
@@ -68,11 +91,11 @@ export default async function DiagnosticResultsPage({
           {/* Topic breakdown */}
           <Rise>
             <ul className="flex flex-col divide-y divide-border border-y border-border">
-              {results.map((r) => {
+              {results.map((r, idx) => {
                 const v = verdict(r.score);
                 return (
-                  <li key={r.topicName} className="flex items-center justify-between gap-4 py-4">
-                    <div>
+                  <li key={r.topicName} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+                    <div className="min-w-0 flex-1">
                       <p className="text-base font-medium text-foreground">{r.topicName}</p>
                       <p
                         className={`text-sm ${
@@ -85,6 +108,9 @@ export default async function DiagnosticResultsPage({
                       >
                         {v.label}
                       </p>
+                      <div className="mt-2 max-w-xs">
+                        <ScoreBar score={r.score} tone={v.tone} delay={idx * 0.08} />
+                      </div>
                     </div>
                     <StarRating score={r.score} size={18} />
                   </li>
