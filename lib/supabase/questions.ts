@@ -25,6 +25,10 @@ const QUESTION_COLUMNS =
 const LEGACY_QUESTION_COLUMNS =
   "id, topic_id, prompt, markscheme, max_marks, model_answer, format";
 
+// Rows come back from an untyped client, so this names the shape the
+// selects above actually return.
+type QuestionRow = Parameters<typeof normalizeQuestionRow>[0];
+
 function normalizeQuestionRow(row: Partial<Question> & {
   id: string;
   topic_id: string;
@@ -43,7 +47,7 @@ function normalizeQuestionRow(row: Partial<Question> & {
   };
 }
 
-function isMissingColumnError(error: any): boolean {
+function isMissingColumnError(error: { code?: string } | null | undefined): boolean {
   return error?.code === "42703";
 }
 
@@ -60,7 +64,7 @@ export async function getQuestionForTopic(
   const query = classId ? base.eq("class_id", classId) : base.is("class_id", null);
 
   const full = await query.maybeSingle();
-  if (!full.error) return full.data ? normalizeQuestionRow(full.data as any) : null;
+  if (!full.error) return full.data ? normalizeQuestionRow(full.data as QuestionRow) : null;
   if (!isMissingColumnError(full.error)) throw full.error;
 
   const legacyBase = db
@@ -72,17 +76,17 @@ export async function getQuestionForTopic(
   const legacyQuery = classId ? legacyBase.eq("class_id", classId) : legacyBase.is("class_id", null);
   const legacy = await legacyQuery.maybeSingle();
   if (legacy.error) throw legacy.error;
-  return legacy.data ? normalizeQuestionRow(legacy.data as any) : null;
+  return legacy.data ? normalizeQuestionRow(legacy.data as QuestionRow) : null;
 }
 
 export async function getQuestionById(id: string): Promise<Question | null> {
   const full = await db.from("questions").select(QUESTION_COLUMNS).eq("id", id).maybeSingle();
-  if (!full.error) return full.data ? normalizeQuestionRow(full.data as any) : null;
+  if (!full.error) return full.data ? normalizeQuestionRow(full.data as QuestionRow) : null;
   if (!isMissingColumnError(full.error)) throw full.error;
 
   const legacy = await db.from("questions").select(LEGACY_QUESTION_COLUMNS).eq("id", id).maybeSingle();
   if (legacy.error) throw legacy.error;
-  return legacy.data ? normalizeQuestionRow(legacy.data as any) : null;
+  return legacy.data ? normalizeQuestionRow(legacy.data as QuestionRow) : null;
 }
 
 export async function listQuestionBankForTopic(topicId: string): Promise<Question[]> {
@@ -92,7 +96,7 @@ export async function listQuestionBankForTopic(topicId: string): Promise<Questio
     .eq("topic_id", topicId)
     .order("bank_position", { ascending: true, nullsFirst: false })
     .limit(1000);
-  if (!full.error) return (full.data || []).map((row: any) => normalizeQuestionRow(row));
+  if (!full.error) return (full.data || []).map((row: QuestionRow) => normalizeQuestionRow(row));
   if (!isMissingColumnError(full.error)) throw full.error;
 
   const legacy = await db
@@ -102,7 +106,7 @@ export async function listQuestionBankForTopic(topicId: string): Promise<Questio
     .limit(1000);
   if (legacy.error) throw legacy.error;
   return (legacy.data || [])
-    .map((row: any) => normalizeQuestionRow(row))
+    .map((row: QuestionRow) => normalizeQuestionRow(row))
     .sort((a: Question, b: Question) => {
       if (a.bank_position === null && b.bank_position === null) return a.id.localeCompare(b.id);
       if (a.bank_position === null) return 1;
@@ -133,7 +137,7 @@ export async function createQuestionBank(
     .insert(rows)
     .select(QUESTION_COLUMNS);
 
-  if (!error) return (data || []).map((row) => normalizeQuestionRow(row as any));
+  if (!error) return (data || []).map((row) => normalizeQuestionRow(row as QuestionRow));
   if (!isMissingColumnError(error)) throw error;
 
   const legacyRows = questions.map((q) => ({
@@ -146,7 +150,7 @@ export async function createQuestionBank(
   }));
   const legacy = await db.from("questions").insert(legacyRows).select(LEGACY_QUESTION_COLUMNS);
   if (legacy.error) throw legacy.error;
-  return (legacy.data || []).map((row) => normalizeQuestionRow(row as any));
+  return (legacy.data || []).map((row) => normalizeQuestionRow(row as QuestionRow));
 }
 
 export async function createQuestion(
@@ -164,15 +168,15 @@ export async function createQuestion(
       model_answer: generated.modelAnswer,
       format: generated.format ?? null,
       class_id: classId ?? null,
-      section_index: (generated as any).sectionIndex ?? null,
-      bank_position: (generated as any).bankPosition ?? null,
+      section_index: generated.sectionIndex ?? null,
+      bank_position: generated.bankPosition ?? null,
       verified: false,
-      image_url: (generated as any).imageUrl ?? null,
+      image_url: generated.imageUrl ?? null,
     })
     .select(QUESTION_COLUMNS)
     .single();
 
-  if (!error) return normalizeQuestionRow(data as any);
+  if (!error) return normalizeQuestionRow(data as QuestionRow);
   if (!isMissingColumnError(error)) throw error;
 
   const legacy = await db
@@ -189,7 +193,7 @@ export async function createQuestion(
     .select(LEGACY_QUESTION_COLUMNS)
     .single();
   if (legacy.error) throw legacy.error;
-  return normalizeQuestionRow(legacy.data as any);
+  return normalizeQuestionRow(legacy.data as QuestionRow);
 }
 
 // A subtopic's own question — kept separate from the topic-wide
@@ -203,7 +207,7 @@ export async function getQuestionForSubtopic(subtopicId: string): Promise<Questi
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data ? normalizeQuestionRow(data as any) : null;
+  return data ? normalizeQuestionRow(data as QuestionRow) : null;
 }
 
 export async function createQuestionForSubtopic(
@@ -226,7 +230,7 @@ export async function createQuestionForSubtopic(
     .single();
 
   if (error) throw error;
-  return normalizeQuestionRow(data as any);
+  return normalizeQuestionRow(data as QuestionRow);
 }
 
 // Highest marks this student has already earned on a question in the last 24
@@ -267,7 +271,7 @@ export async function updateQuestionVerification(
   verified: boolean,
   updatedFields?: Partial<Pick<Question, "prompt" | "model_answer" | "max_marks">>
 ): Promise<void> {
-  const payload: any = { verified };
+  const payload: Record<string, unknown> = { verified };
   if (updatedFields) {
     if (updatedFields.prompt !== undefined) payload.prompt = updatedFields.prompt;
     if (updatedFields.model_answer !== undefined) payload.model_answer = updatedFields.model_answer;

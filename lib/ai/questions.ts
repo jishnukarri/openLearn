@@ -32,6 +32,10 @@ export type GeneratedQuestion = {
   modelAnswer: string;
   format?: QuestionFormat | null;
   image?: { prompt: string; alt: string; url?: string } | null;
+  // Set when the question is stored as part of a question bank.
+  sectionIndex?: number | null;
+  bankPosition?: number | null;
+  imageUrl?: string | null;
 };
 
 const MARKSCHEME_SCHEMA = {
