@@ -146,7 +146,7 @@ export async function login(
   if (!(await checkRateLimit("login", 5, 60_000))) {
     return { message: "Too many attempts. Please try again in a minute." };
   }
-  if (!checkKeyRateLimit("login-email", String(formData.get("email") ?? ""), 10, 10 * 60_000)) {
+  if (!await checkKeyRateLimit("login-email", String(formData.get("email") ?? ""), 10, 10 * 60_000)) {
     return { message: "Too many attempts. Please try again in a few minutes." };
   }
 

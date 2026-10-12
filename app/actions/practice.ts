@@ -44,10 +44,7 @@ export async function submitAnswerAction(
   formData: FormData
 ): Promise<PracticeState> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
-  if (!checkKeyRateLimit("practice-mark", profile.id, 15, 60_000)) {
-    return { message: "You're going a bit fast. Wait a few seconds and try again." };
-  }
-  if (!checkKeyRateLimit("practice-mark", profile.id, 15, 60_000)) {
+  if (!await checkKeyRateLimit("practice-mark", profile.id, 15, 60_000)) {
     return { message: "You're going a bit fast. Wait a few seconds and try again." };
   }
 
@@ -139,7 +136,7 @@ export async function submitAnswerAction(
 // explains the model answer's reasoning rather than just restating it.
 export async function explainPracticeAnswerAction(questionId: string): Promise<string> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
-  if (!checkKeyRateLimit("practice-explain", profile.id, 10, 60_000)) {
+  if (!await checkKeyRateLimit("practice-explain", profile.id, 10, 60_000)) {
     throw new Error("You're going a bit fast. Wait a few seconds and try again.");
   }
   const question = await getQuestionById(questionId);
@@ -180,7 +177,7 @@ export async function submitBankAnswerAction(
   formData: FormData
 ): Promise<PracticeState & { correct?: boolean }> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
-  if (!checkKeyRateLimit("practice-mark", profile.id, 15, 60_000)) {
+  if (!await checkKeyRateLimit("practice-mark", profile.id, 15, 60_000)) {
     return { message: "You're going a bit fast. Wait a few seconds and try again." };
   }
 

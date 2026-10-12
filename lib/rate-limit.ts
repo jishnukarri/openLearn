@@ -1,12 +1,12 @@
 import "server-only";
 import { headers } from "next/headers";
+import { db } from "@/lib/supabase/database-client";
 
-// In-memory sliding window limiter. Resets on process restart and is
-// per-instance only — fine for a single-server deployment, not for a
-// multi-instance one (would need a shared store like Redis there).
+// Sliding-window limiter. Shared via Postgres when available, with an
+// in-memory fallback (per-process, resets on restart).
 const attempts = new Map<string, number[]>();
 
-function consume(key: string, limit: number, windowMs: number): boolean {
+function consumeMemory(key: string, limit: number, windowMs: number): boolean {
   const now = Date.now();
   const timestamps = (attempts.get(key) ?? []).filter((t) => now - t < windowMs);
   if (timestamps.length >= limit) {
@@ -16,6 +16,29 @@ function consume(key: string, limit: number, windowMs: number): boolean {
   timestamps.push(now);
   attempts.set(key, timestamps);
   return true;
+}
+
+// Prefers the shared Postgres limiter (supabase/migrations/20261012_rate_limits.sql)
+// so limits survive restarts and span instances. If the function isn't
+// there yet or the call fails, fall back to the in-memory window and retry
+// the database after a minute.
+let sharedUnavailableUntil = 0;
+
+async function consume(key: string, limit: number, windowMs: number): Promise<boolean> {
+  if (Date.now() >= sharedUnavailableUntil) {
+    try {
+      const { data, error } = await db.rpc("consume_rate_limit", {
+        p_key: key,
+        p_limit: limit,
+        p_window_ms: windowMs,
+      });
+      if (!error && typeof data === "boolean") return data;
+    } catch {
+      // fall through to memory
+    }
+    sharedUnavailableUntil = Date.now() + 60_000;
+  }
+  return consumeMemory(key, limit, windowMs);
 }
 
 // Per client IP. Uses the LAST x-forwarded-for entry: that is the address the
@@ -35,6 +58,6 @@ export async function checkRateLimit(
 // Per arbitrary key (a user id, or a login email), independent of IP, so
 // rotating IPs doesn't reset it. Used for paid AI actions and per-account
 // login attempts.
-export function checkKeyRateLimit(bucket: string, key: string, limit: number, windowMs: number): boolean {
+export async function checkKeyRateLimit(bucket: string, key: string, limit: number, windowMs: number): Promise<boolean> {
   return consume(`${bucket}:key:${key.toLowerCase()}`, limit, windowMs);
 }

@@ -71,7 +71,7 @@ export async function uploadPracticeImagesAction(
   if (!isUploadLinkOpen(session)) {
     return { message: "This upload link has expired. Scan a fresh QR code from the practice page." };
   }
-  if (!checkKeyRateLimit("practice-upload", uploadId, 10, 10 * 60_000)) {
+  if (!(await checkKeyRateLimit("practice-upload", uploadId, 10, 10 * 60_000))) {
     return { message: "Too many uploads on this link. Wait a few minutes and try again." };
   }
 

@@ -42,7 +42,7 @@ export async function completeRevisionDeckAction(): Promise<{ xp: number }> {
   if (profile.role !== "student") return { xp: 0 };
   // At most 5 paid decks a day; beyond that the deck still works, it just
   // stops paying.
-  if (!checkKeyRateLimit("revision-deck-xp", profile.id, 5, 24 * 60 * 60_000)) return { xp: 0 };
+  if (!await checkKeyRateLimit("revision-deck-xp", profile.id, 5, 24 * 60 * 60_000)) return { xp: 0 };
   await awardXp(profile.id, 1);
   return { xp: 10 };
 }
@@ -73,7 +73,7 @@ export async function askLessonTutorAction({
   history?: CoachHistoryItem[];
 }): Promise<CoachTurn> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
-  if (!checkKeyRateLimit("lesson-coach", profile.id, 20, 60_000)) {
+  if (!await checkKeyRateLimit("lesson-coach", profile.id, 20, 60_000)) {
     throw new Error("You're going a bit fast. Wait a few seconds and try again.");
   }
   if (question.trim().length === 0 || question.length > 500) {
@@ -102,7 +102,7 @@ export async function rewriteLessonStepAction({
   context: string;
 }): Promise<{ reply: string; explanation: string; example: string }> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
-  if (!checkKeyRateLimit("lesson-rewrite", profile.id, 10, 60_000)) {
+  if (!await checkKeyRateLimit("lesson-rewrite", profile.id, 10, 60_000)) {
     throw new Error("You're going a bit fast. Wait a few seconds and try again.");
   }
   const topic = await getTopic(topicId);
