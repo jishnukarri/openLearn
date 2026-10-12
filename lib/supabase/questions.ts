@@ -229,6 +229,21 @@ export async function createQuestionForSubtopic(
   return normalizeQuestionRow(data as any);
 }
 
+// Highest marks this student has already earned on a question in the last 24
+// hours. XP is only paid for improving on it, so repeating a question
+// can't be farmed.
+export async function getBestMarksLast24h(studentId: string, questionId: string): Promise<number> {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await db
+    .from("student_answers")
+    .select("marks_awarded")
+    .eq("student_id", studentId)
+    .eq("question_id", questionId)
+    .gte("created_at", since);
+  if (error) throw error;
+  return Math.max(0, ...(data ?? []).map((r) => (r.marks_awarded as number) ?? 0));
+}
+
 export async function recordAnswer(input: {
   questionId: string;
   studentId: string;

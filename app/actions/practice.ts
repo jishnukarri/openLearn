@@ -11,6 +11,7 @@ import {
   completeSession,
   recordQuestionSessionAttempt,
   isQuestionSessionOwner,
+  getBestMarksLast24h,
 } from "@/lib/supabase/questions";
 import { downloadImageBytes } from "@/lib/supabase/practice-uploads";
 import { markAnswer, markAnswerFromImages } from "@/lib/ai/marking";
@@ -112,6 +113,8 @@ export async function submitAnswerAction(
     }
   }
 
+  const priorBest = profile.role === "student" ? await getBestMarksLast24h(profile.id, question.id) : 0;
+
   await recordAnswer({
     questionId: question.id,
     studentId: profile.id,
@@ -121,7 +124,7 @@ export async function submitAnswerAction(
   });
 
   if (profile.role === "student") {
-    await awardXp(profile.id, result.marksAwarded);
+    await awardXp(profile.id, Math.max(0, result.marksAwarded - priorBest));
   }
 
   return {
@@ -238,6 +241,8 @@ export async function submitBankAnswerAction(
 
   const correct = result.marksAwarded === question.max_marks;
 
+  const priorBest = profile.role === "student" ? await getBestMarksLast24h(profile.id, question.id) : 0;
+
   await recordAnswer({
     questionId: question.id,
     studentId: profile.id,
@@ -257,7 +262,7 @@ export async function submitBankAnswerAction(
   }
 
   if (profile.role === "student") {
-    await awardXp(profile.id, result.marksAwarded);
+    await awardXp(profile.id, Math.max(0, result.marksAwarded - priorBest));
   }
 
   return {

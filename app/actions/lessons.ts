@@ -40,6 +40,9 @@ export async function completeLessonAction(
 export async function completeRevisionDeckAction(): Promise<{ xp: number }> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
   if (profile.role !== "student") return { xp: 0 };
+  // At most 5 paid decks a day; beyond that the deck still works, it just
+  // stops paying.
+  if (!checkKeyRateLimit("revision-deck-xp", profile.id, 5, 24 * 60 * 60_000)) return { xp: 0 };
   await awardXp(profile.id, 1);
   return { xp: 10 };
 }
