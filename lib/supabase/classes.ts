@@ -28,7 +28,8 @@ export async function listClassesByTeacher(teacherId: string): Promise<Class[]> 
 
   if (error) throw error;
 
-  return data.map((row: any) => ({
+  type Row = { id: string; name: string; invite_code: string; created_at: string; class_members: { count: number }[] };
+  return (data as unknown as Row[]).map((row) => ({
     id: row.id,
     name: row.name,
     invite_code: row.invite_code,
@@ -96,7 +97,7 @@ export async function getStudentClasses(
     .eq("student_id", studentId);
 
   if (error) throw error;
-  return data.flatMap((row: any) => row.classes);
+  return (data as unknown as { classes: { id: string; name: string } }[]).flatMap((row) => row.classes);
 }
 
 export type ClassMember = {
@@ -126,7 +127,8 @@ export async function listClassMembers(
     .order("joined_at");
   if (error) throw error;
 
-  return (data as any[]).map((row) => ({
+  type MemberRow = { joined_at: string; profiles: { id: string; full_name: string | null; email: string } };
+  return (data as unknown as MemberRow[]).map((row) => ({
     profileId: row.profiles.id,
     fullName: row.profiles.full_name,
     email: row.profiles.email,

@@ -19,7 +19,13 @@ export async function getStudentSubjects(
 
   if (error) throw error;
 
-  return data.map((row: any) => ({
+  type Row = {
+    exam_board_id: string;
+    started_syllabus: boolean;
+    subjects: { id: string; name: string };
+    exam_boards: { id: string; name: string };
+  };
+  return (data as unknown as Row[]).map((row) => ({
     subject_id: row.subjects.id,
     subject_name: row.subjects.name,
     exam_board_id: row.exam_board_id,
@@ -55,7 +61,8 @@ export async function getWeakTopics(studentId: string): Promise<WeakTopic[]> {
     .eq("weak", true);
 
   if (error) throw error;
-  return (data as any[]).map((row) => ({
+  type Row = { topic_name: string; score: number; subjects: { name: string } };
+  return (data as unknown as Row[]).map((row) => ({
     subject_name: row.subjects.name,
     topic_name: row.topic_name,
     score: row.score,

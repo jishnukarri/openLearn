@@ -24,7 +24,15 @@ export type Subject = {
 const SUBJECT_COLUMNS =
   "id, name, status, created_at, created_by, custom_instructions, archetype, subject_exam_boards(exam_boards(id, name))";
 
-function mapSubject(data: any): Subject {
+// PostgREST returns an embedded relation as an object or an array depending
+// on how it is joined, so accept both and flatten.
+type EmbeddedBoards = { exam_boards: ExamBoard | ExamBoard[] }[];
+const flattenBoards = (rows: EmbeddedBoards): ExamBoard[] =>
+  rows.flatMap((row) => ([] as ExamBoard[]).concat(row.exam_boards));
+
+type SubjectRow = Omit<Subject, "exam_boards"> & { subject_exam_boards: EmbeddedBoards };
+
+function mapSubject(data: SubjectRow): Subject {
   return {
     id: data.id,
     name: data.name,
@@ -33,9 +41,7 @@ function mapSubject(data: any): Subject {
     created_by: data.created_by,
     custom_instructions: data.custom_instructions,
     archetype: data.archetype ?? null,
-    exam_boards: data.subject_exam_boards.flatMap(
-      (row: { exam_boards: ExamBoard[] }) => row.exam_boards
-    ),
+    exam_boards: flattenBoards(data.subject_exam_boards),
   };
 }
 
@@ -69,6 +75,23 @@ export type SubjectSummary = {
   topicCount: number;
 };
 
+type SummaryRow = Pick<Subject, "id" | "name" | "status" | "created_at" | "created_by"> & {
+  subject_exam_boards: EmbeddedBoards;
+  topics: { id: string }[];
+};
+
+function mapSummary(d: SummaryRow): SubjectSummary {
+  return {
+    id: d.id,
+    name: d.name,
+    status: d.status,
+    created_at: d.created_at,
+    created_by: d.created_by,
+    exam_boards: flattenBoards(d.subject_exam_boards),
+    topicCount: d.topics.length,
+  };
+}
+
 export async function listSubjectSummaries(): Promise<SubjectSummary[]> {
   const { data, error } = await db
     .from("subjects")
@@ -76,15 +99,7 @@ export async function listSubjectSummaries(): Promise<SubjectSummary[]> {
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data as any[]).map((d) => ({
-    id: d.id,
-    name: d.name,
-    status: d.status,
-    created_at: d.created_at,
-    created_by: d.created_by,
-    exam_boards: d.subject_exam_boards.flatMap((row: any) => row.exam_boards),
-    topicCount: (d.topics as any[]).length,
-  }));
+  return (data as unknown as SummaryRow[]).map(mapSummary);
 }
 
 // Same shape as listSubjectSummaries, scoped to subjects a specific teacher
@@ -98,15 +113,7 @@ export async function listSubjectSummariesByOwner(ownerId: string): Promise<Subj
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data as any[]).map((d) => ({
-    id: d.id,
-    name: d.name,
-    status: d.status,
-    created_at: d.created_at,
-    created_by: d.created_by,
-    exam_boards: d.subject_exam_boards.flatMap((row: any) => row.exam_boards),
-    topicCount: (d.topics as any[]).length,
-  }));
+  return (data as unknown as SummaryRow[]).map(mapSummary);
 }
 
 export async function listSubjects(): Promise<Subject[]> {
@@ -116,7 +123,7 @@ export async function listSubjects(): Promise<Subject[]> {
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return data.map(mapSubject);
+  return (data as unknown as SubjectRow[]).map(mapSubject);
 }
 
 export async function getSubject(subjectId: string): Promise<Subject | null> {
@@ -128,7 +135,7 @@ export async function getSubject(subjectId: string): Promise<Subject | null> {
 
   if (error) throw error;
   if (!data) return null;
-  return mapSubject(data);
+  return mapSubject(data as unknown as SubjectRow);
 }
 
 export async function listPublishedSubjects(): Promise<Subject[]> {
@@ -180,7 +187,7 @@ export async function getSpecTextForSubject(subjectId: string): Promise<string> 
     .eq("subject_id", subjectId);
   if (error) throw error;
 
-  return (data as any[])
+  return (data as unknown as { spec_text: string | null; exam_boards: { name: string } }[])
     .filter((row) => row.spec_text)
     .map((row) => `[${row.exam_boards.name}]\n${row.spec_text}`)
     .join("\n\n");
@@ -197,7 +204,7 @@ export async function getSpecTextForBoard(
     .eq("exam_board_id", examBoardId)
     .maybeSingle();
   if (error) throw error;
-  return (data as any)?.spec_text ?? "";
+  return (data as { spec_text?: string | null } | null)?.spec_text ?? "";
 }
 
 export async function deleteSubject(subjectId: string): Promise<void> {
