@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { Flag } from "lucide-react";
 import { reportContentAction, type ReportState } from "@/app/actions/reports";
 import { requestExtraHelpAction } from "@/app/actions/lessons";
 
@@ -38,9 +39,9 @@ export function ReportButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="self-start text-xs text-muted hover:text-error"
+        className="inline-flex items-center gap-1 self-start text-xs text-muted hover:text-error"
       >
-        ⚑ Report an issue
+        <Flag className="size-3.5" strokeWidth={2} /> Report an issue
       </button>
     );
   }

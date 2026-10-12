@@ -14,7 +14,8 @@ import { createProfile, getProfileByAppwriteId } from "@/lib/supabase/profiles";
 import { roleHome } from "@/lib/roles";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getGuestToken, clearGuestToken } from "@/lib/guest-session";
-import { getActiveGuestSession, convertGuestSession, buildKnowledgeModel } from "@/lib/supabase/diagnostic";
+import { getActiveGuestSession } from "@/lib/supabase/diagnostic";
+import { convertGuestSessionToStudent } from "@/lib/guest-diagnostic";
 
 export type AuthFormState =
   | {
@@ -108,8 +109,7 @@ export async function signup(
     if (guestToken) {
       const guestSession = await getActiveGuestSession(guestToken);
       if (guestSession) {
-        await convertGuestSession(guestSession.id, profileId);
-        await buildKnowledgeModel(guestSession.id, profileId);
+        await convertGuestSessionToStudent(guestSession.id, profileId);
         await clearGuestToken();
         redirect(`/onboarding/diagnostic/${guestSession.id}/results`);
       }
@@ -158,6 +158,24 @@ export async function login(
   }
 
   const profile = await getProfileByAppwriteId(userId);
+
+  // Mirrors the guest-conversion branch in signup() — a returning visitor
+  // who logs into an existing account from the guest results teaser (rather
+  // than creating a new one) still deserves their effort carried over
+  // instead of landing on their dashboard with the guest diagnostic
+  // orphaned under a cookie nobody converts.
+  if (profile?.role === "student") {
+    const guestToken = await getGuestToken();
+    if (guestToken) {
+      const guestSession = await getActiveGuestSession(guestToken);
+      if (guestSession) {
+        await convertGuestSessionToStudent(guestSession.id, profile.id);
+        await clearGuestToken();
+        redirect(`/onboarding/diagnostic/${guestSession.id}/results`);
+      }
+    }
+  }
+
   redirect(roleHome(profile?.role));
 }
 

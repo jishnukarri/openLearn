@@ -1,7 +1,15 @@
 import "server-only";
 import { listPublishedTopicsBySubject } from "@/lib/supabase/topics";
+import { listPublishedSubjects } from "@/lib/supabase/subjects";
 import { getTopicDiagnosticPools } from "@/lib/supabase/topic-diagnostic-questions";
-import { createDiagnosticSessionFromPool, type DiagnosticQuestion } from "@/lib/supabase/diagnostic";
+import {
+  createDiagnosticSessionFromPool,
+  convertGuestSession,
+  buildKnowledgeModel,
+  getDiagnosticQuestions,
+  type DiagnosticQuestion,
+} from "@/lib/supabase/diagnostic";
+import { saveSubjectSelections } from "@/lib/supabase/students";
 
 // Per-topic sample size for the guest teaser — small enough to keep the
 // whole quiz inside a "5 minute" budget across several topics, but still
@@ -66,4 +74,39 @@ export async function buildGuestDiagnostic(
     questions: shuffle(questions),
   });
   return { sessionId, questionCount: questions.length };
+}
+
+// Attaches a completed guest diagnostic session to a real student account:
+// converts ownership, builds the knowledge model, and enrolls them in
+// whatever subjects the guest session actually covered (the guest picker
+// never asked for an exam board, so each subject uses its first configured
+// one — matching how /start's subject picker itself has no board field).
+// Used both right after signup (app/actions/auth.ts) and when a visitor
+// turns out to already be logged in while viewing the guest results teaser
+// (app/start/results/[sessionId]/page.tsx) — either path should end with
+// the same "this is now a real result, not a locked teaser" outcome.
+export async function convertGuestSessionToStudent(
+  sessionId: string,
+  studentId: string
+): Promise<void> {
+  await convertGuestSession(sessionId, studentId);
+  await buildKnowledgeModel(sessionId, studentId);
+
+  const [questions, subjects] = await Promise.all([
+    getDiagnosticQuestions(sessionId),
+    listPublishedSubjects(),
+  ]);
+
+  const subjectIds = [...new Set(questions.map((q) => q.subject_id))];
+  const selections = subjectIds
+    .map((subjectId) => {
+      const subject = subjects.find((s) => s.id === subjectId);
+      const examBoardId = subject?.exam_boards[0]?.id;
+      return examBoardId ? { subjectId, examBoardId } : null;
+    })
+    .filter((s): s is { subjectId: string; examBoardId: string } => s !== null);
+
+  if (selections.length > 0) {
+    await saveSubjectSelections(studentId, selections, false);
+  }
 }

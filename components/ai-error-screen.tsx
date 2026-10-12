@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/button";
 
 // Shared error.tsx UI for every AI-generation route (lesson/practice/
@@ -21,7 +22,7 @@ export function AiErrorScreen({
 
   return (
     <main className="mx-auto flex min-h-[60dvh] max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
-      <p className="text-3xl">⚠️</p>
+      <AlertTriangle className="size-9 text-error" strokeWidth={1.75} />
       <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">
         Couldn&apos;t reach the AI right now
       </h1>
