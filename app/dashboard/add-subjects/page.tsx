@@ -50,13 +50,13 @@ export default async function AddSubjectsPage() {
               href={`/subjects/${s.subject_id}`}
               className="group flex flex-col gap-1.5 py-3 first:pt-0"
             >
-              <span className="flex items-center justify-between gap-3 text-sm font-medium text-foreground transition-colors group-hover:text-primary">
+              <span className="flex items-center justify-between gap-3 text-sm pt-2 font-medium text-foreground transition-colors group-hover:text-primary">
                 <span>
                   {s.subject_name} <span className="font-normal text-muted">({s.exam_board_name})</span>
                 </span>
                 <ArrowRight className="size-4 shrink-0" strokeWidth={2} aria-hidden />
               </span>
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-2 ">
                 <span
                   role="progressbar"
                   aria-label={`${s.subject_name} topics complete`}
