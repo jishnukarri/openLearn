@@ -93,7 +93,9 @@ export async function createDiagnosticSession(input: {
 // exist (sampled from a topic's pre-generated pool) instead of freshly
 // AI-generated ones — used by the guest-onboarding diagnostic.
 export async function createDiagnosticSessionFromPool(input: {
-  guestToken: string;
+  guestToken?: string;
+  studentId?: string;
+  mode?: "fresh" | "recap";
   questions: Array<{
     subjectId: string;
     topicName: string | null;
@@ -103,9 +105,16 @@ export async function createDiagnosticSessionFromPool(input: {
     content: DiagnosticQuestion["content"];
   }>;
 }): Promise<string> {
+  if (!input.studentId && !input.guestToken) {
+    throw new Error("createDiagnosticSessionFromPool needs either a studentId or a guestToken.");
+  }
   const { data: session, error: sessionError } = await db
     .from("diagnostic_sessions")
-    .insert({ guest_token: input.guestToken, mode: "fresh" })
+    .insert({
+      student_id: input.studentId ?? null,
+      guest_token: input.guestToken ?? null,
+      mode: input.mode ?? "fresh",
+    })
     .select("id")
     .single();
   if (sessionError) throw sessionError;

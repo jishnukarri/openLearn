@@ -15,6 +15,7 @@ import {
   isDiagnosticSessionOwner,
 } from "@/lib/supabase/diagnostic";
 import { db } from "@/lib/supabase/database-client";
+import { buildStudentPoolDiagnostic, buildStudentRecapPoolDiagnostic } from "@/lib/guest-diagnostic";
 import {
   scoreDiagnosticAnswerInstant,
   type LevelAnswerPayload,
@@ -36,6 +37,14 @@ export async function startFreshDiagnosticAction(formData: FormData): Promise<vo
   if (subjects.length === 0) redirect("/dashboard");
 
   const scope = formData.get("scope") === "full" ? "full" : "quick";
+
+  // Prefer the topics' preset question pools: no AI wait, no credits.
+  const presetSessionId = await buildStudentPoolDiagnostic({
+    studentId: profile.id,
+    subjects: subjects.map((s) => ({ subjectId: s.subject_id, examBoardId: s.exam_board_id })),
+    scope,
+  });
+  if (presetSessionId) redirect(`/onboarding/diagnostic/${presetSessionId}/level/0`);
 
   // For "quick", pin each subject to its first published topic so the
   // quiz stays short (one topic × ~3 questions each).
@@ -98,6 +107,9 @@ export async function startRecapDiagnosticAction(formData: FormData): Promise<vo
     );
   const idToName = new Map((rows ?? []).map((r: any) => [r.id, r.name]));
   const subjectNameToId = new Map((rows ?? []).map((r: any) => [r.name, r.id]));
+
+  const presetSessionId = await buildStudentRecapPoolDiagnostic({ studentId: profile.id, selections });
+  if (presetSessionId) redirect(`/onboarding/diagnostic/${presetSessionId}/level/0`);
 
   const bySubject = new Map<string, string[]>();
   for (const s of selections) {
