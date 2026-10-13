@@ -125,14 +125,13 @@ export async function getClassOverview(classId: string, teacherId: string): Prom
   const ids = profiles.map((p) => p.id);
   if (ids.length === 0) return { name: cls.name, rows: [] };
 
-  const [km, ans] = await Promise.all([
-    db.from("knowledge_model").select("student_id, score").in("student_id", ids),
+  const [masteryMaps, ans] = await Promise.all([
+    Promise.all(ids.map((id) => getTopicMastery(id))),
     db.from("student_answers").select("student_id, created_at").in("student_id", ids).order("created_at", { ascending: false }).limit(5000),
   ]);
+  // Blended mastery (diagnostic + practice), same measure as the student page.
   const scores = new Map<string, number[]>();
-  for (const r of (km.data ?? []) as { student_id: string; score: number }[]) {
-    scores.set(r.student_id, [...(scores.get(r.student_id) ?? []), r.score]);
-  }
+  ids.forEach((id, i) => scores.set(id, [...masteryMaps[i].values()].map((m) => m.score)));
   const lastAns = new Map<string, string>();
   for (const r of (ans.data ?? []) as { student_id: string; created_at: string }[]) {
     if (!lastAns.has(r.student_id)) lastAns.set(r.student_id, r.created_at);
