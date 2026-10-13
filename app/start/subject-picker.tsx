@@ -6,6 +6,7 @@ import { AnimatePresence, MotionConfig, motion, type Variants } from "framer-mot
 import { Compass, PencilLine, UserPlus } from "lucide-react";
 import { startGuestDiagnosticAction } from "@/app/actions/guest";
 import { Button } from "@/components/button";
+import { PendingAiOverlay } from "@/components/pending-ai-overlay";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 
@@ -240,6 +241,10 @@ export function SubjectPicker({ subjects }: { subjects: Subject[] }) {
               variants={rise}
               className="flex flex-col gap-3 pl-14 sm:flex-row sm:items-center lg:col-start-1 lg:row-start-3 lg:pl-[3.5rem]"
             >
+              <PendingAiOverlay
+                title="Building your quiz"
+                messages={["Picking your questions…", "Mixing the difficulty…", "Nearly there…"]}
+              />
               <StartButton />
               <Button
                 type="button"
