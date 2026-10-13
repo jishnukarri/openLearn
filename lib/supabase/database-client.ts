@@ -1,4 +1,5 @@
 import "server-only";
+import { stripNul } from "@/lib/strip-nul";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // Auth is handled by Appwrite, not Supabase Auth, so every table has RLS
@@ -8,6 +9,8 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 // All Supabase access in this codebase must go through this class instead
 // of calling `@supabase/supabase-js` directly, so the underlying provider
 // can be swapped later without touching every call site.
+const WRITE_METHODS = new Set(["insert", "update", "upsert"]);
+
 class SupabaseDatabaseClient {
   private readonly client: SupabaseClient;
 
@@ -27,11 +30,21 @@ class SupabaseDatabaseClient {
   }
 
   from(table: string) {
-    return this.client.from(table);
+    const query = this.client.from(table);
+    return new Proxy(query, {
+      get(target, prop) {
+        const value = Reflect.get(target, prop, target);
+        if (typeof value !== "function") return value;
+        if (WRITE_METHODS.has(String(prop))) {
+          return (values: unknown, ...rest: unknown[]) => value.call(target, stripNul(values), ...rest);
+        }
+        return value.bind(target);
+      },
+    });
   }
 
   rpc(fn: string, params?: Record<string, unknown>) {
-    return this.client.rpc(fn, params);
+    return this.client.rpc(fn, params ? stripNul(params) : params);
   }
 }
 
