@@ -13,6 +13,16 @@ export type Profile = {
   streak_count: number;
 };
 
+export async function getProfileById(profileId: string): Promise<(Profile & { created_at: string; last_active_date: string | null }) | null> {
+  const { data, error } = await db
+    .from("profiles")
+    .select("id, appwrite_user_id, email, full_name, role, xp, streak_count, created_at, last_active_date")
+    .eq("id", profileId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export async function getProfileByAppwriteId(
   appwriteUserId: string
 ): Promise<Profile | null> {

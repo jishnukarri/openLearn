@@ -1,0 +1,148 @@
+import "server-only";
+import { db } from "./database-client";
+import { getProfileById } from "./profiles";
+import { getCompletedSubtopicIds, getCompletedTopicIds } from "./progress";
+import {
+  ACTIVITY_WINDOW_DAYS,
+  attentionReasons,
+  averageScore,
+  bucketActivity,
+  latestTimestamp,
+  type AttentionReason,
+  type DayPoint,
+} from "@/lib/student-analytics";
+
+export type TopicMastery = { subjectId: string; subjectName: string; topicName: string; score: number };
+
+export type StudentOverview = {
+  profile: NonNullable<Awaited<ReturnType<typeof getProfileById>>>;
+  lastActive: string | null;
+  mastery: TopicMastery[];
+  avgScore: number | null;
+  attention: AttentionReason[];
+  activity: DayPoint[];
+  totalAnswers: number;
+  accuracyPercent: number | null;
+  lessonsCompleted: number;
+  diagnostics: { id: string; mode: string; status: string | null; createdAt: string }[];
+  classes: { id: string; name: string }[];
+};
+
+async function latestActivity(studentId: string): Promise<string | null> {
+  const [a, b, c] = await Promise.all([
+    db.from("student_answers").select("created_at").eq("student_id", studentId).order("created_at", { ascending: false }).limit(1),
+    db.from("question_session_attempts").select("attempted_at").eq("student_id", studentId).order("attempted_at", { ascending: false }).limit(1),
+    db.from("question_sessions").select("started_at").eq("student_id", studentId).order("started_at", { ascending: false }).limit(1),
+  ]);
+  return latestTimestamp([
+    (a.data as { created_at: string }[] | null)?.[0]?.created_at,
+    (b.data as { attempted_at: string }[] | null)?.[0]?.attempted_at,
+    (c.data as { started_at: string }[] | null)?.[0]?.started_at,
+  ]);
+}
+
+export async function getStudentOverview(studentId: string): Promise<StudentOverview | null> {
+  const profile = await getProfileById(studentId);
+  if (!profile) return null;
+
+  const since = new Date(Date.now() - ACTIVITY_WINDOW_DAYS * 86_400_000).toISOString();
+  const [lastActivity, kmRes, topics, subtopics, recent, allAnswers, diag, cls] = await Promise.all([
+    latestActivity(studentId),
+    db.from("knowledge_model").select("subject_id, topic_name, score, subjects(name)").eq("student_id", studentId),
+    getCompletedTopicIds(studentId),
+    getCompletedSubtopicIds(studentId),
+    db.from("student_answers").select("created_at, marks_awarded, max_marks").eq("student_id", studentId).gte("created_at", since),
+    db.from("student_answers").select("marks_awarded, max_marks").eq("student_id", studentId),
+    db.from("diagnostic_sessions").select("id, mode, status, created_at").eq("student_id", studentId).order("created_at", { ascending: false }).limit(10),
+    db.from("class_members").select("classes(id, name)").eq("student_id", studentId),
+  ]);
+  for (const r of [kmRes, recent, allAnswers, diag, cls]) if (r.error) throw r.error;
+
+  type Km = { subject_id: string; topic_name: string | null; score: number; subjects: { name: string } | null };
+  const mastery = ((kmRes.data ?? []) as unknown as Km[])
+    .filter((r) => r.topic_name)
+    .map((r) => ({ subjectId: r.subject_id, subjectName: r.subjects?.name ?? "Subject", topicName: r.topic_name as string, score: r.score }));
+
+  const answers = (allAnswers.data ?? []) as { marks_awarded: number | null; max_marks: number | null }[];
+  const got = answers.reduce((s, a) => s + (a.marks_awarded ?? 0), 0);
+  const max = answers.reduce((s, a) => s + (a.max_marks ?? 0), 0);
+
+  const lastActive = latestTimestamp([lastActivity, profile.last_active_date]);
+  const avg = averageScore(mastery.map((m) => m.score));
+
+  return {
+    profile,
+    lastActive,
+    mastery,
+    avgScore: avg,
+    attention: attentionReasons({ lastActive, avgScore: avg }),
+    activity: bucketActivity((recent.data ?? []) as { created_at: string; marks_awarded: number | null; max_marks: number | null }[]),
+    totalAnswers: answers.length,
+    accuracyPercent: max > 0 ? Math.round((got / max) * 100) : null,
+    lessonsCompleted: topics.size + subtopics.size,
+    diagnostics: ((diag.data ?? []) as { id: string; mode: string; status: string | null; created_at: string }[]).map((d) => ({
+      id: d.id, mode: d.mode, status: d.status, createdAt: d.created_at,
+    })),
+    classes: ((cls.data ?? []) as unknown as { classes: { id: string; name: string } | null }[]).flatMap((r) => (r.classes ? [r.classes] : [])),
+  };
+}
+
+// A teacher may only see students who sit in one of their own classes.
+export async function teacherCanViewStudent(teacherId: string, studentId: string): Promise<boolean> {
+  const { data, error } = await db
+    .from("class_members")
+    .select("class_id, classes!inner(teacher_id)")
+    .eq("student_id", studentId)
+    .eq("classes.teacher_id", teacherId)
+    .limit(1);
+  if (error) throw error;
+  return (data ?? []).length > 0;
+}
+
+export type ClassRow = {
+  profileId: string;
+  fullName: string | null;
+  email: string;
+  xp: number;
+  streak: number;
+  lastActive: string | null;
+  avgScore: number | null;
+  attention: AttentionReason[];
+};
+
+export async function getClassOverview(classId: string, teacherId: string): Promise<{ name: string; rows: ClassRow[] } | null> {
+  const { data: cls } = await db.from("classes").select("id, name").eq("id", classId).eq("teacher_id", teacherId).maybeSingle();
+  if (!cls) return null;
+  const { data: members, error } = await db
+    .from("class_members")
+    .select("profiles(id, full_name, email, xp, streak_count, last_active_date)")
+    .eq("class_id", classId);
+  if (error) throw error;
+  type P = { id: string; full_name: string | null; email: string; xp: number; streak_count: number; last_active_date: string | null };
+  const profiles = ((members ?? []) as unknown as { profiles: P | null }[]).flatMap((m) => (m.profiles ? [m.profiles] : []));
+  const ids = profiles.map((p) => p.id);
+  if (ids.length === 0) return { name: cls.name, rows: [] };
+
+  const [km, ans] = await Promise.all([
+    db.from("knowledge_model").select("student_id, score").in("student_id", ids),
+    db.from("student_answers").select("student_id, created_at").in("student_id", ids).order("created_at", { ascending: false }).limit(5000),
+  ]);
+  const scores = new Map<string, number[]>();
+  for (const r of (km.data ?? []) as { student_id: string; score: number }[]) {
+    scores.set(r.student_id, [...(scores.get(r.student_id) ?? []), r.score]);
+  }
+  const lastAns = new Map<string, string>();
+  for (const r of (ans.data ?? []) as { student_id: string; created_at: string }[]) {
+    if (!lastAns.has(r.student_id)) lastAns.set(r.student_id, r.created_at);
+  }
+
+  const rows = profiles.map((p) => {
+    const lastActive = latestTimestamp([lastAns.get(p.id), p.last_active_date]);
+    const avg = averageScore(scores.get(p.id) ?? []);
+    return {
+      profileId: p.id, fullName: p.full_name, email: p.email, xp: p.xp, streak: p.streak_count,
+      lastActive, avgScore: avg, attention: attentionReasons({ lastActive, avgScore: avg }),
+    };
+  });
+  return { name: cls.name, rows };
+}
