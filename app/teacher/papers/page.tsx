@@ -3,7 +3,8 @@ import { requireRole } from "@/lib/appwrite/session";
 import { listPapersForTeacher } from "@/lib/supabase/papers";
 import { listClassesByTeacher } from "@/lib/supabase/classes";
 import { createPaperAction } from "@/app/actions/papers";
-import { Button } from "@/components/button";
+import { SubmitButton } from "@/components/submit-button";
+import { PendingAiOverlay } from "@/components/pending-ai-overlay";
 import { AsideBlock, PageHeader, PageShell } from "@/components/page-shell";
 import { Rise, Stagger } from "@/components/motion";
 
@@ -115,9 +116,10 @@ export default async function TeacherPapersPage() {
             </div>
           </div>
 
-          <Button type="submit" size="compact" className="self-start">
+          <SubmitButton size="compact" className="self-start" pendingText="Reading the paper…">
             Upload &amp; extract questions
-          </Button>
+          </SubmitButton>
+          <PendingAiOverlay title="Reading the paper…" messages={["Reading the question paper", "Matching the mark scheme", "This can take a minute"]} />
         </form>
       )}
 

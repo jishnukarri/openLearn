@@ -2,7 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { requireRole } from "@/lib/appwrite/session";
 import { getPaper, getRosterForPaper } from "@/lib/supabase/papers";
 import { markSubmissionsAction } from "@/app/actions/paper-marking";
-import { Button } from "@/components/button";
+import { SubmitButton } from "@/components/submit-button";
+import { PendingAiOverlay } from "@/components/pending-ai-overlay";
 import { AsideBlock, PageHeader, PageShell } from "@/components/page-shell";
 
 export default async function MarkSubmissionsPage({
@@ -68,9 +69,10 @@ export default async function MarkSubmissionsPage({
               with no readable code is grouped with the previous one.
             </p>
           </div>
-          <Button type="submit" size="compact" className="self-start">
+          <SubmitButton size="compact" className="self-start" pendingText="Marking…">
             Upload &amp; split by student
-          </Button>
+          </SubmitButton>
+          <PendingAiOverlay title="Marking the scripts…" messages={["Splitting scripts by student", "Marking each answer", "This can take a few minutes"]} />
         </form>
       )}
     </PageShell>

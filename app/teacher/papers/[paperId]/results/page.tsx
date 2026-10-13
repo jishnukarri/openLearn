@@ -4,7 +4,8 @@ import { requireRole } from "@/lib/appwrite/session";
 import { getPaper, getRosterForPaper } from "@/lib/supabase/papers";
 import { getSubmissionsForPaper } from "@/lib/supabase/paper-submissions";
 import { reassignSubmissionAction, markPendingSubmissionsAction } from "@/app/actions/paper-marking";
-import { Button } from "@/components/button";
+import { SubmitButton } from "@/components/submit-button";
+import { PendingAiOverlay } from "@/components/pending-ai-overlay";
 import { AsideBlock, PageHeader, PageShell } from "@/components/page-shell";
 import { Rise, Stagger } from "@/components/motion";
 
@@ -69,9 +70,10 @@ export default async function PaperResultsPage({
           pendingCount > 0 ? (
             <form action={markPendingSubmissionsAction}>
               <input type="hidden" name="paperId" value={paperId} />
-              <Button type="submit" size="compact">
+              <SubmitButton size="compact" pendingText="Marking…">
                 Mark {pendingCount} pending submission{pendingCount === 1 ? "" : "s"}
-              </Button>
+              </SubmitButton>
+              <PendingAiOverlay title="Marking the scripts…" messages={["Marking each answer", "This can take a few minutes"]} />
             </form>
           ) : undefined
         }
@@ -130,9 +132,10 @@ export default async function PaperResultsPage({
                         </option>
                       ))}
                     </select>
-                    <Button type="submit" variant="secondary" size="compact" className="!shadow-none shrink-0">
+                    <SubmitButton variant="secondary" size="compact" className="!shadow-none shrink-0" pendingText="Marking…">
                       Assign &amp; mark
-                    </Button>
+                    </SubmitButton>
+                    <PendingAiOverlay title="Marking this script…" messages={["Marking each answer", "This can take a minute"]} />
                   </form>
                 )}
               </div>
