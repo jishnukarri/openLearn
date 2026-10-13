@@ -323,7 +323,7 @@ body {
 /* ─── Dark mode tokens (shared between media query and .dark class) ─────── */
 /* Keep in sync: any change here must be mirrored in the .dark block below. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     /* App-specific tokens */
     --surface: #1f1a15;
     --border: oklch(1 0 0 / 10%);
@@ -360,9 +360,11 @@ body {
   }
 }
 
-/* Class-based override — same values, lets a future theme toggle win over
-   OS preference without requiring a full page reload. */
-.dark {
+/* Explicit theme (set by the theme switch, components/theme-toggle.tsx) wins
+   over the OS preference. The media query above only covers no-JS visits. */
+.dark,
+:root[data-theme="dark"] {
+  color-scheme: dark;
   --surface: #1f1a15;
   --border: oklch(1 0 0 / 10%);
   --muted: #a69c90;

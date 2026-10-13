@@ -4,6 +4,7 @@ import { getProfileByAppwriteId } from "@/lib/supabase/profiles";
 import { PageShell, PageHeader, AsideBlock } from "@/components/page-shell";
 import { UpdateNameForm } from "./update-name-form";
 import { DeleteAccountForm } from "./delete-account-form";
+import { ThemeChoiceGroup } from "@/components/theme-toggle";
 
 export default async function AccountPage() {
   const session = await requireSession();
@@ -33,6 +34,12 @@ export default async function AccountPage() {
             {profile?.role ?? "student"}
           </span>
         </div>
+      </section>
+
+      <section className="animate-fade-slide-up flex max-w-2xl flex-col gap-3" style={{ animationDelay: "120ms" }}>
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">Appearance</h2>
+        <ThemeChoiceGroup />
+        <p className="text-sm text-muted">Saved on this device.</p>
       </section>
 
       <section

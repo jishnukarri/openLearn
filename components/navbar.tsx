@@ -3,6 +3,7 @@ import { getSession } from "@/lib/appwrite/session";
 import { getProfileByAppwriteId } from "@/lib/supabase/profiles";
 import { logout } from "@/app/actions/auth";
 import { roleHome } from "@/lib/roles";
+import { ThemeToggle } from "./theme-toggle";
 
 export async function NavBar() {
   const session = await getSession();
@@ -61,12 +62,15 @@ export async function NavBar() {
             </details>
           </nav>
         ) : (
-          <a
-            href="/login"
-            className="rounded-full px-4 py-2 text-sm font-medium text-muted transition-colors hover:bg-surface hover:text-foreground"
-          >
-            Log in
-          </a>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <a
+              href="/login"
+              className="rounded-full px-4 py-2 text-sm font-medium text-muted transition-colors hover:bg-surface hover:text-foreground"
+            >
+              Log in
+            </a>
+          </div>
         )}
       </div>
     </header>

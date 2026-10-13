@@ -6,6 +6,7 @@ import { NavigationProgress } from "@/components/navigation-progress";
 import { StudentBottomNav } from "@/components/student-bottom-nav";
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
@@ -47,7 +48,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={cn("h-full antialiased", "font-sans", geistSans.variable, geistMono.variable, fraunces.variable)}>
+    <html lang="en" suppressHydrationWarning className={cn("h-full antialiased", "font-sans", geistSans.variable, geistMono.variable, fraunces.variable)}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <NavigationProgress />
         <PwaRegister />
