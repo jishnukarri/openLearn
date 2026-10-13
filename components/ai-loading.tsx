@@ -39,6 +39,9 @@ export function AiLoading({
 
   return (
     <div
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
       className={
         overlay
           ? "fixed inset-0 z-[100] flex flex-col items-center justify-center gap-8 bg-background/95 backdrop-blur-sm"
