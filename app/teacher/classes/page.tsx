@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireRole } from "@/lib/appwrite/session";
 import { listClassesByTeacher, listClassMembers } from "@/lib/supabase/classes";
 import { listPublishedSubjects } from "@/lib/supabase/subjects";
@@ -119,6 +120,9 @@ export default async function TeacherClassesPage() {
                       </span>
                       <CopyButton text={cls.invite_code} label="Copy code" />
                       <CopyButton text={`/join/${cls.invite_code}`} prependOrigin label="Copy link" />
+                      <Link href={`/teacher/classes/${cls.id}`} className="text-sm font-medium text-primary hover:underline">
+                        View progress
+                      </Link>
                     </div>
                   </div>
                   <form action={deleteClassAction}>
