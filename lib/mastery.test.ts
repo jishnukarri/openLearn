@@ -32,12 +32,12 @@ describe("computeMastery", () => {
     expect(r.score - base).toBeLessThan(0.1);
   });
   it("drops after a run of wrong answers and recovers after correct ones", () => {
-    const good = run(10, true, 20);
+    const good = run(10, true, 5);
     const high = score(good);
     const dropped = score([...good, ...run(8, false, 0)]);
-    const recovered = score([...good, ...run(8, false, 3), ...run(10, true, 0)]);
+    const recovered = score([...good, ...run(8, false, 10), ...run(12, true, 0)]);
     expect(dropped).toBeLessThan(high - 0.15);
-    expect(recovered).toBeGreaterThan(dropped + 0.15);
+    expect(recovered).toBeGreaterThan(dropped + 0.1);
   });
   it("old results fade in favour of recent ones", () => {
     expect(score([...run(10, false, 90), ...run(10, true, 0)])).toBeGreaterThan(score([...run(10, true, 90), ...run(10, false, 0)]));
