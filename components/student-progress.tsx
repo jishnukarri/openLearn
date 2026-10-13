@@ -186,7 +186,10 @@ export function StudentProgress({
                 <ul className="flex flex-col gap-3">
                   {s.topics.map((t, i) => (
                     <li key={t.topicName} className="grid gap-1.5 sm:grid-cols-[minmax(0,14rem)_1fr_3rem] sm:items-center sm:gap-4">
-                      <span className="text-base text-foreground">{t.topicName}</span>
+                      <span className="text-base text-foreground">
+                        {t.topicName}
+                        <span className="block text-sm text-muted">Diagnostic 30% + practice</span>
+                      </span>
                       <ScoreBar score={t.score} tone={toneFor(t.score)} delay={i * 0.05} />
                       <span className="text-sm text-muted sm:text-right">{Math.round(t.score * 100)}%</span>
                     </li>

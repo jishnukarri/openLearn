@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "./database-client";
 import { getProfileById } from "./profiles";
+import { getTopicMastery } from "./mastery";
 import { getCompletedSubtopicIds, getCompletedTopicIds } from "./progress";
 import {
   ACTIVITY_WINDOW_DAYS,
@@ -12,7 +13,7 @@ import {
   type DayPoint,
 } from "@/lib/student-analytics";
 
-export type TopicMastery = { subjectId: string; subjectName: string; topicName: string; score: number };
+export type TopicMastery = { subjectId: string; subjectName: string; topicName: string; score: number; diagnostic: number };
 
 export type StudentOverview = {
   profile: NonNullable<Awaited<ReturnType<typeof getProfileById>>>;
@@ -46,7 +47,8 @@ export async function getStudentOverview(studentId: string): Promise<StudentOver
   if (!profile) return null;
 
   const since = new Date(Date.now() - ACTIVITY_WINDOW_DAYS * 86_400_000).toISOString();
-  const [lastActivity, kmRes, topics, subtopics, recent, allAnswers, diag, cls] = await Promise.all([
+  const [masteryMap, lastActivity, kmRes, topics, subtopics, recent, allAnswers, diag, cls] = await Promise.all([
+    getTopicMastery(studentId),
     latestActivity(studentId),
     db.from("knowledge_model").select("subject_id, topic_name, score, subjects(name)").eq("student_id", studentId),
     getCompletedTopicIds(studentId),
@@ -61,7 +63,7 @@ export async function getStudentOverview(studentId: string): Promise<StudentOver
   type Km = { subject_id: string; topic_name: string | null; score: number; subjects: { name: string } | null };
   const mastery = ((kmRes.data ?? []) as unknown as Km[])
     .filter((r) => r.topic_name)
-    .map((r) => ({ subjectId: r.subject_id, subjectName: r.subjects?.name ?? "Subject", topicName: r.topic_name as string, score: r.score }));
+    .map((r) => ({ subjectId: r.subject_id, subjectName: r.subjects?.name ?? "Subject", topicName: r.topic_name as string, score: masteryMap.get(`${r.subject_id}:${r.topic_name}`)?.score ?? r.score, diagnostic: r.score }));
 
   const answers = (allAnswers.data ?? []) as { marks_awarded: number | null; max_marks: number | null }[];
   const got = answers.reduce((s, a) => s + (a.marks_awarded ?? 0), 0);
