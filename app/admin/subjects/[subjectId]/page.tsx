@@ -22,6 +22,7 @@ import {
   saveTopicInstructionsAction,
 } from "@/app/actions/subjects";
 import { Button } from "@/components/button";
+import { RenameSubject } from "@/components/rename-subject";
 import { AsideBlock, PageHeader, PageShell } from "@/components/page-shell";
 import { Rise, Stagger } from "@/components/motion";
 import { PendingAiOverlay } from "@/components/pending-ai-overlay";
@@ -197,6 +198,7 @@ export async function SubjectDetailPage({
         </Link>
         <PageHeader
           title={subject.name}
+          actions={<RenameSubject subjectId={subject.id} name={subject.name} />}
           description={subject.exam_boards.map((b) => b.name).join(", ") || "No exam boards"}
         />
       </div>
