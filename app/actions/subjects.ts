@@ -13,6 +13,7 @@ import {
   deleteSubject,
   updateSpecText,
   updateSubjectInstructions,
+  updateSubjectName,
   updateSubjectArchetype,
   getSpecTextForSubject,
   getSpecTextForBoard,
@@ -76,6 +77,43 @@ const CreateSubjectSchema = z.object({
   name: z.string().min(2, "Subject name must be at least 2 characters.").trim(),
   examBoardIds: z.array(z.string()).min(1, "Pick at least one exam board."),
 });
+
+const RenameSubjectSchema = z.object({
+  subjectId: z.string().min(1),
+  name: z.string().min(2, "Subject name must be at least 2 characters.").trim(),
+});
+
+export async function renameSubjectAction(
+  _prev: { error: string } | null,
+  formData: FormData
+): Promise<{ error: string } | null> {
+  const validated = RenameSubjectSchema.safeParse({
+    subjectId: formData.get("subjectId"),
+    name: formData.get("name"),
+  });
+  if (!validated.success) {
+    return { error: validated.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const { subjectId, name } = validated.data;
+  await requireOwnerOrAdmin(subjectId);
+
+  try {
+    await updateSubjectName(subjectId, name);
+  } catch (e) {
+    if ((e as { code?: string })?.code === "23505") {
+      return { error: "A subject with that name already exists." };
+    }
+    return { error: "Something went wrong — please try again." };
+  }
+
+  revalidatePath("/admin/subjects");
+  revalidatePath("/admin/subjects/[subjectId]", "page");
+  revalidatePath("/teacher/subjects");
+  revalidatePath("/teacher/subjects/[subjectId]", "page");
+  revalidatePath("/subjects/[subjectId]", "page");
+  revalidatePath("/dashboard");
+  return null;
+}
 
 export async function createSubjectAction(
   _prev: { error: string } | null,
