@@ -7,6 +7,8 @@ import {
   getSessionQuestionReviews,
   isDiagnosticSessionOwner,
 } from "@/lib/supabase/diagnostic";
+import { getUntestedTopicsForSession } from "@/lib/supabase/untested-topics";
+import { CoveredTopics } from "./covered-topics";
 import { Button } from "@/components/button";
 import { CelebrateOnMount } from "@/components/celebrate-on-mount";
 import { StarRating } from "@/components/star-rating";
@@ -34,9 +36,10 @@ export default async function DiagnosticResultsPage({
 
   if (!(await isDiagnosticSessionOwner(sessionId, profile.id))) notFound();
 
-  const [results, reviews] = await Promise.all([
+  const [results, reviews, untested] = await Promise.all([
     getSessionResultsByTopic(sessionId),
     getSessionQuestionReviews(sessionId),
+    getUntestedTopicsForSession(sessionId, profile.id),
   ]);
 
   const overall =
@@ -118,6 +121,12 @@ export default async function DiagnosticResultsPage({
               })}
             </ul>
           </Rise>
+
+          {untested.length > 0 && (
+            <Rise>
+              <CoveredTopics groups={untested} />
+            </Rise>
+          )}
 
           {/* Per-question review */}
           {reviews.length > 0 && (

@@ -69,6 +69,11 @@ export default async function GuestResultsTeaserPage({
               Already have an account? Log in
             </ButtonLink>
           </Rise>
+          <Rise>
+            <p className="max-w-[56ch] text-sm text-muted">
+              Already covered some topics at school? After you sign up, you can tell us which ones and we&apos;ll check what you know.
+            </p>
+          </Rise>
         </div>
 
         <Rise className="relative">
