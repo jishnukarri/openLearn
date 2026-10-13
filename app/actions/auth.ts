@@ -15,6 +15,7 @@ import { roleHome } from "@/lib/roles";
 import { isHttpsRequest } from "@/lib/cookie-options";
 import { checkRateLimit, checkKeyRateLimit } from "@/lib/rate-limit";
 import { getGuestToken, clearGuestToken } from "@/lib/guest-session";
+import { getBlockMatch } from "@/lib/supabase/blocklist";
 import { getActiveGuestSession } from "@/lib/supabase/diagnostic";
 import { convertGuestSessionToStudent } from "@/lib/guest-diagnostic";
 
@@ -80,6 +81,13 @@ export async function signup(
   }
 
   const { name, email, password } = validated.data;
+
+  if ((await getBlockMatch("email", email)) || (await getBlockMatch("name", name))) {
+    return {
+      message:
+        "This email or name can't be used. Contact your administrator if you think this is a mistake.",
+    };
+  }
 
   const isTeacher = formData.get("isTeacher") === "1";
   let profileId: string;

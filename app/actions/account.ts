@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireSession, SESSION_COOKIE } from "@/lib/appwrite/session";
 import { createServerUsers, createSessionClient } from "@/lib/appwrite/server";
+import { getBlockMatch } from "@/lib/supabase/blocklist";
 import { getProfileByAppwriteId, updateProfileName, deleteProfile } from "@/lib/supabase/profiles";
 
 export type AccountFormState = { message?: string } | undefined;
@@ -23,6 +24,13 @@ export async function updateNameAction(
   const validated = NameSchema.safeParse(formData.get("fullName"));
   if (!validated.success) {
     return { message: validated.error.issues[0]?.message ?? "Invalid name." };
+  }
+
+  if (await getBlockMatch("name", validated.data)) {
+    return {
+      message:
+        "This email or name can't be used. Contact your administrator if you think this is a mistake.",
+    };
   }
 
   await updateProfileName(profile.id, validated.data);
