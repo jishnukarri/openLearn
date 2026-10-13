@@ -5,6 +5,7 @@ import { getSubject } from "@/lib/supabase/subjects";
 import { listPublishedTopicsBySubject, listPublishedSubtopicsByTopic } from "@/lib/supabase/topics";
 import { getCompletedTopicIds, getCompletedSubtopicIds } from "@/lib/supabase/progress";
 import { getStudentSubjects } from "@/lib/supabase/students";
+import { getTopicMastery } from "@/lib/supabase/mastery";
 import { db } from "@/lib/supabase/database-client";
 import { ButtonLink } from "@/components/button";
 import { SubjectPath, type PathGroup } from "./subject-path";
@@ -26,7 +27,7 @@ export default async function SubjectPathPage({
   const enrollment = studentSubjects.find((s) => s.subject_id === subjectId);
   const examBoardId = enrollment?.exam_board_id;
 
-  const [topics, completedTopics, completedSubtopics, knowledgeRows] = await Promise.all([
+  const [topics, completedTopics, completedSubtopics, knowledgeRows, masteryMap] = await Promise.all([
     listPublishedTopicsBySubject(subjectId, examBoardId),
     getCompletedTopicIds(profile.id),
     getCompletedSubtopicIds(profile.id),
@@ -36,6 +37,7 @@ export default async function SubjectPathPage({
       .eq("student_id", profile.id)
       .eq("subject_id", subjectId)
       .then(({ data }) => data ?? []),
+    getTopicMastery(profile.id),
   ]);
   const diagnosticByTopic = new Map<string, number>(
     (knowledgeRows as { topic_name: string; score: number }[]).map((r) => [r.topic_name, r.score])
@@ -47,19 +49,21 @@ export default async function SubjectPathPage({
   const groups: PathGroup[] = topics.map((topic, i) => {
     const subtopics = subtopicsByTopic[i];
     const diagnosticScore = diagnosticByTopic.get(topic.name) ?? null;
+    const masteryScore = masteryMap.get(`${subjectId}:${topic.name}`)?.score ?? null;
     return {
       id: topic.id,
       name: topic.name,
       summary: topic.summary ?? null,
       lessons:
         subtopics.length === 0
-          ? [{ id: topic.id, name: topic.name, href: `/learn/${topic.id}`, kind: "topic" as const, diagnosticScore }]
+          ? [{ id: topic.id, name: topic.name, href: `/learn/${topic.id}`, kind: "topic" as const, diagnosticScore, masteryScore }]
           : subtopics.map((sub) => ({
               id: sub.id,
               name: sub.name,
               href: `/learn/subtopic/${sub.id}`,
               kind: "subtopic" as const,
               diagnosticScore,
+              masteryScore,
             })),
     };
   });

@@ -11,6 +11,7 @@ export type PathUnit = {
   href: string;
   kind: "topic" | "subtopic";
   diagnosticScore?: number | null;
+  masteryScore?: number | null;
 };
 
 export type PathGroup = {
@@ -26,11 +27,11 @@ function StrengthBattery({ score }: { score: number }) {
   const pct = Math.round(score * 100);
   const color = pct >= 80 ? "bg-success" : pct >= 50 ? "bg-highlight" : "bg-error";
   return (
-    <div className="flex items-center gap-2" title={`Diagnostic: ${pct}%`}>
+    <div className="flex items-center gap-2" title={`Mastery: ${pct}%`}>
       <div className="relative h-1.5 w-16 overflow-hidden rounded-full bg-border">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-sm text-muted">{pct}% diagnostic</span>
+      <span className="text-sm text-muted">{pct}% mastery</span>
     </div>
   );
 }
@@ -122,7 +123,7 @@ export function SubjectPath({
                             {unit.name}
                           </Link>
                           <p className="text-sm text-muted">{isDone ? "Complete" : isNext ? "Up next" : "Not started"}</p>
-                          {unit.diagnosticScore != null && <StrengthBattery score={unit.diagnosticScore} />}
+                          {unit.masteryScore != null && <StrengthBattery score={unit.masteryScore} />}
 
                           {isDone && (
                             <div className="mt-1 flex flex-wrap items-center gap-2">
