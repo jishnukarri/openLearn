@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Check, X, Sparkles } from "lucide-react";
+import { StatusLine } from "@/components/pending-status";
 import { BrandMark } from "@/components/brand-mark";
 import { askLessonTutorAction } from "@/app/actions/lessons";
 import type { CoachTurn } from "@/lib/ai/lesson-tutor";
@@ -191,7 +192,7 @@ export function LessonTutor({
           )
         )}
         {pendingQ && (
-          <p className="rounded-2xl rounded-bl-md bg-background px-3 py-2 text-muted">Thinking…</p>
+          <div className="self-start rounded-2xl rounded-bl-md bg-background px-3 py-2"><StatusLine text="Your coach is thinking…" /></div>
         )}
         {error && <p className="text-error">{error}</p>}
       </div>
