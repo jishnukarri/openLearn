@@ -167,6 +167,17 @@ export async function updateSubjectArchetype(
   if (error) throw error;
 }
 
+export async function updateSubjectName(
+  subjectId: string,
+  name: string
+): Promise<void> {
+  const { error } = await db
+    .from("subjects")
+    .update({ name })
+    .eq("id", subjectId);
+  if (error) throw error;
+}
+
 export async function updateSubjectInstructions(
   subjectId: string,
   instructions: string
