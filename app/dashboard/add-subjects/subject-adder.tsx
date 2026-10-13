@@ -5,6 +5,7 @@ import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { Check } from "lucide-react";
 import { addSubjectsAction } from "@/app/actions/onboarding";
 import { Button } from "@/components/button";
+import { PendingStatus } from "@/components/pending-status";
 import { EASE_OUT } from "@/components/motion";
 
 export type Option = {
@@ -94,6 +95,7 @@ export function SubjectAdder({ options }: { options: Option[] }) {
           </motion.div>
         </fieldset>
 
+        <PendingStatus text="Adding your subjects…" />
         <div className="flex flex-wrap items-center gap-4" aria-live="polite">
           <Button type="submit" disabled={count === 0} aria-describedby="add-help">
             {count === 0 ? "Add subjects" : `Add ${count} ${count === 1 ? "subject" : "subjects"}`}
