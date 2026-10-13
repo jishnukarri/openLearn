@@ -39,7 +39,7 @@ export default async function RecapTopicsPage() {
             What have you covered already?
           </h1>
           <p className="mt-3 max-w-[60ch] text-base text-muted">
-            Pick up to 3 topics you&apos;ve already done at school, we&apos;ll
+            Pick up to 6 topics you&apos;ve already done at school, we&apos;ll
             check what stuck and reteach anything shaky, alongside recapping
             what you know.
           </p>

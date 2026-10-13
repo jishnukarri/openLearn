@@ -10,12 +10,14 @@ import {
   type DiagnosticQuestion,
 } from "@/lib/supabase/diagnostic";
 import { saveSubjectSelections } from "@/lib/supabase/students";
+import { DIAGNOSTIC_MAX_QUESTIONS, selectTopicsForDiagnostic } from "@/lib/diagnostic-select";
 
 // Per-topic sample size for the guest teaser — small enough to keep the
 // whole quiz inside a "5 minute" budget across several topics, but still
 // touching every topic at least once. Zero AI cost: this only reads
 // already-generated pool rows (see lib/ai/diagnostic-pool.ts).
 const QUESTIONS_PER_TOPIC_SAMPLE = 2;
+const RECAP_QUESTIONS_PER_TOPIC = 4;
 
 function shuffle<T>(arr: T[]): T[] {
   const copy = [...arr];
@@ -71,13 +73,14 @@ export async function buildGuestDiagnostic(
   const topicsBySubject = await Promise.all(
     subjectIds.map((id) => listPublishedTopicsBySubject(id))
   );
-  const questions = await samplePoolQuestions(topicsBySubject.flat(), QUESTIONS_PER_TOPIC_SAMPLE);
+  const { selected } = selectTopicsForDiagnostic(topicsBySubject, QUESTIONS_PER_TOPIC_SAMPLE);
+  const questions = (await samplePoolQuestions(selected, QUESTIONS_PER_TOPIC_SAMPLE)).slice(
+    0,
+    DIAGNOSTIC_MAX_QUESTIONS
+  );
   if (questions.length === 0) return null;
 
-  const sessionId = await createDiagnosticSessionFromPool({
-    guestToken,
-    questions: shuffle(questions),
-  });
+  const sessionId = await createDiagnosticSessionFromPool({ guestToken, questions });
   return { sessionId, questionCount: questions.length };
 }
 
@@ -93,16 +96,17 @@ export async function buildStudentPoolDiagnostic(input: {
   const topicsBySubject = await Promise.all(
     input.subjects.map((s) => listPublishedTopicsBySubject(s.subjectId, s.examBoardId ?? undefined))
   );
+  const perTopic = input.scope === "quick" ? 4 : QUESTIONS_PER_TOPIC_SAMPLE;
   const topics =
     input.scope === "quick"
-      ? topicsBySubject.map((list) => list.slice(0, 1)).flat()
-      : topicsBySubject.flat();
-  const questions = await samplePoolQuestions(topics, input.scope === "quick" ? 4 : QUESTIONS_PER_TOPIC_SAMPLE);
+      ? selectTopicsForDiagnostic(topicsBySubject.map((list) => list.slice(0, 1)), perTopic).selected
+      : selectTopicsForDiagnostic(topicsBySubject, perTopic).selected;
+  const questions = (await samplePoolQuestions(topics, perTopic)).slice(0, DIAGNOSTIC_MAX_QUESTIONS);
   if (questions.length === 0) return null;
   return createDiagnosticSessionFromPool({
     studentId: input.studentId,
     mode: "fresh",
-    questions: shuffle(questions),
+    questions,
   });
 }
 
@@ -116,12 +120,14 @@ export async function buildStudentRecapPoolDiagnostic(input: {
   const bySubject = await Promise.all(subjectIds.map((id) => listPublishedTopicsBySubject(id)));
   const wanted = new Set(input.selections.map((s) => `${s.subjectId}::${s.topicName}`));
   const topics = bySubject.flat().filter((t) => wanted.has(`${t.subject_id}::${t.name}`));
-  const questions = await samplePoolQuestions(topics, 4);
+  const perTopic = RECAP_QUESTIONS_PER_TOPIC;
+  const { selected } = selectTopicsForDiagnostic([topics], perTopic);
+  const questions = (await samplePoolQuestions(selected, perTopic)).slice(0, DIAGNOSTIC_MAX_QUESTIONS);
   if (questions.length === 0) return null;
   return createDiagnosticSessionFromPool({
     studentId: input.studentId,
     mode: "recap",
-    questions: shuffle(questions),
+    questions,
   });
 }
 

@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/appwrite/session";
-import { getStudentSubjects, getSubjectsNeedingDiagnostic, getFirstTopicPerSubject } from "@/lib/supabase/students";
+import { getStudentSubjects, getSubjectsNeedingDiagnostic } from "@/lib/supabase/students";
 import { generateDiagnosticQuiz } from "@/lib/ai/diagnostic";
 import { resolveProviderConfig } from "@/lib/ai/client";
 import {
@@ -14,6 +14,8 @@ import {
   buildKnowledgeModel,
   isDiagnosticSessionOwner,
 } from "@/lib/supabase/diagnostic";
+import { listPublishedTopicsBySubject } from "@/lib/supabase/topics";
+import { selectTopicsForDiagnostic, RECAP_MAX_TOPICS } from "@/lib/diagnostic-select";
 import { db } from "@/lib/supabase/database-client";
 import { buildStudentPoolDiagnostic, buildStudentRecapPoolDiagnostic } from "@/lib/guest-diagnostic";
 import {
@@ -46,11 +48,19 @@ export async function startFreshDiagnosticAction(formData: FormData): Promise<vo
   });
   if (presetSessionId) redirect(`/onboarding/diagnostic/${presetSessionId}/level/0`);
 
-  // For "quick", pin each subject to its first published topic so the
-  // quiz stays short (one topic × ~3 questions each).
-  let topicMap: Map<string, string> | null = null;
-  if (scope === "quick") {
-    topicMap = await getFirstTopicPerSubject(subjects.map((s) => s.subject_id));
+  // Only the start of each subject: pick topics in syllabus order, capped so
+  // the whole quiz stays within DIAGNOSTIC_MAX_QUESTIONS.
+  const perTopic = scope === "quick" ? 4 : 2;
+  const allTopics = await Promise.all(
+    subjects.map((s) => listPublishedTopicsBySubject(s.subject_id, s.exam_board_id ?? undefined))
+  );
+  const { selected } = selectTopicsForDiagnostic(
+    scope === "quick" ? allTopics.map((l) => l.slice(0, 1)) : allTopics,
+    perTopic
+  );
+  const topicNamesBySubject = new Map<string, string[]>();
+  for (const t of selected) {
+    topicNamesBySubject.set(t.subject_id, [...(topicNamesBySubject.get(t.subject_id) ?? []), t.name]);
   }
 
   const subjectNameToId = new Map<string, string>();
@@ -68,7 +78,7 @@ export async function startFreshDiagnosticAction(formData: FormData): Promise<vo
     subjects.map((s) => ({
       subjectId: s.subject_id,
       subjectName: s.subject_name,
-      topicNames: topicMap ? (topicMap.get(s.subject_id) ? [topicMap.get(s.subject_id)!] : undefined) : undefined,
+      topicNames: topicNamesBySubject.get(s.subject_id),
     })),
     "fresh",
     config
@@ -84,13 +94,13 @@ export async function startFreshDiagnosticAction(formData: FormData): Promise<vo
   redirect(`/onboarding/diagnostic/${sessionId}/level/0`);
 }
 
-// "Recap" diagnostic: samples up to 3 topics the student says they've
+// "Recap" diagnostic: samples up to 6 topics the student says they've
 // already covered, to check what actually stuck.
 export async function startRecapDiagnosticAction(formData: FormData): Promise<void> {
   const { profile } = await requireRole("student");
 
   const selections = (formData.getAll("topic") as string[])
-    .slice(0, 3)
+    .slice(0, RECAP_MAX_TOPICS)
     .map((v) => {
       const [subjectId, topicName] = v.split("::");
       return { subjectId, topicName };
