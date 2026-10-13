@@ -167,7 +167,13 @@ export async function login(
     const users = createServerUsers();
     const session = await users.createSession({ userId });
     await setSessionCookie(session.secret, session.expire);
-  } catch {
+  } catch (e) {
+    // Appwrite only reports a blocked account after the password checked out,
+    // so saying so doesn't reveal which emails exist.
+    const err = e as { type?: string; message?: string };
+    if (err?.type === "user_blocked" || /\bblocked\b/i.test(err?.message ?? "")) {
+      return { message: "This account has been blocked. Please contact your administrator." };
+    }
     return { message: "Incorrect email or password." };
   }
 
