@@ -17,6 +17,7 @@ import {
 } from "@/app/actions/practice-uploads";
 import { celebrate } from "@/lib/confetti";
 import { Button } from "@/components/button";
+import { StatusLine } from "@/components/pending-status";
 import { RichText } from "@/components/rich-text";
 import { MatchingBoard } from "@/components/matching-board";
 import { ExplainBox } from "@/components/explain-box";
@@ -491,6 +492,7 @@ function QuestionForm({
           <p className="text-sm text-error">{state.message}</p>
         )}
 
+        {pending && <StatusLine text="Marking your answer…" />}
         {!result && (
           <Button type="submit" disabled={pending} className="self-start">
             {pending ? "Marking..." : "Submit answer"}

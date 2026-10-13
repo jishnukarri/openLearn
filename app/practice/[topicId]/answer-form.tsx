@@ -11,6 +11,7 @@ import {
 } from "@/app/actions/practice";
 import { celebrate } from "@/lib/confetti";
 import { Button } from "@/components/button";
+import { StatusLine, PendingStatus } from "@/components/pending-status";
 import { RichText } from "@/components/rich-text";
 import { MatchingBoard } from "@/components/matching-board";
 import { ExplainBox } from "@/components/explain-box";
@@ -331,6 +332,7 @@ export function AnswerForm({
         {state && "message" in state && (
           <p className="text-sm text-error">{state.message}</p>
         )}
+        {pending && <StatusLine text="Marking your answer…" />}
         <Button type="submit" disabled={pending} className="self-start">
           {pending ? "Marking..." : "Submit answer"}
         </Button>
@@ -404,6 +406,7 @@ export function AnswerForm({
             >
               Try a similar question
             </Button>
+            <PendingStatus text="Thinking of a question…" />
           </form>
         </div>
       )}
