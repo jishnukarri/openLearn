@@ -76,10 +76,13 @@ function ActivityChart({ activity }: { activity: StudentOverview["activity"] }) 
 export function StudentProgress({
   overview,
   supportPanel,
+  activity,
 }: {
   overview: StudentOverview;
   /** Slot for the admin support-actions panel. Left empty on the teacher page. */
   supportPanel?: React.ReactNode;
+  /** Slot for the activity timeline, rendered below the existing sections. */
+  activity?: React.ReactNode;
 }) {
   const { profile } = overview;
   const weakest = [...overview.mastery].sort((a, b) => a.score - b.score);
@@ -204,6 +207,8 @@ export function StudentProgress({
           <Heading>Answers in the last 30 days</Heading>
           <ActivityChart activity={overview.activity} />
         </Rise>
+
+        {activity ? <Rise>{activity}</Rise> : null}
       </Stagger>
     </PageShell>
   );
