@@ -28,6 +28,8 @@ export type ActivityEvent = {
   at: string;
   text: string;
   detail?: string;
+  /** Practice answers only: what the student wrote, the full question and the feedback they got. */
+  answer?: { question: string | null; written: string | null; feedback: string | null };
 };
 
 export const PAGE_SIZE = 50;

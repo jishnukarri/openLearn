@@ -145,10 +145,10 @@ export async function getStudentActivity(
     add(async () => {
       const q = db
         .from("student_answers")
-        .select("id, created_at, marks_awarded, max_marks, questions(prompt, topics(name, subjects(name)))")
+        .select("id, created_at, marks_awarded, max_marks, answer_text, feedback, questions(prompt, topics(name, subjects(name)))")
         .eq("student_id", studentId);
       type A = {
-        id: string; created_at: string; marks_awarded: number | null; max_marks: number | null;
+        id: string; created_at: string; marks_awarded: number | null; max_marks: number | null; answer_text: string | null; feedback: string | null;
         questions: { prompt: string | null; topics: TopicJoin | TopicJoin[] | null } | { prompt: string | null; topics: TopicJoin | TopicJoin[] | null }[] | null;
       };
       return rows<A>(await lt(q, "created_at").order("created_at", { ascending: false }).limit(n)).map((x) => {
@@ -160,6 +160,7 @@ export async function getStudentActivity(
           id: `ans:${x.id}`, kind: "answer" as const, at: x.created_at,
           text: `Answered ${l.subject ? `a ${l.subject}` : "a"} question: ${marks}`,
           detail: snippet || undefined,
+          answer: { question: question?.prompt ?? null, written: x.answer_text, feedback: x.feedback },
         };
       });
     });

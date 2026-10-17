@@ -101,6 +101,34 @@ export function StudentActivityTimeline({
                       <div className="min-w-0 flex-1">
                         <p className="text-base text-foreground">{e.text}</p>
                         {e.detail ? <p className="break-words text-sm text-muted">{e.detail}</p> : null}
+                        {e.answer ? (
+                          <details className="group mt-2">
+                            <summary className="w-fit cursor-pointer list-none rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+                              <span className="group-open:hidden">Show answer</span>
+                              <span className="hidden group-open:inline">Hide answer</span>
+                            </summary>
+                            <dl className="mt-3 flex max-w-[65ch] flex-col gap-3 text-sm">
+                              {e.answer.question ? (
+                                <div>
+                                  <dt className="font-medium text-muted">Question</dt>
+                                  <dd className="mt-0.5 whitespace-pre-wrap break-words text-foreground">{e.answer.question}</dd>
+                                </div>
+                              ) : null}
+                              <div>
+                                <dt className="font-medium text-muted">Student&apos;s answer</dt>
+                                <dd className="mt-0.5 whitespace-pre-wrap break-words text-foreground">
+                                  {e.answer.written?.trim() ? e.answer.written : "No written answer (marked from a photo or a multiple-choice pick)."}
+                                </dd>
+                              </div>
+                              {e.answer.feedback ? (
+                                <div>
+                                  <dt className="font-medium text-muted">Feedback they received</dt>
+                                  <dd className="mt-0.5 whitespace-pre-wrap break-words text-foreground">{e.answer.feedback}</dd>
+                                </div>
+                              ) : null}
+                            </dl>
+                          </details>
+                        ) : null}
                       </div>
                       <time dateTime={e.at} className="shrink-0 text-sm text-muted">
                         {timeText(e.at)}
