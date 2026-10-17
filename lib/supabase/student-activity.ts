@@ -37,7 +37,8 @@ export async function getStudentActivity(
   const filter = opts.filter ?? "all";
   const n = limit + 1; // one extra row tells us whether another page exists
   const want = (...kinds: ActivityKind[]) => kinds.some((k) => matchesFilter(k, filter));
-  const lt = <Q extends { lt: (c: string, v: string) => Q }>(q: Q, col: string) => (before ? q.lt(col, before) : q);
+  const lt = <Q>(q: Q, col: string): Q =>
+    before ? ((q as unknown as { lt: (c: string, v: string) => Q }).lt(col, before)) : q;
 
   const jobs: Promise<ActivityEvent[]>[] = [];
   const add = (p: () => Promise<ActivityEvent[]>) => jobs.push(p());
@@ -115,7 +116,7 @@ export async function getStudentActivity(
 
   if (want("practice-started", "practice-completed")) {
     add(async () => {
-      const sel = "id, started_at, completed_at, mastery_exit, topics(name, subjects(name))";
+      const sel: string = "id, started_at, completed_at, mastery_exit, topics(name, subjects(name))";
       type S = { id: string; started_at: string; completed_at: string | null; mastery_exit: boolean | null; topics: TopicJoin | TopicJoin[] | null };
       const a = db.from("question_sessions").select(sel).eq("student_id", studentId);
       const b = db.from("question_sessions").select(sel).eq("student_id", studentId).not("completed_at", "is", null);
