@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "./database-client";
 import { listAuditForTarget } from "./admin-audit";
 import {
+  normaliseFeedback,
   PAGE_SIZE,
   matchesFilter,
   mergeEvents,
@@ -148,7 +149,7 @@ export async function getStudentActivity(
         .select("id, created_at, marks_awarded, max_marks, answer_text, feedback, questions(prompt, topics(name, subjects(name)))")
         .eq("student_id", studentId);
       type A = {
-        id: string; created_at: string; marks_awarded: number | null; max_marks: number | null; answer_text: string | null; feedback: string | null;
+        id: string; created_at: string; marks_awarded: number | null; max_marks: number | null; answer_text: string | null; feedback: unknown;
         questions: { prompt: string | null; topics: TopicJoin | TopicJoin[] | null } | { prompt: string | null; topics: TopicJoin | TopicJoin[] | null }[] | null;
       };
       return rows<A>(await lt(q, "created_at").order("created_at", { ascending: false }).limit(n)).map((x) => {
@@ -160,7 +161,7 @@ export async function getStudentActivity(
           id: `ans:${x.id}`, kind: "answer" as const, at: x.created_at,
           text: `Answered ${l.subject ? `a ${l.subject}` : "a"} question: ${marks}`,
           detail: snippet || undefined,
-          answer: { question: question?.prompt ?? null, written: x.answer_text, feedback: x.feedback },
+          answer: { question: question?.prompt ?? null, written: x.answer_text, feedback: normaliseFeedback(x.feedback) },
         };
       });
     });

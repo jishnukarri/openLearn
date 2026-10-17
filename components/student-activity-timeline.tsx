@@ -120,10 +120,25 @@ export function StudentActivityTimeline({
                                   {e.answer.written?.trim() ? e.answer.written : "No written answer (marked from a photo or a multiple-choice pick)."}
                                 </dd>
                               </div>
-                              {e.answer.feedback ? (
+                              {e.answer.feedback.length > 0 ? (
                                 <div>
                                   <dt className="font-medium text-muted">Feedback they received</dt>
-                                  <dd className="mt-0.5 whitespace-pre-wrap break-words text-foreground">{e.answer.feedback}</dd>
+                                  <dd className="mt-1">
+                                    <ul className="flex flex-col gap-2">
+                                      {e.answer.feedback.map((f, i) => (
+                                        <li key={i} className="whitespace-pre-wrap break-words text-foreground">
+                                          {f.met !== null ? (
+                                            <span className={f.met ? "font-medium text-success" : "font-medium text-error"}>
+                                              {f.met ? "Got it" : "Missed"}
+                                              {f.point ? ": " : ""}
+                                            </span>
+                                          ) : null}
+                                          {f.point ? <span className="font-medium">{f.point}. </span> : null}
+                                          {f.comment}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </dd>
                                 </div>
                               ) : null}
                             </dl>

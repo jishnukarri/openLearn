@@ -46,3 +46,16 @@ describe("student activity helpers", () => {
     expect(parseFilter(["practice"])).toBe("practice");
   });
 });
+
+import { normaliseFeedback } from "./student-activity";
+
+describe("normaliseFeedback", () => {
+  it("turns marking objects, JSON strings and plain text into lines", () => {
+    expect(normaliseFeedback([{ point: "Defines X", met: true, comment: "Well done" }])).toEqual([
+      { met: true, point: "Defines X", comment: "Well done" },
+    ]);
+    expect(normaliseFeedback('[{"point":"p","met":false,"comment":"c"}]')[0].met).toBe(false);
+    expect(normaliseFeedback("Good effort")).toEqual([{ met: null, point: null, comment: "Good effort" }]);
+    expect(normaliseFeedback(null)).toEqual([]);
+  });
+});

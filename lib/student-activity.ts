@@ -21,6 +21,38 @@ export type ActivityKind =
   | "paper"
   | "admin";
 
+export type FeedbackLine = { met: boolean | null; point: string | null; comment: string };
+
+// Marking feedback is stored either as plain text or as a list of
+// {point, met, comment}; normalise both so the UI never gets a raw object.
+export function normaliseFeedback(raw: unknown): FeedbackLine[] {
+  if (raw == null) return [];
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    if (!t) return [];
+    if (t.startsWith("[") || t.startsWith("{")) {
+      try {
+        return normaliseFeedback(JSON.parse(t));
+      } catch {
+        // plain text that merely starts with a bracket
+      }
+    }
+    return [{ met: null, point: null, comment: t }];
+  }
+  const list = Array.isArray(raw) ? raw : [raw];
+  return list.flatMap((item): FeedbackLine[] => {
+    if (typeof item === "string") return item.trim() ? [{ met: null, point: null, comment: item.trim() }] : [];
+    if (item && typeof item === "object") {
+      const o = item as Record<string, unknown>;
+      const comment = typeof o.comment === "string" ? o.comment : "";
+      const point = typeof o.point === "string" ? o.point : null;
+      if (!comment && !point) return [];
+      return [{ met: typeof o.met === "boolean" ? o.met : null, point, comment }];
+    }
+    return [];
+  });
+}
+
 export type ActivityEvent = {
   id: string;
   kind: ActivityKind;
@@ -29,7 +61,7 @@ export type ActivityEvent = {
   text: string;
   detail?: string;
   /** Practice answers only: what the student wrote, the full question and the feedback they got. */
-  answer?: { question: string | null; written: string | null; feedback: string | null };
+  answer?: { question: string | null; written: string | null; feedback: FeedbackLine[] };
 };
 
 export const PAGE_SIZE = 50;
