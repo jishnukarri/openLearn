@@ -25,13 +25,13 @@ export async function logAdminAction(entry: {
   if (error) throw error;
 }
 
-export async function listAuditForTarget(targetId: string, limit = 20): Promise<AdminAuditEntry[]> {
-  const { data, error } = await db
+export async function listAuditForTarget(targetId: string, limit = 20, before?: string): Promise<AdminAuditEntry[]> {
+  let q = db
     .from("admin_audit_log")
     .select("id, admin_id, target_id, action, reason, created_at")
-    .eq("target_id", targetId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+    .eq("target_id", targetId);
+  if (before) q = q.lt("created_at", before);
+  const { data, error } = await q.order("created_at", { ascending: false }).limit(limit);
   if (error) throw error;
   return (data ?? []) as AdminAuditEntry[];
 }
