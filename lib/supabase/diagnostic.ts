@@ -4,9 +4,10 @@ import type {
   GeneratedDiagnosticQuestion,
   QuestionType,
 } from "@/lib/ai/diagnostic";
+import { numericMetaFrom } from "@/lib/diagnostic-numeric";
 
 type McqContent = { options: string[]; correctIndex: number };
-type FillBlankContent = { blankAnswer: string };
+type FillBlankContent = { blankAnswer: string; numeric?: import("@/lib/diagnostic-numeric").NumericMeta };
 type MatchContent = { pairs: { left: string; right: string }[] };
 type ShortAnswerContent = { markscheme: { point: string }[] };
 
@@ -59,6 +60,10 @@ export async function createDiagnosticSession(input: {
           content = { blankAnswer: q.blankAnswer };
           maxMarks = 1;
           break;
+        case "numeric":
+          content = { blankAnswer: q.blankAnswer, numeric: numericMetaFrom(q) };
+          maxMarks = q.maxMarks || 1;
+          break;
         case "match":
           content = { pairs: q.matchPairs };
           maxMarks = q.matchPairs.length || 1;
@@ -72,7 +77,7 @@ export async function createDiagnosticSession(input: {
         session_id: session.id,
         subject_id: subjectId,
         topic_name: q.topicName || null,
-        type: q.type,
+        type: q.type === "numeric" ? "fill_blank" : q.type,
         prompt: q.prompt,
         max_marks: maxMarks,
         content,

@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "./database-client";
 import type { PoolQuestion } from "@/lib/ai/diagnostic-pool";
 import type { QuestionType } from "@/lib/ai/diagnostic";
+import { numericMetaFrom } from "@/lib/diagnostic-numeric";
 
 export type PoolQuestionRow = {
   id: string;
@@ -18,6 +19,8 @@ function toContent(q: PoolQuestion): Record<string, unknown> {
       return { options: q.options, correctIndex: q.correctIndex };
     case "fill_blank":
       return { blankAnswer: q.blankAnswer };
+    case "numeric":
+      return { blankAnswer: q.blankAnswer, numeric: numericMetaFrom(q) };
     case "match":
       return { pairs: q.matchPairs };
     case "short_answer":
@@ -32,7 +35,7 @@ export async function saveTopicDiagnosticPool(
   if (questions.length === 0) return;
   const rows = questions.map((q) => ({
     topic_id: topicId,
-    type: q.type,
+    type: q.type === "numeric" ? "fill_blank" : q.type,
     prompt: q.prompt,
     max_marks: q.type === "match" ? q.matchPairs.length || 1 : q.maxMarks || 1,
     content: toContent(q),

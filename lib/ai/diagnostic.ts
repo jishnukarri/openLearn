@@ -1,5 +1,6 @@
 import "server-only";
 import { chatJson, type ProviderConfig } from "./client";
+import { NUMERIC_PROMPT_NOTE, NUMERIC_SCHEMA_PROPS } from "@/lib/diagnostic-numeric";
 
 export type DiagnosticSubjectInput = {
   subjectId: string;
@@ -12,12 +13,17 @@ export type QuestionType = "mcq" | "fill_blank" | "match" | "short_answer";
 export type GeneratedDiagnosticQuestion = {
   subjectName: string;
   topicName: string;
-  type: QuestionType;
+  // "numeric" only exists at generation time; it is stored as fill_blank
+  // with a `numeric` content block (see lib/diagnostic-numeric.ts).
+  type: QuestionType | "numeric";
   prompt: string;
   maxMarks: number;
   options: string[];
   correctIndex: number;
   blankAnswer: string;
+  numericUnit?: string;
+  tolerancePercent?: number;
+  sigFigs?: number;
   matchPairs: { left: string; right: string }[];
   markscheme: { point: string }[];
 };
@@ -36,13 +42,14 @@ const SCHEMA = {
           topicName: { type: "string" },
           type: {
             type: "string",
-            enum: ["mcq", "fill_blank", "match", "short_answer"],
+            enum: ["mcq", "fill_blank", "numeric", "match", "short_answer"],
           },
           prompt: { type: "string" },
           maxMarks: { type: "integer" },
           options: { type: "array", items: { type: "string" } },
           correctIndex: { type: "integer" },
           blankAnswer: { type: "string" },
+          ...NUMERIC_SCHEMA_PROPS,
           matchPairs: {
             type: "array",
             items: {
@@ -109,11 +116,13 @@ export async function generateDiagnosticQuiz(
   const result = await chatJson<{ questions: GeneratedDiagnosticQuestion[] }>(
     `${instruction}\n\nVary the question types across the quiz — mix ` +
       `"mcq" (4 options, 1 mark), "fill_blank" (prompt contains a literal ` +
-      `"___" blank, 1 mark), "match" (3-4 left/right pairs to match, 1 mark ` +
+      `"___" blank, 1 mark), "numeric" (calculation with a single numeric ` +
+      `answer), "match" (3-4 left/right pairs to match, 1 mark ` +
       `per pair so maxMarks = number of pairs), and "short_answer" ` +
       `(extended written answer, 2-6 marks, with a markscheme of that many ` +
       `distinct checkable points). Only fill in the fields relevant to each ` +
-      `question's type; leave the rest as empty arrays/strings/zero.`,
+      `question's type; leave the rest as empty arrays/strings/zero. ` +
+      NUMERIC_PROMPT_NOTE,
     SCHEMA,
     config
   );

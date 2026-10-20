@@ -1,4 +1,5 @@
 import type { DiagnosticQuestion } from "@/lib/supabase/diagnostic";
+import { readNumericMeta } from "@/lib/diagnostic-numeric";
 
 // What a diagnostic level page sends to the client — the answer key
 // (correctIndex, blankAnswer, which right matches which left) always stays
@@ -11,6 +12,7 @@ export type ClientDiagnosticQuestion = {
 } & (
   | { type: "mcq"; options: string[] }
   | { type: "fill_blank" }
+  | { type: "numeric"; unit?: string }
   | { type: "match"; lefts: string[]; rights: { label: string; index: number }[] }
   | { type: "short_answer" }
 );
@@ -42,8 +44,11 @@ export function toClientDiagnosticQuestion(
         rights,
       };
     }
-    case "fill_blank":
+    case "fill_blank": {
+      const meta = readNumericMeta(q.content);
+      if (meta) return { ...base, type: "numeric", unit: meta.unit };
       return { ...base, type: "fill_blank" };
+    }
     default:
       return { ...base, type: "short_answer" };
   }

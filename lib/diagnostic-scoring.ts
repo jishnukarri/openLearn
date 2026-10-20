@@ -1,4 +1,6 @@
 import type { DiagnosticQuestion } from "@/lib/supabase/diagnostic";
+import { markNumeric, parseNumericAnswer } from "@/lib/question-marking";
+import { readNumericMeta } from "@/lib/diagnostic-numeric";
 
 // One diagnostic question's answer, submitted from a single level page.
 export type LevelAnswerPayload = {
@@ -21,6 +23,12 @@ export function scoreDiagnosticAnswerInstant(
     }
     case "fill_blank": {
       const content = question.content as { blankAnswer: string };
+      const meta = readNumericMeta(question.content);
+      if (meta) {
+        const target = parseNumericAnswer(content.blankAnswer);
+        if (!target) return 0;
+        return markNumeric(payload.blankText ?? "", { value: target.value, ...meta }).fraction;
+      }
       // Not AI-marked — a plain string comparison against whatever single
       // phrasing the AI happened to generate as "the" answer. Forgiving a
       // trailing full stop, a leading article, and stray whitespace closes
