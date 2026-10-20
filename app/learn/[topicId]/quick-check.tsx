@@ -159,6 +159,7 @@ function ShortCheck({
 }: ResultProps & {
   check: Extract<LessonCheck, { kind: "short" }>;
 }) {
+  const [text, setText] = useState("");
   // Word bank mode: tappable tiles build the answer (no typing)
   if (check.wordBank && check.wordBank.length > 0) {
     return (
@@ -171,7 +172,6 @@ function ShortCheck({
   }
 
   // Fallback: text input for lessons without a word bank
-  const [text, setText] = useState("");
   const right = check.accepted.some((a) => answersMatch(text, a));
 
   return (

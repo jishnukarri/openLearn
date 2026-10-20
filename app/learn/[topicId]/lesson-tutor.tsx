@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, X, Sparkles } from "lucide-react";
+import { Check } from "lucide-react";
 import { StatusLine } from "@/components/pending-status";
 import { BrandMark } from "@/components/brand-mark";
 import { askLessonTutorAction } from "@/app/actions/lessons";
@@ -30,11 +30,6 @@ export function LessonTutor({
   const [pendingQ, setPendingQ] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  // Mobile-only: the panel collapses into a floating bubble, like a
-  // customer-support chat widget. Desktop ignores this, the sidebar stays
-  // permanently open via the `lg:block` override below.
-  const [open, setOpen] = useState(false);
-  const [hasUnseenReply, setHasUnseenReply] = useState(false);
 
   function ask(prompt = question) {
     const trimmed = prompt.trim();
@@ -60,7 +55,6 @@ export function LessonTutor({
       try {
         const turn = await askLessonTutorAction({ topicId, context, question: trimmed, history });
         setThread((t) => [...t, { role: "coach", turn }]);
-        if (!open) setHasUnseenReply(true);
       } catch {
         setError("I couldn't reach your study coach. Please try again.");
       } finally {
@@ -77,52 +71,14 @@ export function LessonTutor({
 
   return (
     <div className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
-      {/* Mobile-only floating bubble, the panel itself stays permanently open on desktop (lg:block below overrides `open`). */}
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(true);
-          setHasUnseenReply(false);
-        }}
-        aria-label="Open your AI study coach"
-        className={`fixed bottom-5 right-5 z-40 flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-[0_8px_24px_-6px_var(--primary)] transition-transform hover:scale-105 active:scale-95 lg:hidden ${
-          open ? "hidden" : "flex"
-        }`}
-      >
-        <Sparkles className="size-6" strokeWidth={1.75} />
-        {hasUnseenReply && (
-          <span className="absolute right-0 top-0 size-3.5 animate-pop-in rounded-full border-2 border-background bg-error" />
-        )}
-      </button>
-
-      {/* Backdrop, mobile only, dismisses the panel on tap-outside. */}
-      {open && (
-        <div
-          onClick={() => setOpen(false)}
-          aria-hidden
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-        />
-      )}
-
-      <aside
-        className={`fixed inset-x-4 bottom-5 z-50 max-h-[80dvh] flex-col rounded-2xl border border-primary/30 bg-surface p-4 shadow-2xl ${
-          open ? "animate-fade-slide-up flex" : "hidden"
-        } lg:static lg:z-auto lg:flex lg:h-full lg:max-h-none lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none`}
-      >
+      {/* Desktop sidebar only: on phones the header's "Stuck? Help" panel replaces the old floating bubble. */}
+      <aside className="hidden h-full max-h-none flex-col lg:flex">
         <div className="flex items-center gap-2">
           <BrandMark size={28} />
           <div className="flex-1">
             <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">Your AI study coach</h2>
             <p className="text-sm text-muted">Here for this step of the lesson</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            aria-label="Close study coach"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted hover:text-foreground lg:hidden"
-          >
-            <X className="size-4" strokeWidth={2} />
-          </button>
         </div>
 
       <div className="mt-4 flex flex-wrap gap-2">

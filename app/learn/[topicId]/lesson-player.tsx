@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { animated, useSpring, useTrail } from "@react-spring/web";
-import { X, Check, Trophy, PartyPopper, Puzzle, Sparkles, NotebookPen, Lightbulb } from "lucide-react";
+import { X, Check, Trophy, PartyPopper, Puzzle, Sparkles, NotebookPen } from "lucide-react";
 import type { LessonSection, LessonInteractive } from "@/lib/ai/lessons";
 import { LessonInteractiveWidget } from "@/components/interactives/lesson-interactive";
 import { completeLessonAction, adaptNextSectionAction, markOpenAnswerAction } from "@/app/actions/lessons";
@@ -21,8 +21,20 @@ import {
   buildLessonPlan,
   getCorrectAnswerLabel,
   cardDefinition,
+  stageForStep,
+  stepLabel,
+  stepInstruction,
+  primaryHint,
+  disabledReason,
+  isFirstOfPhase,
+  recapSoFar,
+  takeawayFor,
+  clampStep,
 } from "./lesson-plan";
-import { ScrollTrigger, ScrollHint, QuitModal } from "./lesson-parts";
+import { QuitModal } from "./lesson-parts";
+import { LessonHeader } from "./lesson-header";
+import { StuckHelp } from "./lesson-help";
+import { RecapPanel, TakeawayChip } from "./lesson-recap";
 import { ReportButton } from "@/components/report-button";
 
 // ── LessonPlayer ───────────────────────────────────────────────────────────
@@ -73,7 +85,6 @@ export function LessonPlayer({
 
   // ── Per-step state (reset on each navigation) ─────────────────────────
   const [checkResult, setCheckResult] = useState<boolean | null>(null);
-  const [hintOpen, setHintOpen] = useState(false);
   const [exampleRevealed, setExampleRevealed] = useState(false);
   const [flashcardIdx, setFlashcardIdx] = useState(0);
   const [flashcardSeen, setFlashcardSeen] = useState<Set<number>>(new Set());
@@ -92,16 +103,22 @@ export function LessonPlayer({
   const [adaptedSections, setAdaptedSections] = useState<Set<number>>(new Set());
   const [showQuitModal, setShowQuitModal] = useState(false);
   const adaptRequested = useRef<Set<number>>(new Set());
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [recapOpen, setRecapOpen] = useState(false);
+  const [maxVisited, setMaxVisited] = useState(0);
+  // Answers per step, so Back and forward again never loses work.
+  const memory = useRef<Record<number, StepMemory>>({});
+  const stepRef = useRef<HTMLDivElement>(null);
 
   const step = plan[planIdx] as Step | undefined;
   const displayedSections = sections.map((s, i) => ({ ...s, ...coachEdits[i] }));
 
   // ── Progress bar ─────────────────────────────────────────────────────
-  const progressPct = isDone ? 100 : (planIdx / plan.length) * 100;
-  const progressSpring = useSpring({ width: `${progressPct}%`, config: springs.snappy });
 
   // ── Step key for animation ────────────────────────────────────────────
   const stepKey = isDone ? "done" : `${step?.phase ?? "idle"}-${planIdx}`;
+  const recapItems = recapSoFar(plan, planIdx, sections);
+  const showHint = isFirstOfPhase(plan, planIdx);
 
   // ── Handlers ─────────────────────────────────────────────────────────
   // ── Derived context for the AI tutor sidebar ─────────────────────────
@@ -138,9 +155,58 @@ export function LessonPlayer({
     }
   }
 
+  function snapshot(): StepMemory {
+    return { checkResult, exampleRevealed, tutorAnswer, tutorFeedback, flashcardRatings, flashcardIdx, flashcardSeen };
+  }
+
+  function goTo(target: number) {
+    const idx = clampStep(target, plan.length);
+    memory.current[planIdx] = snapshot();
+    resetStepState();
+    const saved = memory.current[idx];
+    if (saved) {
+      setCheckResult(saved.checkResult);
+      setExampleRevealed(saved.exampleRevealed);
+      setTutorAnswer(saved.tutorAnswer);
+      setTutorFeedback(saved.tutorFeedback);
+      setFlashcardRatings(saved.flashcardRatings);
+      setFlashcardIdx(saved.flashcardIdx);
+      setFlashcardSeen(saved.flashcardSeen);
+    }
+    setHelpOpen(false);
+    setRecapOpen(false);
+    setPlanIdx(idx);
+    setMaxVisited((m) => Math.max(m, idx));
+  }
+
+  function back() {
+    if (planIdx > 0) goTo(planIdx - 1);
+  }
+
+  // Arrow keys: Left goes back; Right only re-visits steps already seen, so a
+  // question can never be skipped by accident.
+  useEffect(() => {
+    if (isDone || showQuitModal) return;
+    function onArrow(e: KeyboardEvent) {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === "ArrowLeft" && planIdx > 0) { e.preventDefault(); goTo(planIdx - 1); }
+      else if (e.key === "ArrowRight" && planIdx < maxVisited) { e.preventDefault(); goTo(planIdx + 1); }
+    }
+    window.addEventListener("keydown", onArrow);
+    return () => window.removeEventListener("keydown", onArrow);
+  });
+
+  // New step: move focus to it and scroll to the top so screen readers and
+  // keyboard users start from the beginning of the new content.
+  useEffect(() => {
+    stepRef.current?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0 });
+  }, [planIdx, isDone]);
+
   function resetStepState() {
     setCheckResult(null);
-    setHintOpen(false);
     setExampleRevealed(false);
     setFlashcardIdx(0);
     setFlashcardSeen(new Set());
@@ -160,8 +226,7 @@ export function LessonPlayer({
 
   function next() {
     if (step?.phase === "recap") { finish(); return; }
-    resetStepState();
-    setPlanIdx((p) => p + 1);
+    goTo(planIdx + 1);
   }
 
   function requestAdaptation(struggledIndex: number) {
@@ -215,40 +280,38 @@ export function LessonPlayer({
         />
       )}
 
-      {!isDone && <ScrollHint />}
-
       <div className="flex min-h-dvh flex-col bg-background">
 
-        {/* ── Top bar ─────────────────────────────────────────────────── */}
-        {!isDone && (
-          <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur-sm">
-            <button
-              type="button"
-              aria-label="Quit lesson"
-              onClick={() => setShowQuitModal(true)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-muted transition-colors hover:border-error hover:text-error"
-            >
-              <X className="size-4" strokeWidth={2} />
-            </button>
-            <div className="flex-1 overflow-hidden rounded-full bg-surface" style={{ height: 10 }}>
-              <animated.div
-                style={progressSpring}
-                className="h-full rounded-full bg-primary shadow-[0_0_8px_0_var(--primary)]"
-              />
-            </div>
-            <span className="shrink-0 font-[family-name:var(--font-mono)] text-xs tabular-nums text-muted">
-              {planIdx + 1}/{plan.length}
-            </span>
-          </div>
+        {!isDone && step && (
+          <LessonHeader
+            title={title ?? "Lesson"}
+            index={planIdx}
+            total={plan.length}
+            stage={stageForStep(step, exampleRevealed)}
+            canGoBack={planIdx > 0}
+            helpOpen={helpOpen}
+            recapOpen={recapOpen}
+            recapCount={recapItems.length}
+            onBack={back}
+            onQuit={() => setShowQuitModal(true)}
+            onToggleHelp={() => { setHelpOpen((o) => !o); setRecapOpen(false); }}
+            onToggleRecap={() => { setRecapOpen((o) => !o); setHelpOpen(false); }}
+          />
         )}
+        {!isDone && helpOpen && <StuckHelp key={stepKey} topicId={coachTopicId ?? topicId} context={tutorContext} />}
+        {!isDone && recapOpen && <RecapPanel items={recapItems} />}
+        <p className="sr-only" aria-live="polite" role="status">
+          {isDone ? "Lesson complete" : step ? `${stepLabel(planIdx, plan.length)}. ${stageForStep(step, exampleRevealed)}.` : ""}
+        </p>
 
         {/* ── Content ─────────────────────────────────────────────────── */}
         <div className="grid w-full flex-1 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_28rem]">
-          <div key={stepKey} className="animate-step-in mx-auto w-full max-w-4xl px-2 py-4 sm:px-4 lg:px-10 lg:py-10">
+          <div key={stepKey} ref={stepRef} tabIndex={-1} className="animate-step-in mx-auto outline-none w-full max-w-4xl px-2 py-4 sm:px-4 lg:px-10 lg:py-10">
 
             {/* ── Interactive pre-lesson widget ───────────────────────── */}
             {!isDone && step?.phase === "interactive" && interactive && (
               <div className="w-full px-4 py-8 sm:px-6">
+                <Instruction>{stepInstruction(step)}</Instruction>
                 <LessonInteractiveWidget interactive={interactive} onContinue={next} />
               </div>
             )}
@@ -274,9 +337,7 @@ export function LessonPlayer({
                   <p className="text-sm text-muted">
                     {sections.length} concepts · ~{Math.ceil(sections.length * 1.5)} min
                   </p>
-                  <ScrollTrigger onReached={next}>
-                    <Button onClick={next} className="mt-2 px-8">Let&apos;s go →</Button>
-                  </ScrollTrigger>
+                  <PrimaryAction label="Start the lesson" onClick={next} />
                 </div>
               </div>
             )}
@@ -299,6 +360,7 @@ export function LessonPlayer({
                     )}
                   </div>
 
+                  <Instruction>{stepInstruction(step, sec)}</Instruction>
                   <div className={`grid gap-8 ${hasVisual ? "lg:grid-cols-2 lg:items-start" : ""}`}>
                     {/* Left: explanation + example reveal */}
                     <div>
@@ -307,13 +369,14 @@ export function LessonPlayer({
                       </p>
 
                       {!exampleRevealed ? (
-                        <button
-                          type="button"
-                          onClick={() => setExampleRevealed(true)}
-                          className="mt-6 inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
-                        >
-                          <NotebookPen className="size-4" strokeWidth={2} /> See a worked example →
-                        </button>
+                        <div className="mt-6">
+                          <PrimaryAction
+                            label="Show me how"
+                            icon={<NotebookPen className="size-4" strokeWidth={2} />}
+                            onClick={() => setExampleRevealed(true)}
+                            hint={showHint ? "This shows a worked example. Then you can move on." : undefined}
+                          />
+                        </div>
                       ) : (
                         <div className="mt-6 animate-fade-slide-up rounded-xl border border-border bg-surface p-5">
                           <h3 className="mb-2 font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">
@@ -326,10 +389,13 @@ export function LessonPlayer({
                       )}
 
                       {exampleRevealed && (
-                        <div className="mt-6 animate-fade-slide-up">
-                          <ScrollTrigger onReached={next}>
-                            <Button onClick={next} className="px-8">Got it, test me →</Button>
-                          </ScrollTrigger>
+                        <div className="mt-6 flex animate-fade-slide-up flex-col gap-4">
+                          <TakeawayChip line={takeawayFor(sec).line} />
+                          <PrimaryAction
+                            label="Got it, next"
+                            onClick={next}
+                            hint={showHint ? primaryHint(step, sec) : "Next: a quick question on this."}
+                          />
                         </div>
                       )}
                     </div>
@@ -372,20 +438,12 @@ export function LessonPlayer({
                         <RichText text={sec.check.question} />
                       </p>
 
-                      {checkResult === null && !hintOpen && (
-                        <button
-                          type="button"
-                          onClick={() => setHintOpen(true)}
-                          className="inline-flex items-center gap-1 self-start text-xs text-muted underline underline-offset-2 hover:text-foreground"
-                        >
-                          <Lightbulb className="size-3.5" strokeWidth={2} /> Not sure? See a hint
-                        </button>
-                      )}
-                      {hintOpen && checkResult === null && (
-                        <div className="animate-fade-slide-up rounded-lg border border-border bg-background p-3 text-sm text-muted">
-                          <RichText text={sec.explanation} />
-                        </div>
-                      )}
+                      {checkResult === null ? (
+                        <>
+                          <Instruction>{stepInstruction(step, sec)}</Instruction>
+                          {showHint && <p className="-mt-3 text-sm text-muted">{primaryHint(step, sec)}</p>}
+                        </>
+                      ) : null}
 
                       <QuickCheck
                         key={`check-${step.sectionIndex}`}
@@ -452,9 +510,10 @@ export function LessonPlayer({
                             </>
                           );
                         })()}
-                        <ScrollTrigger onReached={next}>
-                          <Button onClick={next} className="w-full justify-center">Continue →</Button>
-                        </ScrollTrigger>
+                        <div className="mb-4">
+                          <TakeawayChip line={takeawayFor(sec).line} />
+                        </div>
+                        <PrimaryAction label="Got it, next" onClick={next} fullWidth />
                       </div>
                     )}
                   </div>
@@ -473,6 +532,7 @@ export function LessonPlayer({
               const currentRating = flashcardRatings[flashcardIdx];
               return (
                 <div className="w-full px-4 py-8 sm:px-6">
+                  <Instruction>{stepInstruction(step)}</Instruction>
                   <div className="mb-5 flex items-center justify-between">
                     <p className="text-sm font-medium text-muted">Vocabulary check</p>
                     <div className="flex items-center gap-2">
@@ -520,7 +580,7 @@ export function LessonPlayer({
                       {!flashcardFlipped ? (
                         <>
                           <p className="text-2xl font-semibold text-foreground">{card.term}</p>
-                          <p className="mt-3 text-sm text-muted">Tap to reveal definition</p>
+                          <p className="mt-3 text-sm text-muted">Tap the card to see the answer</p>
                         </>
                       ) : (
                         <>
@@ -536,7 +596,7 @@ export function LessonPlayer({
                   {/* How well did you know this? */}
                   {flashcardFlipped && !currentRating && (
                     <div className="mt-4 animate-fade-slide-up">
-                      <p className="mb-2 text-center text-sm text-muted">How well did you know this?</p>
+                      <p className="mb-2 text-center text-sm font-medium text-foreground">How well did you know this? Pick one.</p>
                       <div className="flex gap-2">
                         <button
                           type="button"
@@ -579,24 +639,23 @@ export function LessonPlayer({
                         type="button"
                         onClick={() => { setFlashcardIdx((i) => Math.max(0, i - 1)); setFlashcardFlipped(false); }}
                         disabled={flashcardIdx === 0}
-                        className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted transition-colors disabled:opacity-30 hover:border-primary hover:text-foreground"
+                        className="min-h-11 rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted transition-colors disabled:opacity-30 hover:border-primary hover:text-foreground"
                       >
                         ← Back
                       </button>
                       {allRated ? (
-                        <ScrollTrigger onReached={next}>
-                          <Button onClick={next} className="px-6">Continue →</Button>
-                        </ScrollTrigger>
+                        <PrimaryAction label="Got it, next" onClick={next} />
                       ) : flashcardIdx < cards.length - 1 && currentRating ? (
-                        <button
-                          type="button"
+                        <PrimaryAction
+                          label="Next card"
                           onClick={() => { setFlashcardIdx((i) => i + 1); setFlashcardFlipped(false); }}
-                          className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted transition-colors hover:border-primary hover:text-foreground"
-                        >
-                          Next →
-                        </button>
+                        />
                       ) : (
-                        <span className="text-sm text-muted">{currentRating ? "Rate all cards to continue" : "Tap the card, then rate it"}</span>
+                        <PrimaryAction
+                          label="Show the answer"
+                          onClick={() => { setFlashcardFlipped(true); setFlashcardSeen((prev) => new Set(prev).add(flashcardIdx)); }}
+                          hint={showHint ? primaryHint(step) : undefined}
+                        />
                       )}
                     </div>
                   )}
@@ -626,6 +685,7 @@ export function LessonPlayer({
                     </span>
                   </div>
 
+                  <Instruction>{stepInstruction(step, sec)}</Instruction>
                   <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
                     {/* Question + context */}
                     <div className="rounded-2xl border border-border bg-surface p-6">
@@ -649,18 +709,21 @@ export function LessonPlayer({
                         onChange={(e) => setTutorAnswer(e.target.value)}
                         disabled={!!tutorFeedback}
                         rows={6}
-                        placeholder="Write your full answer here, showing your reasoning…"
-                        className="w-full resize-none rounded-xl border border-border bg-surface p-4 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none disabled:opacity-60"
+                        aria-label="Your answer"
+                        placeholder="Write your answer here. Explain your thinking."
+                        className="w-full resize-none rounded-xl border border-border bg-surface p-4 text-base text-foreground placeholder:text-muted focus:border-primary focus:outline-none disabled:opacity-60"
                       />
 
                       {!tutorFeedback && (
-                        <Button
-                          onClick={submitTutorAnswer}
-                          disabled={!tutorAnswer.trim() || tutorLoading}
-                          className="mt-3 w-full justify-center"
-                        >
-                          {tutorLoading ? "Marking…" : "Mark my answer →"}
-                        </Button>
+                        <div className="mt-3">
+                          <PrimaryAction
+                            label={tutorLoading ? "Marking…" : "Mark my answer"}
+                            onClick={submitTutorAnswer}
+                            disabledReason={disabledReason(step, { hasAnswer: !!tutorAnswer.trim(), loading: tutorLoading })}
+                            hint={showHint ? primaryHint(step, sec) : undefined}
+                            fullWidth
+                          />
+                        </div>
                       )}
 
                       {tutorLoading && (
@@ -685,9 +748,9 @@ export function LessonPlayer({
                             <span className="text-xs text-muted">marks</span>
                           </div>
                           <p className="text-sm leading-relaxed text-foreground">{tutorFeedback.text}</p>
-                          <ScrollTrigger onReached={next}>
-                            <Button onClick={next} className="mt-5 w-full justify-center">Continue →</Button>
-                          </ScrollTrigger>
+                          <div className="mt-5">
+                            <PrimaryAction label="Got it, next" onClick={next} fullWidth />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -699,9 +762,10 @@ export function LessonPlayer({
             {/* ── Recap slide ─────────────────────────────────────────── */}
             {!isDone && step?.phase === "recap" && (
               <div className="w-full px-4 py-8 sm:px-6">
-                <h2 className="mb-6 font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
+                <h2 className="mb-2 font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
                   Recap
                 </h2>
+                <Instruction>{stepInstruction(step)}</Instruction>
                 <div className="grid gap-8 lg:grid-cols-2">
                   {/* Key takeaways */}
                   <div>
@@ -760,11 +824,7 @@ export function LessonPlayer({
                       </div>
                     </div>
 
-                    <ScrollTrigger onReached={next}>
-                      <Button onClick={next} className="mt-auto w-full justify-center">
-                        Complete lesson →
-                      </Button>
-                    </ScrollTrigger>
+                    <PrimaryAction label="Finish lesson" onClick={next} fullWidth hint="You will get your score and XP next." />
                   </div>
                 </div>
               </div>
@@ -892,6 +952,59 @@ function DoneCard({
           </Link>
         </div>
       </animated.div>
+    </div>
+  );
+}
+
+type StepMemory = {
+  checkResult: boolean | null;
+  exampleRevealed: boolean;
+  tutorAnswer: string;
+  tutorFeedback: { text: string; marks: number; total: number } | null;
+  flashcardRatings: Record<number, "hard" | "good" | "easy">;
+  flashcardIdx: number;
+  flashcardSeen: Set<number>;
+};
+
+// One imperative line saying exactly what to do on this step.
+function Instruction({ children }: { children: ReactNode }) {
+  return <p className="mb-4 max-w-[65ch] text-base font-medium leading-snug text-foreground">{children}</p>;
+}
+
+// The single primary action of a step: plain label, always >= 44px tall, and
+// when it is disabled it says why right next to it.
+function PrimaryAction({
+  label,
+  onClick,
+  hint,
+  disabledReason,
+  icon,
+  fullWidth,
+}: {
+  label: string;
+  onClick: () => void;
+  hint?: string;
+  disabledReason?: string | null;
+  icon?: ReactNode;
+  fullWidth?: boolean;
+}) {
+  const disabled = !!disabledReason;
+  return (
+    <div className={`flex flex-col gap-1.5 ${fullWidth ? "w-full" : "items-start"}`}>
+      <Button
+        onClick={onClick}
+        disabled={disabled}
+        aria-describedby={disabled ? "primary-reason" : undefined}
+        className={`min-h-12 gap-2 px-8 ${fullWidth ? "w-full" : ""}`}
+      >
+        {icon}
+        {label}
+      </Button>
+      {disabled ? (
+        <p id="primary-reason" className="text-sm text-muted">{disabledReason}</p>
+      ) : hint ? (
+        <p className="text-sm text-muted">{hint}</p>
+      ) : null}
     </div>
   );
 }
