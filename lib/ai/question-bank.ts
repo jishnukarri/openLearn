@@ -50,7 +50,7 @@ const BANK_SCHEMA = {
               type: {
                 type: "string",
                 enum: [
-                  "multiple-choice", "short-answer", "calculation",
+                  "multiple-choice", "short-answer", "calculation", "numeric",
                   "matching", "structured", "data-analysis", "practical", "extended",
                 ],
               },
@@ -59,6 +59,8 @@ const BANK_SCHEMA = {
               accepted:       { type: "array", items: { type: "string" } },
               answer:         { type: "string" },
               unit:           { type: "string" },
+              tolerancePercent: { type: "number" },
+              sigFigs:        { type: "integer" },
               pairs: {
                 type: "array",
                 items: {
@@ -129,9 +131,12 @@ export async function generateQuestionBank(
 
   const formatGuide =
     `For each question pick the format (format.type) that best fits:\n` +
-    `- "multiple-choice": options (4-6) + correctIndexes.\n` +
+    `- "multiple-choice": options (4-6) + correctIndexes, for recall/concept questions only.\n` +
     `- "short-answer": canonical answer + synonyms in "accepted".\n` +
     `- "calculation": numeric final answer in "answer", unit in "unit", working steps in markscheme.\n` +
+    `- "numeric": any question needing a number worked out (moles, forces, speeds, areas) MUST use this, never "multiple-choice". ` +
+    `Correct value as plain digits in "answer", unit in "unit", relative tolerance in "tolerancePercent" (usually 1), ` +
+    `"sigFigs" if the question asks for them. Working steps go in markscheme.\n` +
     `- "matching": 3-5 left/right pairs.\n` +
     `- "structured": parts a/b/c each with their own prompt, marks, markscheme.\n` +
     `- "data-analysis": small table (headers + rows of strings), ask student to interpret.\n` +

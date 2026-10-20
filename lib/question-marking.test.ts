@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { autoMark, answersMatch, payloadToText } from "./question-marking";
+import {
+  autoMark,
+  answersMatch,
+  markNumeric,
+  parseNumericAnswer,
+  payloadToText,
+} from "./question-marking";
 import type { QuestionFormat } from "./ai/questions";
 
 describe("answersMatch", () => {
@@ -126,5 +132,37 @@ describe("payloadToText", () => {
         workingSteps: ["4^3 = 64", "sqrt(25) = 5", "64 + 5 = 69"],
       })
     ).toContain("1. 4^3 = 64");
+  });
+});
+
+describe("numeric answers", () => {
+  const spec = { value: 3.2, unit: "mol" };
+  it("parses common formats", () => {
+    expect(parseNumericAnswer("3.2")?.value).toBe(3.2);
+    expect(parseNumericAnswer("3.2 mol")).toEqual({ value: 3.2, unit: "mol" });
+    expect(parseNumericAnswer("3,200")?.value).toBe(3200);
+    expect(parseNumericAnswer("3.2e3")?.value).toBe(3200);
+    expect(parseNumericAnswer("3.2 × 10^3 J")).toEqual({ value: 3200, unit: "J" });
+    expect(parseNumericAnswer("3/4")?.value).toBe(0.75);
+    expect(parseNumericAnswer("−2.5")?.value).toBe(-2.5);
+    expect(parseNumericAnswer("abc")).toBeNull();
+  });
+  it("accepts within tolerance with or without unit", () => {
+    expect(markNumeric("3.2 mol", spec).fraction).toBe(1);
+    expect(markNumeric("3.21 mol", spec).fraction).toBe(1);
+    expect(markNumeric("3.5 mol", spec).fraction).toBe(0);
+  });
+  it("gives partial credit when the unit is missing", () => {
+    expect(markNumeric("3.2", spec).fraction).toBe(0.5);
+  });
+  it("sig figs widen tolerance to rounding", () => {
+    expect(markNumeric("0.33", { value: 1 / 3, sigFigs: 2, tolerancePercent: 0.1 }).fraction).toBe(1);
+  });
+  const fmt: QuestionFormat = { type: "numeric", answer: "0.25", unit: "mol" };
+  it("autoMark: full, partial, wrong defers to AI when multi-mark", () => {
+    expect(autoMark(fmt, { text: "0.25 mol" }, 3)?.marksAwarded).toBe(3);
+    expect(autoMark(fmt, { text: "0.25" }, 3)?.marksAwarded).toBe(1);
+    expect(autoMark(fmt, { text: "0.5 mol" }, 3)).toBeNull();
+    expect(autoMark(fmt, { text: "0.5 mol" }, 1)?.marksAwarded).toBe(0);
   });
 });

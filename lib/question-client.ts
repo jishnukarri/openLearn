@@ -7,6 +7,7 @@ export type ClientFormat =
   | { type: "multiple-choice"; options: string[]; multi: boolean }
   | { type: "short-answer" }
   | { type: "calculation"; unit?: string; answerFormat?: "number" | "fraction" | "expression" }
+  | { type: "numeric"; unit?: string }
   | {
       type: "matching";
       lefts: string[];
@@ -34,6 +35,8 @@ export function toClientFormat(
       return { type: "short-answer" };
     case "calculation":
       return { type: "calculation", unit: format.unit, answerFormat: format.answerFormat };
+    case "numeric":
+      return { type: "numeric", unit: format.unit };
     case "matching": {
       const rights = format.pairs
         .map((pair, index) => ({ label: pair.right, index }))

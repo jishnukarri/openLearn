@@ -159,6 +159,142 @@ export function answersMatch(given: string, accepted: string): boolean {
   return false;
 }
 
+
+// ---------------------------------------------------------------------------
+// Numeric answers (calculation questions answered with a single number).
+// ---------------------------------------------------------------------------
+
+export type NumericSpec = {
+  value: number;
+  unit?: string;
+  // Relative tolerance as a percentage (default 1).
+  tolerancePercent?: number;
+  // Significant figures the answer should be given to; widens the tolerance
+  // to half a unit in the last place so a correctly rounded answer passes.
+  sigFigs?: number;
+};
+
+const SUPERSCRIPTS: Record<string, string> = {
+  "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4",
+  "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9", "⁻": "-",
+};
+
+function cleanNumberText(input: string): string {
+  return input
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]/g, (c) => `^${SUPERSCRIPTS[c]}`)
+    .replace(/\\times|×|✕|\bx(?=\s*10)/gi, "x")
+    .replace(/[−–]/g, "-")
+    .trim();
+}
+
+// Splits "3.2 mol", "3,200 g", "3.2e3 J", "3.2 x 10^3 J", "3/4 m" into a
+// numeric value and the trailing unit text. Returns null when no leading
+// number can be read.
+export function parseNumericAnswer(input: string): { value: number; unit: string } | null {
+  const text = cleanNumberText(input);
+  if (!text) return null;
+
+  const frac = text.match(/^(-?\d+(?:\.\d+)?)\s*\/\s*(-?\d+(?:\.\d+)?)\s*(.*)$/);
+  if (frac) {
+    const d = Number(frac[2]);
+    if (d === 0) return null;
+    return { value: Number(frac[1]) / d, unit: frac[3].trim() };
+  }
+
+  const sci = text.match(
+    /^([+-]?(?:\d[\d,]*)?\.?\d+)\s*x\s*10\s*\^?\s*\{?\s*([+-]?\d+)\}?\s*(.*)$/i
+  );
+  if (sci) {
+    const mant = Number(sci[1].replace(/,/g, ""));
+    const v = mant * Math.pow(10, Number(sci[2]));
+    if (Number.isFinite(v)) return { value: v, unit: sci[3].trim() };
+  }
+
+  const plain = text.match(/^([+-]?(?:\d{1,3}(?:,\d{3})+|\d+)?(?:\.\d+)?(?:e[+-]?\d+)?)(?![\d.])\s*(.*)$/i);
+  if (plain && /\d/.test(plain[1])) {
+    const v = Number(plain[1].replace(/,/g, ""));
+    if (Number.isFinite(v)) return { value: v, unit: plain[2].trim() };
+  }
+  return null;
+}
+
+function normUnit(u: string): string {
+  return u
+    .toLowerCase()
+    .replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]/g, (c) => `^${SUPERSCRIPTS[c]}`)
+    .replace(/[·.*\s]/g, "")
+    .replace(/\^/g, "")
+    .replace(/[()]/g, "")
+    .replace(/per/g, "/")
+    .replace(/μ|µ/g, "u")
+    .replace(/s$/, (m, off, str) => (str.length > 3 ? "" : m));
+}
+
+export type NumericMark = {
+  fraction: 0 | 0.5 | 1;
+  valueOk: boolean;
+  unitOk: boolean | null; // null when the question has no unit
+  parsed: boolean;
+};
+
+export function markNumeric(given: string, spec: NumericSpec): NumericMark {
+  const parsed = parseNumericAnswer(given);
+  if (!parsed) return { fraction: 0, valueOk: false, unitOk: null, parsed: false };
+
+  const rel = (spec.tolerancePercent ?? 1) / 100;
+  let tol = Math.abs(spec.value) * rel;
+  if (spec.sigFigs && spec.value !== 0) {
+    const half = 0.5 * Math.pow(10, Math.floor(Math.log10(Math.abs(spec.value))) - spec.sigFigs + 1);
+    tol = Math.max(tol, half);
+  }
+  tol = Math.max(tol, 1e-9);
+  const valueOk = Math.abs(parsed.value - spec.value) <= tol * (1 + 1e-9);
+
+  let unitOk: boolean | null = null;
+  if (spec.unit) {
+    unitOk = parsed.unit !== "" && normUnit(parsed.unit) === normUnit(spec.unit);
+  }
+  const fraction = !valueOk ? 0 : unitOk === false ? 0.5 : 1;
+  return { fraction, valueOk, unitOk, parsed: true };
+}
+
+function specFromFormat(format: Extract<QuestionFormat, { type: "numeric" }>): NumericSpec | null {
+  const parsed = parseNumericAnswer(format.answer);
+  if (!parsed) return null;
+  return {
+    value: parsed.value,
+    unit: format.unit,
+    tolerancePercent: format.tolerancePercent,
+    sigFigs: format.sigFigs,
+  };
+}
+
+function numericResult(
+  mark: NumericMark,
+  spec: NumericSpec,
+  answerText: string,
+  maxMarks: number
+): MarkingResult {
+  const awarded =
+    mark.fraction === 1 ? maxMarks : mark.fraction > 0 ? Math.max(1, Math.floor(maxMarks / 2)) : 0;
+  const shown = `${answerText}${spec.unit && !answerText.includes(spec.unit) ? ` ${spec.unit}` : ""}`;
+  const feedback = [
+    {
+      point: `Answer: ${shown}`,
+      met: mark.valueOk,
+      comment: mark.valueOk ? "The value is right." : "The value is outside the accepted range.",
+    },
+  ];
+  if (spec.unit && mark.valueOk) {
+    feedback.push({
+      point: `Unit: ${spec.unit}`,
+      met: mark.unitOk === true,
+      comment: mark.unitOk ? "Unit given correctly." : "Right value, but the unit is missing or different.",
+    });
+  }
+  return { marksAwarded: awarded, feedback };
+}
+
 // Auto-marks the objective formats, returning the same MarkingResult shape
 // the AI marker produces so the feedback UI needs no special cases.
 // Returns null for formats that need AI marking.
@@ -220,6 +356,14 @@ export function autoMark(
         feedback: results,
       };
     }
+    case "numeric": {
+      const spec = specFromFormat(format);
+      if (!spec) return null;
+      const given = payload.text ?? "";
+      const mark = markNumeric(given, spec);
+      if (mark.fraction === 0 && maxMarks > 1 && given.trim() !== "") return null; // AI marks working
+      return numericResult(mark, spec, format.answer, maxMarks);
+    }
     case "calculation": {
       const given = payload.text ?? "";
       const right = answersMatch(given, format.answer);
@@ -264,6 +408,8 @@ export function payloadToText(
       return format.parts
         .map((part, i) => `(${part.label}) ${(payload.parts ?? [])[i] ?? ""}`)
         .join("\n\n");
+    case "numeric":
+      return payload.text ? `Final answer: ${payload.text}` : "";
     case "calculation":
       return [
         payload.text ? `Final answer: ${payload.text}` : "",

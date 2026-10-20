@@ -16,6 +16,16 @@ export type QuestionFormat =
       unit?: string;
       answerFormat?: "number" | "fraction" | "expression";
     }
+  | {
+      // Single-number answer (moles, forces, areas...). "answer" holds the
+      // canonical value as text ("0.25"); no migration needed, it lives in
+      // the existing format JSON.
+      type: "numeric";
+      answer: string;
+      unit?: string;
+      tolerancePercent?: number;
+      sigFigs?: number;
+    }
   | { type: "matching"; pairs: { left: string; right: string }[] }
   | {
       type: "structured";
@@ -71,6 +81,7 @@ const SCHEMA = {
             "multiple-choice",
             "short-answer",
             "calculation",
+            "numeric",
             "matching",
             "structured",
             "data-analysis",
@@ -83,6 +94,8 @@ const SCHEMA = {
         accepted: { type: "array", items: { type: "string" } },
         answer: { type: "string" },
         unit: { type: "string" },
+        tolerancePercent: { type: "number" },
+        sigFigs: { type: "integer" },
         answerFormat: { type: "string", enum: ["number", "fraction", "expression"] },
         pairs: {
           type: "array",
@@ -139,6 +152,13 @@ const FORMAT_GUIDE =
   `simplified fraction with slash syntax like 3/10. If the answer is an ` +
   `exact symbolic result or expression, set "answerFormat" to "expression". ` +
   `The markscheme points cover the working steps.\n` +
+  `- "numeric": ANY question whose answer is a number the student must work ` +
+  `out (moles, concentration, speed, area, percentages, equations solved for ` +
+  `a value). These must NEVER be "multiple-choice". Put the correct value as ` +
+  `plain digits in "answer" (e.g. "0.25", no unit text), the unit in "unit" ` +
+  `(e.g. "mol"), the acceptable relative tolerance in "tolerancePercent" ` +
+  `(usually 1) and, where the question asks for it, the significant figures ` +
+  `in "sigFigs". Markscheme points cover the working steps.\n` +
   `- "matching": 3-5 pairs of term ("left") and its matching description ` +
   `("right").\n` +
   `- "structured": multi-part question — parts labelled "a", "b", "c", each ` +
@@ -148,7 +168,7 @@ const FORMAT_GUIDE =
   `- "practical": plan/evaluate an experiment — variables, validity, risk. ` +
   `The markscheme points cover those.\n` +
   `- "extended": a 4-6 mark continuous-prose explanation or essay answer.\n` +
-  `Vary formats across topics: use calculation or data-analysis for ` +
+  `"multiple-choice" is only for recall and concept questions. Vary formats across topics: use numeric or data-analysis for ` +
   `numerical topics, practical or structured for the sciences, extended ` +
   `for essay subjects. maxMarks must equal the total markscheme points ` +
   `(for "structured", the sum of part marks; each part's markscheme has ` +
