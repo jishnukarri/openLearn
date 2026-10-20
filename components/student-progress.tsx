@@ -77,12 +77,15 @@ export function StudentProgress({
   overview,
   supportPanel,
   activity,
+  accountNotice,
 }: {
   overview: StudentOverview;
   /** Slot for the admin support-actions panel. Left empty on the teacher page. */
   supportPanel?: React.ReactNode;
   /** Slot for the activity timeline, rendered below the existing sections. */
   activity?: React.ReactNode;
+  /** Admin only: password-change and blocked status lines. */
+  accountNotice?: React.ReactNode;
 }) {
   const { profile } = overview;
   const weakest = [...overview.mastery].sort((a, b) => a.score - b.score);
@@ -103,6 +106,18 @@ export function StudentProgress({
   const aside = (
     <>
       {supportPanel}
+      {overview.onboarding ? (
+        <AsideBlock title="Getting started">
+          <ul className="flex flex-col gap-1">
+            {overview.onboarding.map((p) => (
+              <li key={p.title} className="flex justify-between gap-3">
+                <span className="text-foreground">{p.title}</span>
+                <span>{p.done ? "Done" : "Not yet"}</span>
+              </li>
+            ))}
+          </ul>
+        </AsideBlock>
+      ) : null}
       <AsideBlock title="Classes">
         {overview.classes.length === 0 ? (
           <p>Not in any class yet.</p>
@@ -141,6 +156,7 @@ export function StudentProgress({
         description={`${profile.email} · ${ROLE_LABEL[profile.role] ?? profile.role}`}
       />
       <Stagger className="flex flex-col gap-10">
+        {accountNotice ? <Rise>{accountNotice}</Rise> : null}
         <Rise>
           <dl className="grid grid-cols-2 gap-x-8 gap-y-5 border-y border-border py-5 sm:grid-cols-4 lg:grid-cols-6">
             <Stat label="Last active" value={lastActiveText(overview.lastActive)} />
@@ -175,6 +191,22 @@ export function StudentProgress({
             <p className="text-base text-muted">Nothing to flag. This student is on track.</p>
           )}
         </Rise>
+
+        {overview.trickyIdeas.length > 0 ? (
+          <Rise className="flex flex-col gap-3">
+            <Heading>Tricky ideas</Heading>
+            <ul className="flex flex-col gap-1.5 text-base text-foreground">
+              {overview.trickyIdeas.map((t) => (
+                <li key={t.id} className="border-l-2 border-highlight pl-3">
+                  {t.prompt}{" "}
+                  <span className="text-muted">
+                    ({t.topicName}, missed {t.missedCount} {t.missedCount === 1 ? "time" : "times"})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Rise>
+        ) : null}
 
         <Rise className="flex flex-col gap-4">
           <Heading>How well they know each topic</Heading>

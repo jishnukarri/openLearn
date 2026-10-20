@@ -2,6 +2,8 @@ import "server-only";
 import { db } from "./database-client";
 import { getProfileById } from "./profiles";
 import { getTopicMastery } from "./mastery";
+import { getCompletedPieces } from "./onboarding-progress";
+import { ONBOARDING_PIECES } from "@/lib/onboarding-pieces";
 import { getCompletedSubtopicIds, getCompletedTopicIds } from "./progress";
 import {
   ACTIVITY_WINDOW_DAYS,
@@ -27,7 +29,29 @@ export type StudentOverview = {
   lessonsCompleted: number;
   diagnostics: { id: string; mode: string; status: string | null; createdAt: string }[];
   classes: { id: string; name: string }[];
+  /** Unresolved lesson check misses; empty if the table is unavailable. */
+  trickyIdeas: { id: string; prompt: string; topicName: string; missedCount: number }[];
+  /** Intro pieces; null when the table is unavailable or the user is not a student. */
+  onboarding: { title: string; done: boolean }[] | null;
 };
+
+async function loadTrickyIdeas(studentId: string): Promise<StudentOverview["trickyIdeas"]> {
+  try {
+    const { data, error } = await db
+      .from("lesson_check_misses")
+      .select("id, prompt, missed_count, topics(name)")
+      .eq("student_id", studentId)
+      .eq("resolved", false)
+      .order("last_missed_at", { ascending: false })
+      .limit(8);
+    if (error) return [];
+    return ((data ?? []) as unknown as { id: string; prompt: string; missed_count: number; topics: { name: string } | null }[]).map((r) => ({
+      id: r.id, prompt: r.prompt, topicName: r.topics?.name ?? "A lesson", missedCount: r.missed_count,
+    }));
+  } catch {
+    return [];
+  }
+}
 
 async function latestActivity(studentId: string): Promise<string | null> {
   const [a, b, c] = await Promise.all([
@@ -58,6 +82,10 @@ export async function getStudentOverview(studentId: string): Promise<StudentOver
     db.from("diagnostic_sessions").select("id, mode, status, created_at").eq("student_id", studentId).order("created_at", { ascending: false }).limit(10),
     db.from("class_members").select("classes(id, name)").eq("student_id", studentId),
   ]);
+  const [trickyIdeas, pieces] = await Promise.all([
+    loadTrickyIdeas(studentId),
+    profile.role === "student" ? getCompletedPieces(studentId) : Promise.resolve(null),
+  ]);
   for (const r of [kmRes, recent, allAnswers, diag, cls]) if (r.error) throw r.error;
 
   type Km = { subject_id: string; topic_name: string | null; score: number; subjects: { name: string } | null };
@@ -85,6 +113,8 @@ export async function getStudentOverview(studentId: string): Promise<StudentOver
     diagnostics: ((diag.data ?? []) as { id: string; mode: string; status: string | null; created_at: string }[]).map((d) => ({
       id: d.id, mode: d.mode, status: d.status, createdAt: d.created_at,
     })),
+    trickyIdeas,
+    onboarding: pieces && pieces.available ? ONBOARDING_PIECES.map((p) => ({ title: p.title, done: pieces.completed.has(p.key) })) : null,
     classes: ((cls.data ?? []) as unknown as { classes: { id: string; name: string } | null }[]).flatMap((r) => (r.classes ? [r.classes] : [])),
   };
 }
