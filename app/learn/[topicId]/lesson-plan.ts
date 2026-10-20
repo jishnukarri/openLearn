@@ -212,3 +212,10 @@ export function recapSoFar(
 export function clampStep(index: number, total: number): number {
   return Math.max(0, Math.min(index, total - 1));
 }
+
+// True when this is the first time the student meets this kind of step, so
+// the "what to do here" hint under the primary button is shown only once.
+export function isFirstOfPhase(plan: Step[], index: number): boolean {
+  const phase = plan[index]?.phase;
+  return !!phase && plan.findIndex((s) => s.phase === phase) === index;
+}

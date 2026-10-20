@@ -5,6 +5,7 @@ import {
   cardDefinition,
   clampStep,
   disabledReason,
+  isFirstOfPhase,
   getCorrectAnswerLabel,
   recapSoFar,
   stageForStep,
@@ -89,5 +90,10 @@ describe("navigation helpers", () => {
   it("clamps step index", () => {
     expect(clampStep(-1, 5)).toBe(0);
     expect(clampStep(9, 5)).toBe(4);
+  });
+  it("flags only the first step of each kind", () => {
+    const firstCheck = plan.findIndex((s) => s.phase === "check");
+    expect(isFirstOfPhase(plan, firstCheck)).toBe(true);
+    expect(isFirstOfPhase(plan, plan.findIndex((s, i) => s.phase === "check" && i > firstCheck))).toBe(false);
   });
 });
