@@ -7,7 +7,7 @@ import { animated, useTrail } from "@react-spring/web";
 import { X, Check, Trophy, PartyPopper, Puzzle, Sparkles, NotebookPen } from "lucide-react";
 import type { LessonSection, LessonInteractive } from "@/lib/ai/lessons";
 import { LessonInteractiveWidget } from "@/components/interactives/lesson-interactive";
-import { completeLessonAction, adaptNextSectionAction, markOpenAnswerAction, type LessonCompletion } from "@/app/actions/lessons";
+import { completeLessonAction, adaptNextSectionAction, markOpenAnswerAction, recordCheckResultAction, type LessonCompletion } from "@/app/actions/lessons";
 import { CountUp } from "@/components/results-motion";
 import { celebrate, burstAt } from "@/lib/confetti";
 import { springs, useReducedMotionSafe } from "@/lib/motion";
@@ -511,6 +511,7 @@ export function LessonPlayer({
                             return { ...c, answers: [...c.answers.filter((a) => a.section !== step.sectionIndex), { section: step.sectionIndex, correct, picked: picked ?? prior[0]?.picked, tries: (prior[0]?.tries ?? 0) + 1 }].slice(-40) };
                           });
                           const firstTry = !answered.has(step.sectionIndex);
+                          if (firstTry) void recordCheckResultAction({ id: topicId, mode, section: step.sectionIndex, correct }).catch(() => {});
                           setAnswered((prev) => new Set(prev).add(step.sectionIndex));
                           if (correct) {
                             if (firstTry) setCorrectCount((c) => c + 1);

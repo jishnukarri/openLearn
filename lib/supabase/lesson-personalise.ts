@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "./database-client";
 import { listQuestionBankForTopic } from "./questions";
 import { getTopicMastery } from "./mastery";
+import { getRankedLessonMisses } from "./lesson-misses";
 import { rankPractice, type LessonPractice, type PracticeCandidate } from "@/lib/lesson-personalise";
 
 // Existing questions only, ranked from the student's own history. Any failure
@@ -11,21 +12,23 @@ export async function getLessonPractice(input: {
   topic: { id: string; name: string; subject_id: string };
   subtopic?: { id: string; name: string } | null;
 }): Promise<LessonPractice | null> {
+  const { studentId, topic, subtopic } = input;
+  const lessonMisses = await getRankedLessonMisses({ studentId, topicId: topic.id, subjectId: topic.subject_id });
   try {
-    const { studentId, topic, subtopic } = input;
     const bank = await listQuestionBankForTopic(topic.id);
-    if (bank.length === 0) return null;
     const ids = bank.map((q) => q.id);
 
-    const [subRes, ansRes, attRes, mastery] = await Promise.all([
-      db.from("questions").select("id, subtopic_id").in("id", ids),
-      db.from("student_answers").select("question_id, marks_awarded, max_marks").eq("student_id", studentId).in("question_id", ids),
-      db.from("question_session_attempts").select("question_id, correct").eq("student_id", studentId).in("question_id", ids),
-      getTopicMastery(studentId).catch(() => null),
-    ]);
+    const [subRes, ansRes, attRes, mastery] = ids.length === 0
+      ? [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }, null]
+      : await Promise.all([
+          db.from("questions").select("id, subtopic_id").in("id", ids),
+          db.from("student_answers").select("question_id, marks_awarded, max_marks").eq("student_id", studentId).in("question_id", ids),
+          db.from("question_session_attempts").select("question_id, correct").eq("student_id", studentId).in("question_id", ids),
+          getTopicMastery(studentId).catch(() => null),
+        ]);
     const subOf = new Map<string, string | null>();
     if (!subRes.error) for (const r of (subRes.data ?? []) as { id: string; subtopic_id: string | null }[]) subOf.set(r.id, r.subtopic_id);
-    if (ansRes.error || attRes.error) return null;
+    if (ansRes.error || attRes.error) return lessonMisses.length ? rankPractice({ studentId, candidates: [], answers: [], attempts: [], topicLabel: topic.name, lessonMisses }) : null;
 
     const candidates: PracticeCandidate[] = bank.map((q) => ({
       id: q.id,
@@ -49,8 +52,11 @@ export async function getLessonPractice(input: {
       subtopicLabel: subtopic?.name ?? null,
       topicLabel: topic.name,
       mastery: mastery?.get(`${topic.subject_id}:${topic.name}`)?.score ?? null,
+      lessonMisses,
     });
   } catch {
-    return null;
+    return lessonMisses.length
+      ? rankPractice({ studentId, candidates: [], answers: [], attempts: [], topicLabel: topic.name, lessonMisses })
+      : null;
   }
 }

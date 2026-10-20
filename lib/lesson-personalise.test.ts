@@ -63,3 +63,15 @@ describe("rankPractice", () => {
     expect(run("s1")).not.toBe(run("s2"));
   });
 });
+
+describe("rankPractice with lesson misses", () => {
+  const miss = { id: "m1", topicId: "t", subtopicId: null, prompt: "What is X?", correctAnswer: "Y", missedCount: 2, lastMissedAt: "2026-10-01T00:00:00Z", resolved: false, lessonLabel: "Cells" };
+  it("puts carried misses first with a true note, even with no bank history", () => {
+    const r = rankPractice({ studentId: "s1", candidates: [], answers: [], attempts: [], topicLabel: "Forces", lessonMisses: [miss] });
+    expect(r?.items[0].note).toBe("You found this tricky in Cells — try it again");
+    expect(r?.items[0].missId).toBe("m1");
+  });
+  it("is unchanged without misses", () => {
+    expect(rankPractice({ studentId: "s1", candidates: [], answers: [], attempts: [], topicLabel: "Forces" })).toBeNull();
+  });
+});

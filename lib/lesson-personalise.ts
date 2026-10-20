@@ -2,6 +2,8 @@
 // it only reorders questions that already exist, using what the student has
 // already got wrong or marked low.
 
+import { missNote, type LessonMiss } from "./lesson-misses";
+
 export type PracticeCandidate = {
   id: string;
   prompt: string;
@@ -14,7 +16,8 @@ export type PracticeCandidate = {
 export type AnswerHistory = { questionId: string; marksAwarded: number; maxMarks: number };
 export type AttemptHistory = { questionId: string; correct: boolean };
 
-export type PracticeItem = PracticeCandidate & { missed: boolean };
+// `note` and `missId` are set on items carried over from lesson check misses.
+export type PracticeItem = PracticeCandidate & { missed: boolean; note?: string; missId?: string };
 export type LessonPractice = { items: PracticeItem[]; reason: string };
 
 export const PRACTICE_LIMIT = 3;
@@ -51,8 +54,21 @@ export function rankPractice(input: {
   topicLabel: string;
   subtopicLabel?: string | null;
   limit?: number;
+  // Unresolved lesson check misses (already ranked: this lesson, then earlier ones).
+  lessonMisses?: LessonMiss[];
 }): LessonPractice | null {
   const limit = input.limit ?? PRACTICE_LIMIT;
+  const carried: PracticeItem[] = (input.lessonMisses ?? []).slice(0, limit).map((m) => ({
+    id: `miss:${m.id}`,
+    prompt: m.prompt,
+    modelAnswer: m.correctAnswer,
+    points: [],
+    maxMarks: 1,
+    subtopicId: m.subtopicId,
+    missed: true,
+    note: missNote(m),
+    missId: m.id,
+  }));
   const misses = missCounts(input.answers, input.attempts);
   const weak = input.mastery != null && input.mastery < WEAK_MASTERY;
   const scored = input.candidates
@@ -63,8 +79,14 @@ export function rankPractice(input: {
     })
     .filter((x) => x.m > 0)
     .sort((a, b) => b.score - a.score || hash(input.studentId + a.c.id) - hash(input.studentId + b.c.id));
-  if (scored.length === 0) return null;
-  const picked = scored.slice(0, limit);
+  if (scored.length === 0 && carried.length === 0) return null;
+  const picked = scored.slice(0, Math.max(0, limit - carried.length));
+  if (carried.length > 0) {
+    const reason = picked.length > 0
+      ? "Picked from questions you missed in your lessons and in practice."
+      : "Picked from questions you missed in your lessons.";
+    return { items: [...carried, ...picked.map((p) => ({ ...p.c, missed: true }))], reason };
+  }
   const inSubPick = !!input.subtopicId && picked.some((p) => p.c.subtopicId === input.subtopicId);
   const label = inSubPick && input.subtopicLabel ? input.subtopicLabel : input.topicLabel;
   const reason = weak

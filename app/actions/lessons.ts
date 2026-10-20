@@ -23,6 +23,8 @@ import { finalizeLessonContent, resanitizeLessonContent } from "@/lib/lesson-fin
 import type { LessonContent, LessonSection } from "@/lib/ai/lessons";
 import { withReferenceContext } from "@/lib/rag";
 import { awardXp, awardRawXp, markTopicComplete, markSubtopicComplete, isTopicCompleted, getCompletedSubtopicIds } from "@/lib/supabase/progress";
+import { recordLessonMiss, resolveLessonMiss, resolveLessonMissById } from "@/lib/supabase/lesson-misses";
+import { checkAnswerText } from "@/lib/lesson-misses";
 import { clampPerformance, lessonXp, xpBreakdownLine, type LessonPerformance } from "@/lib/lesson-xp";
 import { uploadFile, getFileUrl } from "@/lib/appwrite/storage";
 
@@ -83,6 +85,55 @@ export async function completeLessonAction(
     repeat,
     hintsUsed: result.hintsUsed,
   };
+}
+
+// Remembers a first-try check result so later lessons can bring a missed idea
+// back, and closes the miss when the same question is later answered right.
+// The prompt and answer come from the stored lesson, never from the client.
+// Zero AI calls; if the table is missing this quietly does nothing.
+export async function recordCheckResultAction({
+  id,
+  mode = "topic",
+  section,
+  correct,
+}: {
+  id: string;
+  mode?: "topic" | "subtopic";
+  section: number;
+  correct: boolean;
+}): Promise<void> {
+  const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
+  if (profile.role !== "student") return;
+  if (!await checkKeyRateLimit("lesson-check-result", profile.id, 60, 60_000)) return;
+  try {
+    let topicId: string;
+    let subtopicId: string | null = null;
+    let lesson: LessonContent;
+    if (mode === "subtopic") {
+      const sub = await getSubtopic(id);
+      if (!sub) return;
+      topicId = sub.topic.id;
+      subtopicId = sub.id;
+      lesson = await resolveLessonForSubtopic(sub, profile.id);
+    } else {
+      const topic = await getTopic(id);
+      if (!topic) return;
+      topicId = topic.id;
+      lesson = await resolveLessonContent(topic, profile);
+    }
+    const check = lesson.sections[Math.round(section)]?.check;
+    if (!check) return;
+    if (correct) await resolveLessonMiss(profile.id, topicId, check.question);
+    else await recordLessonMiss({ studentId: profile.id, topicId, subtopicId, prompt: check.question, correctAnswer: checkAnswerText(check) });
+  } catch {
+    // never block the lesson on bookkeeping
+  }
+}
+
+// The student said "I got it" on a carried-over question.
+export async function resolveCarriedMissAction(missId: string): Promise<void> {
+  const { profile } = await requireAnyRole(["student"]);
+  if (typeof missId === "string" && missId.length <= 64) await resolveLessonMissById(profile.id, missId);
 }
 
 // Finishing a recall deck is revision: students earn 10 XP for it. The

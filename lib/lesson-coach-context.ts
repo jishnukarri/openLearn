@@ -1,4 +1,5 @@
 import type { LessonCheck, LessonSection } from "@/lib/ai/lessons";
+import { COACH_MISS_LIMIT } from "./lesson-misses";
 import type { Step } from "@/app/learn/[topicId]/lesson-plan";
 
 // Pure helpers that decide what the AI coach is allowed to know. The coach
@@ -157,6 +158,8 @@ export function summarizeSession(session: CoachSession, sections: LessonSection[
 export type TopicHistory = {
   weakAreas: string[];
   recentLow: { prompt: string; marks: number; max: number }[];
+  // Top unresolved lesson check misses (this lesson and the ones before it).
+  lessonMisses?: { prompt: string; lessonLabel: string }[];
 };
 
 const HISTORY_CHAR_CAP = 2400; // roughly 600 tokens
@@ -170,6 +173,14 @@ export function summarizeHistory(h: TopicHistory | null): string {
       `Recent low-mark answers: ${h.recentLow
         .slice(0, 4)
         .map((a) => `"${clip(a.prompt, 90)}" ${a.marks}/${a.max}`)
+        .join("; ")}.`
+    );
+  }
+  if (h.lessonMisses?.length) {
+    lines.push(
+      `Lesson check questions they missed and have not yet got right: ${h.lessonMisses
+        .slice(0, COACH_MISS_LIMIT)
+        .map((m) => `"${clip(m.prompt, 90)}" (${clip(m.lessonLabel, 40)})`)
         .join("; ")}.`
     );
   }

@@ -1,5 +1,7 @@
 import "server-only";
 import { db } from "./database-client";
+import { getRankedLessonMisses } from "./lesson-misses";
+import { COACH_MISS_LIMIT } from "@/lib/lesson-misses";
 import type { TopicHistory } from "@/lib/lesson-coach-context";
 
 // Lightweight per-topic history for the lesson coach: two bulk queries run
@@ -35,7 +37,8 @@ export async function getCoachTopicHistory(
       }))
       .filter((a) => a.prompt && a.max > 0 && a.marks / a.max < 0.5)
       .slice(0, 4);
-    return { weakAreas, recentLow };
+    const misses = await getRankedLessonMisses({ studentId, topicId, subjectId, limit: COACH_MISS_LIMIT });
+    return { weakAreas, recentLow, lessonMisses: misses.map((m) => ({ prompt: m.prompt, lessonLabel: m.lessonLabel })) };
   } catch {
     return null;
   }

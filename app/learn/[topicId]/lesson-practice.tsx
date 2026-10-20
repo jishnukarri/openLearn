@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check } from "lucide-react";
 import { Button } from "@/components/button";
 import { RichText } from "@/components/rich-text";
+import { resolveCarriedMissAction } from "@/app/actions/lessons";
 import type { LessonPractice } from "@/lib/lesson-personalise";
 
 // Post-teaching practice from questions the student already has history with.
@@ -33,7 +34,7 @@ export function LessonPracticeStep({
   return (
     <div className="flex flex-col gap-5">
       <p className="max-w-[65ch] text-base font-medium leading-snug text-foreground">{instruction}</p>
-      <p className="text-sm text-muted">{practice.reason}</p>
+      <p className="text-sm text-muted">{item.note ?? practice.reason}</p>
       <p className="text-sm font-medium text-muted" aria-live="polite">
         Question {idx + 1} of {practice.items.length}
       </p>
@@ -60,7 +61,10 @@ export function LessonPracticeStep({
               variant={rated === "got" ? "primary" : "secondary"}
               className="min-h-11 px-5"
               aria-pressed={rated === "got"}
-              onClick={() => setRated("got")}
+              onClick={() => {
+                setRated("got");
+                if (item.missId) void resolveCarriedMissAction(item.missId).catch(() => {});
+              }}
             >
               {rated === "got" && <Check className="mr-1 size-4" aria-hidden="true" />}I got it
             </Button>
