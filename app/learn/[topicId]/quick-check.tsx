@@ -97,7 +97,7 @@ function MultiCheck({
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs text-muted">Select all that apply.</p>
+      <p className="text-sm text-muted">You can pick more than one.</p>
       {check.options.map((option, idx) => {
         const isSelected = picked.has(idx);
         const isCorrect = correct.has(idx);
@@ -122,7 +122,7 @@ function MultiCheck({
                 return nextSet;
               })
             }
-            className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${style}`}
+            className={`flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${style}`}
           >
             <span
               className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border text-3xs font-bold ${
@@ -138,17 +138,15 @@ function MultiCheck({
         );
       })}
       {!revealed && (
-        <Button
-          onClick={(e) => {
+        <CheckButton
+          disabledReason={picked.size === 0 ? "Pick at least one answer first" : null}
+          onCheck={(el) => {
             const right =
               picked.size === correct.size &&
               [...picked].every((i) => correct.has(i));
-            onResult(right, e.currentTarget);
+            onResult(right, el);
           }}
-          className="self-start mt-1"
-        >
-          Check
-        </Button>
+        />
       )}
     </div>
   );
@@ -188,7 +186,7 @@ function ShortCheck({
             onResult(right, e.currentTarget);
           }
         }}
-        className={`rounded-xl border p-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+        className={`min-h-11 rounded-xl border p-3 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           revealed
             ? right
               ? "border-success bg-success/10"
@@ -197,13 +195,10 @@ function ShortCheck({
         }`}
       />
       {!revealed && (
-        <Button
-          onClick={(e) => onResult(right, e.currentTarget)}
-          disabled={!text.trim()}
-          className="self-start"
-        >
-          Check
-        </Button>
+        <CheckButton
+          disabledReason={text.trim() ? null : "Type your answer first"}
+          onCheck={(el) => onResult(right, el)}
+        />
       )}
     </div>
   );
@@ -255,7 +250,7 @@ function WordBankCheck({
                   return next;
                 })
               }
-              className="rounded-lg border border-primary bg-primary/10 px-2.5 py-0.5 text-sm font-medium text-foreground transition-colors hover:bg-primary/20 disabled:cursor-default"
+              className="min-h-9 rounded-lg border border-primary bg-primary/10 px-2.5 py-0.5 text-sm font-medium text-foreground transition-colors hover:bg-primary/20 disabled:cursor-default"
             >
               {word}
             </button>
@@ -275,7 +270,7 @@ function WordBankCheck({
               type="button"
               disabled={revealed || isUsed}
               onClick={() => toggleWord(word)}
-              className={`rounded-xl border px-3 py-1.5 text-sm font-medium transition-all active:scale-95 ${
+              className={`min-h-11 rounded-xl border px-3 py-1.5 text-sm font-medium transition-all active:scale-95 ${
                 isUsed
                   ? "border-border bg-background text-muted opacity-30 cursor-default"
                   : "border-border bg-surface text-foreground hover:border-primary hover:bg-primary/5"
@@ -287,13 +282,11 @@ function WordBankCheck({
         })}
       </div>
 
-      {!revealed && selected.length > 0 && (
-        <Button
-          onClick={(e) => onResult(right, e.currentTarget)}
-          className="self-start mt-1"
-        >
-          Check
-        </Button>
+      {!revealed && (
+        <CheckButton
+          disabledReason={selected.length === 0 ? "Tap some words first" : null}
+          onCheck={(el) => onResult(right, el)}
+        />
       )}
     </div>
   );
@@ -327,18 +320,15 @@ function MatchingCheck({
         correctRightIndex={correctRightIndex}
       />
       {!revealed && (
-        <Button
-          onClick={(e) => {
+        <CheckButton
+          disabledReason={allPicked ? null : "Match every item first"}
+          onCheck={(el) => {
             const right = check.pairs.every(
               (_, i) => shuffledRights[picks[i]]?.index === i
             );
-            onResult(right, e.currentTarget);
+            onResult(right, el);
           }}
-          disabled={!allPicked}
-          className="self-start"
-        >
-          Check
-        </Button>
+        />
       )}
     </div>
   );
@@ -349,5 +339,33 @@ function ExplainButton({ question, correctAnswer }: { question: string; correctA
     <ExplainBox
       fetchExplanation={() => explainCheckAnswerAction({ question, correctAnswer })}
     />
+  );
+}
+
+// The one "Check my answer" button for typed/multi/matching checks. When it
+// cannot be pressed it says why, right beside it, instead of just greying out.
+function CheckButton({
+  onCheck,
+  disabledReason,
+}: {
+  onCheck: (el: HTMLElement) => void;
+  disabledReason: string | null;
+}) {
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+      <Button
+        onClick={(e) => onCheck(e.currentTarget)}
+        disabled={disabledReason !== null}
+        aria-describedby={disabledReason ? "check-reason" : undefined}
+        className="min-h-11"
+      >
+        Check my answer
+      </Button>
+      {disabledReason && (
+        <span id="check-reason" className="text-sm text-muted">
+          {disabledReason}
+        </span>
+      )}
+    </div>
   );
 }

@@ -43,7 +43,7 @@ export function OptionButton({
       type="button"
       disabled={disabled}
       onClick={(e) => onClick?.(e.currentTarget)}
-      className={`flex touch-manipulation items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition-[transform,background-color,border-color,color] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60 ${BUTTON_STYLE[state]}`}
+      className={`flex min-h-11 touch-manipulation items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition-[transform,background-color,border-color,color] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60 ${BUTTON_STYLE[state]}`}
     >
       {label && (
         <span
