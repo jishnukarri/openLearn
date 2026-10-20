@@ -2,9 +2,12 @@
 
 import * as z from "zod";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/appwrite/session";
 import { getClassByInviteCode, joinClass } from "@/lib/supabase/classes";
 import { saveSubjectSelections } from "@/lib/supabase/students";
+import { markPieceComplete } from "@/lib/supabase/onboarding-progress";
+import { isPieceKey } from "@/lib/onboarding-pieces";
 
 export async function joinClassAction(
   _state: { message?: string } | undefined,
@@ -68,4 +71,13 @@ export async function addSubjectsAction(formData: FormData): Promise<void> {
   await saveSubjectSelections(profile.id, parsed, false);
 
   redirect("/onboarding/diagnostic");
+}
+
+export async function markPieceCompleteAction(formData: FormData): Promise<void> {
+  const { profile } = await requireRole("student");
+  const piece = formData.get("piece");
+  if (typeof piece !== "string" || !isPieceKey(piece)) redirect("/dashboard");
+  await markPieceComplete(profile.id, piece);
+  revalidatePath("/dashboard");
+  redirect("/dashboard");
 }
