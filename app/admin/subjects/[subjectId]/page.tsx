@@ -19,12 +19,14 @@ import {
   unpublishSubtopicAction,
   editSubtopicAction,
   saveSubjectInstructionsAction,
-  saveTopicInstructionsAction,
+  regenerateSubtopicLessonAction,
 } from "@/app/actions/subjects";
 import { Button } from "@/components/button";
 import { RenameSubject } from "@/components/rename-subject";
 import { AsideBlock, PageHeader, PageShell } from "@/components/page-shell";
 import { Rise, Stagger } from "@/components/motion";
+import { TopicInstructionsForm } from "@/components/topic-instructions-form";
+import { RegenerateLessonButton } from "@/components/regenerate-lesson-button";
 import { PendingAiOverlay } from "@/components/pending-ai-overlay";
 import { listDocumentsByTopic } from "@/lib/supabase/topic-documents";
 import { listQuestionBankForTopic } from "@/lib/supabase/questions";
@@ -249,9 +251,18 @@ export async function SubjectDetailPage({
         <TabsContent value="custominstrct">
           <form action={saveSubjectInstructionsAction} className="mt-3 flex max-w-[65ch] flex-col gap-2">
             <input type="hidden" name="subjectId" value={subject.id} />
+            <label htmlFor="subject-instr" className="text-sm font-medium text-foreground">
+              Custom instructions for this subject
+            </label>
+            <p id="subject-instr-help" className="text-sm text-muted">
+              Used when generating this subject&apos;s topic list and summaries, and as a background note for new
+              lessons, questions and flashcards. Topic instructions take priority. Saving does not change what
+              already exists.
+            </p>
             <textarea
+              id="subject-instr"
               name="instructions"
-              aria-label="Custom instructions for this subject"
+              aria-describedby="subject-instr-help"
               rows={3}
               defaultValue={subject.custom_instructions ?? ""}
               placeholder="e.g. Focus on Triple Science depth, not Combined. Use metric units throughout."
@@ -371,6 +382,12 @@ export async function SubjectDetailPage({
                                   </button>
                                 </form>
                               )}
+                              <RegenerateLessonButton
+                                action={regenerateSubtopicLessonAction}
+                                fieldName="subtopicId"
+                                fieldValue={sub.id}
+                                compact
+                              />
                               <details className="shrink-0">
                                 <summary className="cursor-pointer text-sm text-muted hover:text-foreground">
                                   Edit
@@ -396,26 +413,7 @@ export async function SubjectDetailPage({
                               </form>
                             </div>
                           ))}
-                          <form
-                            action={saveTopicInstructionsAction}
-                            className="mt-3 flex max-w-[65ch] flex-col gap-2 border-t border-border pt-3"
-                          >
-                            <input type="hidden" name="topicId" value={topic.id} />
-                            <label htmlFor={`topic-instr-${topic.id}`} className="text-sm font-medium text-foreground">
-                              Custom instructions for this topic&apos;s lessons/questions
-                            </label>
-                            <textarea
-                              id={`topic-instr-${topic.id}`}
-                              name="instructions"
-                              rows={2}
-                              defaultValue={topic.custom_instructions ?? ""}
-                              placeholder="e.g. Always include a diagram description. Avoid calculator-based examples."
-                              className={INPUT}
-                            />
-                            <Button type="submit" variant="secondary" size="compact" className="!shadow-none self-start">
-                              Save
-                            </Button>
-                          </form>
+                          <TopicInstructionsForm topicId={topic.id} initial={topic.custom_instructions ?? ""} />
 
                           <details className="group/docs mt-3 border-t border-border pt-3">
                             <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold text-foreground">

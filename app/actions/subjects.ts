@@ -20,7 +20,8 @@ import {
   type SubjectArchetype,
 } from "@/lib/supabase/subjects";
 import { generateTopicsForSubject, generateSingleTopic } from "@/lib/ai/topics";
-import { generateLesson, tweakLesson } from "@/lib/ai/lessons";
+import { generateLesson } from "@/lib/ai/lessons";
+import { checkKeyRateLimit } from "@/lib/rate-limit";
 import { resolveProviderConfig } from "@/lib/ai/client";
 import { generateTopicDiagnosticPool } from "@/lib/ai/diagnostic-pool";
 import { saveTopicDiagnosticPool } from "@/lib/supabase/topic-diagnostic-questions";
@@ -45,7 +46,7 @@ import {
 } from "@/lib/supabase/topics";
 import { pregenerateTopicContent } from "@/lib/content-pipeline";
 import { extractTextFromFile } from "@/lib/extract-text";
-import { createLesson, getLessonByTopic } from "@/lib/supabase/lessons";
+import { createLesson, createLessonForSubtopic } from "@/lib/supabase/lessons";
 import { finalizeLessonContent } from "@/lib/lesson-finalize";
 import { withReferenceContext } from "@/lib/rag";
 
@@ -536,41 +537,55 @@ export async function editSubtopicAction(formData: FormData): Promise<void> {
   revalidatePath("/teacher/subjects/[subjectId]", "page");
 }
 
-export async function regenerateTopicLessonAction(formData: FormData): Promise<void> {
-  const topicId = formData.get("topicId");
-  if (typeof topicId !== "string") throw new Error("Missing topicId.");
-  const topic = await getTopic(topicId);
-  if (!topic) throw new Error("Topic not found.");
-  const { profile } = await requireOwnerOrAdmin(topic.subject.id);
-
-  const config = await resolveProviderConfig(profile.id);
-  const instructions = await withReferenceContext(topicId, topic.name, topic.custom_instructions);
-  const lesson = await generateLesson(topic.name, topic.subject.name, false, instructions, config);
-  await createLesson(topicId, await finalizeLessonContent(lesson, topicId, topic.subject.name));
+function revalidateSubjectPages() {
   revalidatePath("/admin/subjects");
   revalidatePath("/admin/subjects/[subjectId]", "page");
   revalidatePath("/teacher/subjects");
   revalidatePath("/teacher/subjects/[subjectId]", "page");
 }
 
-export async function requestTopicEditAction(formData: FormData): Promise<void> {
+export async function regenerateTopicLessonAction(formData: FormData): Promise<void> {
   const topicId = formData.get("topicId");
-  const instruction = formData.get("instruction");
-  if (typeof topicId !== "string" || typeof instruction !== "string" || !instruction.trim()) {
-    throw new Error("Write the change you want before requesting an edit.");
-  }
+  if (typeof topicId !== "string") throw new Error("Missing topicId.");
   const topic = await getTopic(topicId);
   if (!topic) throw new Error("Topic not found.");
   const { profile } = await requireOwnerOrAdmin(topic.subject.id);
-  const current = await getLessonByTopic(topicId);
-  if (!current) throw new Error("Topic lesson not found.");
+  if (!(await checkKeyRateLimit("lesson-regenerate", profile.id, 6, 10 * 60_000))) {
+    throw new Error("Please wait a few minutes before regenerating again.");
+  }
+
   const config = await resolveProviderConfig(profile.id);
-  const revised = await tweakLesson(current, instruction.trim(), topic.name, topic.subject.name, config);
-  await createLesson(topicId, await finalizeLessonContent(revised, topicId, topic.subject.name));
-  revalidatePath("/admin/subjects");
-  revalidatePath("/admin/subjects/[subjectId]", "page");
-  revalidatePath("/teacher/subjects");
-  revalidatePath("/teacher/subjects/[subjectId]", "page");
+  const instructions = await withReferenceContext(topicId, topic.name, topic.custom_instructions);
+  const lesson = await generateLesson(topic.name, topic.subject.name, false, instructions, config);
+  await createLesson(topicId, await finalizeLessonContent(lesson, topicId, topic.subject.name));
+  revalidateSubjectPages();
+  revalidatePath(`/learn/${topicId}`);
+}
+
+export async function regenerateSubtopicLessonAction(formData: FormData): Promise<void> {
+  const subtopicId = formData.get("subtopicId");
+  if (typeof subtopicId !== "string") throw new Error("Missing subtopicId.");
+  const subtopic = await getSubtopic(subtopicId);
+  if (!subtopic) throw new Error("Subtopic not found.");
+  const { profile } = await requireOwnerOrAdmin(subtopic.topic.subject.id);
+  if (!(await checkKeyRateLimit("lesson-regenerate", profile.id, 6, 10 * 60_000))) {
+    throw new Error("Please wait a few minutes before regenerating again.");
+  }
+
+  const config = await resolveProviderConfig(profile.id);
+  const instructions = await withReferenceContext(
+    subtopic.topic.id,
+    subtopic.name,
+    subtopic.topic.custom_instructions
+  );
+  const lesson = await generateLesson(subtopic.name, subtopic.topic.subject.name, false, instructions, config);
+  await createLessonForSubtopic(
+    subtopic.topic.id,
+    subtopic.id,
+    await finalizeLessonContent(lesson, subtopic.id, subtopic.topic.subject.name)
+  );
+  revalidateSubjectPages();
+  revalidatePath(`/learn/subtopic/${subtopicId}`);
 }
 
 export async function updateQuestionVerificationAction(input: {
