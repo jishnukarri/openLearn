@@ -354,11 +354,11 @@ export function LessonPlayer({
 
         {/* ── Content ─────────────────────────────────────────────────── */}
         <div className={`grid w-full flex-1 ${!isDone && helpOpen ? "lg:grid-cols-[minmax(0,1fr)_21.25rem]" : "lg:grid-cols-[minmax(0,1fr)_3.25rem]"}`}>
-          <div key={stepKey} ref={stepRef} tabIndex={-1} className="animate-step-in mx-auto outline-none w-full max-w-4xl px-2 py-4 sm:px-4 lg:px-10 lg:py-10">
+          <div key={stepKey} ref={stepRef} tabIndex={-1} className="animate-step-in mx-auto outline-none w-full max-w-6xl px-2 py-4 sm:px-4 lg:px-10 lg:py-10">
 
             {/* ── Interactive: explanation (slider) or post-teaching activity ── */}
             {!isDone && step?.phase === "interactive" && interactive && (
-              <div className="w-full px-4 py-8 sm:px-6">
+              <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
                 <Instruction>{stepInstruction(step)}</Instruction>
                 <LessonInteractiveWidget interactive={interactive} onContinue={next} role={step.role ?? "consolidate"} />
               </div>
@@ -366,7 +366,7 @@ export function LessonPlayer({
 
             {/* ── Personalised practice, after the teaching ───────────── */}
             {!isDone && step?.phase === "practice" && practice && (
-              <div className="w-full px-4 py-8 sm:px-6">
+              <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
                 <LessonPracticeStep practice={practice} instruction={stepInstruction(step)} onDone={next} />
               </div>
             )}
@@ -475,7 +475,7 @@ export function LessonPlayer({
               const answerVisible = checkResult === true || (checkResult === false && (showAnswer || !canRetry(misses)));
               const retryOffered = checkResult === false && !answerVisible;
               return (
-                <div className="w-full px-4 py-8 sm:px-6">
+                <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
                   <div className="overflow-hidden rounded-2xl">
                     <div className="flex flex-col gap-6 pb-6">
                       <YourTurnBanner
@@ -614,7 +614,7 @@ export function LessonPlayer({
               const allRated = Object.keys(flashcardRatings).length >= cards.length;
               const currentRating = flashcardRatings[flashcardIdx];
               return (
-                <div className="w-full px-4 py-8 sm:px-6">
+                <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
                   <Instruction>{stepInstruction(step)}</Instruction>
                   <div className="mb-5 flex items-center justify-between">
                     <p className="text-sm font-medium text-muted">Vocabulary check</p>
@@ -758,7 +758,7 @@ export function LessonPlayer({
                     : "text-error"
                 : "";
               return (
-                <div className="w-full px-4 py-8 sm:px-6">
+                <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
                   <div className="mb-4 flex items-center justify-between">
                     <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">
                       Open practice
@@ -848,7 +848,7 @@ export function LessonPlayer({
 
             {/* ── Recap slide ─────────────────────────────────────────── */}
             {!isDone && step?.phase === "recap" && (
-              <div className="w-full px-4 py-8 sm:px-6">
+              <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
                 <h2 className="mb-2 font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
                   Recap
                 </h2>
@@ -929,7 +929,7 @@ export function LessonPlayer({
             )}
 
             {isDone && (
-              <div className="w-full px-4 py-16 sm:px-6">
+              <div className="mx-auto w-full max-w-3xl px-4 py-16 sm:px-6">
                 <DoneCard
                   practiceHref={practiceHref ?? `/practice/${topicId}`}
                   flashcardsHref={flashcardsHref ?? `/flashcards/${topicId}`}
