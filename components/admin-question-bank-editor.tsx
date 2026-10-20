@@ -292,6 +292,19 @@ export function AdminQuestionBankEditor({
                             <div className="flex flex-col gap-2">
                               <h3 className="text-sm font-semibold text-muted">The correct answer</h3>
                               <p className="max-w-[60ch] text-lg text-foreground">{current.model_answer}</p>
+                              {current.format?.type === "numeric" && (
+                                <p className="text-base text-muted">
+                                  Marked as a number: {current.format.answer}
+                                  {current.format.unit ? ` ${current.format.unit}` : ""}
+                                  {typeof current.format.tolerancePercent === "number"
+                                    ? `, accepted within ${current.format.tolerancePercent}%`
+                                    : ""}
+                                  {typeof current.format.sigFigs === "number"
+                                    ? `, ${current.format.sigFigs} significant figures`
+                                    : ""}
+                                  . To change the number, regenerate the question.
+                                </p>
+                              )}
                             </div>
 
                             {current.markscheme.length > 0 && (
