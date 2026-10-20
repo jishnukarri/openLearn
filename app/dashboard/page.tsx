@@ -10,6 +10,9 @@ import { AnimatedNumber } from "@/components/animated-number";
 import { ButtonLink } from "@/components/button";
 import { PageShell, AsideBlock } from "@/components/page-shell";
 import { Stagger, Rise } from "@/components/motion";
+import { GettingStarted } from "@/components/getting-started";
+import { getCompletedPieces } from "@/lib/supabase/onboarding-progress";
+import { ONBOARDING_PIECES, nextIncompletePiece, shouldShowChecklist } from "@/lib/onboarding-pieces";
 
 // Flat colours, not gradients, each subject gets one solid hue so cards stay
 // legible and consistent instead of a mesh of purple-to-indigo blends.
@@ -24,14 +27,17 @@ const SUBJECT_COLOURS = [
 
 export default async function DashboardPage() {
   const { profile } = await requireRole("student");
-  const [subjects, weakTopics, assignments, needingDiagnostic, completedTopicIds, topicScores] = await Promise.all([
+  const [subjects, weakTopics, assignments, needingDiagnostic, completedTopicIds, topicScores, onboarding] = await Promise.all([
     getStudentSubjects(profile.id),
     getWeakTopics(profile.id),
     listAssignmentsForStudent(profile.id),
     getSubjectsNeedingDiagnostic(profile.id),
     getCompletedTopicIds(profile.id),
     getTopicScores(profile.id),
+    getCompletedPieces(profile.id),
   ]);
+  const showChecklist = shouldShowChecklist(onboarding.completed, onboarding.available);
+  const nextPiece = nextIncompletePiece(onboarding.completed);
   const topicsBySubject = await Promise.all(
     subjects.map(async (subject) => ({
       subject,
@@ -157,6 +163,15 @@ export default async function DashboardPage() {
             </span>
           </div>
         </Rise>
+
+        {showChecklist && (
+          <Rise>
+            <GettingStarted
+              nextKey={nextPiece?.key ?? null}
+              items={ONBOARDING_PIECES.map((p) => ({ ...p, done: onboarding.completed.has(p.key) }))}
+            />
+          </Rise>
+        )}
 
         {continueTopic && (
           <Rise>
