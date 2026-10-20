@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./database-client";
+import { filterCards } from "@/lib/flashcard-quality";
 import type { FlashcardSet } from "@/lib/ai/flashcards";
 
 export async function getFlashcardsByTopic(topicId: string): Promise<FlashcardSet | null> {
@@ -11,7 +12,7 @@ export async function getFlashcardsByTopic(topicId: string): Promise<FlashcardSe
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data ? { cards: data.cards as FlashcardSet["cards"] } : null;
+  return data ? { cards: filterCards(data.cards as FlashcardSet["cards"]) } : null;
 }
 
 export async function createFlashcardSet(topicId: string, set: FlashcardSet): Promise<void> {
@@ -30,7 +31,7 @@ export async function getFlashcardsBySubtopic(subtopicId: string): Promise<Flash
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data ? { cards: data.cards as FlashcardSet["cards"] } : null;
+  return data ? { cards: filterCards(data.cards as FlashcardSet["cards"]) } : null;
 }
 
 export async function createFlashcardSetForSubtopic(

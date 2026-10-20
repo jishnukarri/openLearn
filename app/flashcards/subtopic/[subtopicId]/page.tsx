@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { requireAnyRole } from "@/lib/appwrite/session";
 import { getSubtopic } from "@/lib/supabase/topics";
 import { resolveFlashcardsForSubtopic } from "@/lib/subtopic-content";
+import { isDeckUsable } from "@/lib/flashcard-quality";
+import { RebuildDeck } from "@/app/flashcards/rebuild-deck";
 import { PageShell, PageHeader, AsideBlock } from "@/components/page-shell";
 import { FlashcardDeck } from "../../[topicId]/flashcard-deck";
 
@@ -43,11 +45,15 @@ export default async function SubtopicFlashcardsPage({
         description={subtopic.topic.subject.name}
       />
 
-      <FlashcardDeck
-        topicId={subtopicId}
-        cards={set.cards}
-        lessonHref={`/learn/subtopic/${subtopicId}`}
-      />
+      {isDeckUsable(set.cards) ? (
+        <FlashcardDeck
+          topicId={subtopicId}
+          cards={set.cards}
+          lessonHref={`/learn/subtopic/${subtopicId}`}
+        />
+      ) : (
+        <RebuildDeck topicId={subtopic.topic.id} subtopicId={subtopicId} />
+      )}
     </PageShell>
   );
 }

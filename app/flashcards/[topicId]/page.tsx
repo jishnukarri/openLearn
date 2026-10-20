@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { requireAnyRole } from "@/lib/appwrite/session";
 import { getTopic } from "@/lib/supabase/topics";
 import { resolveFlashcards } from "@/app/actions/flashcards";
+import { isDeckUsable } from "@/lib/flashcard-quality";
+import { RebuildDeck } from "@/app/flashcards/rebuild-deck";
 import { PageShell, PageHeader, AsideBlock } from "@/components/page-shell";
 import { FlashcardDeck } from "./flashcard-deck";
 
@@ -43,7 +45,11 @@ export default async function FlashcardsPage({
         description={topic.subject.name}
       />
 
-      <FlashcardDeck topicId={topicId} cards={set.cards} />
+      {isDeckUsable(set.cards) ? (
+        <FlashcardDeck topicId={topicId} cards={set.cards} />
+      ) : (
+        <RebuildDeck topicId={topicId} />
+      )}
     </PageShell>
   );
 }
