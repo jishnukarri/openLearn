@@ -26,7 +26,64 @@ import { resolveQuestionContent } from "@/lib/class-content";
 import { awardXp } from "@/lib/supabase/progress";
 import { checkKeyRateLimit } from "@/lib/rate-limit";
 
+import {
+  deriveHints,
+  answerCandidates,
+  clampHintLevel,
+  isHintCopy,
+  HINT_COPY_MESSAGE,
+} from "@/lib/question-hints";
+
 import type { PointFeedback } from "@/lib/ai/marking";
+import type { Question } from "@/lib/supabase/questions";
+
+// Hints are always re-derived here from the stored question, never taken
+// from client text, so the anti-copy check cannot be spoofed or skipped.
+async function hintsFor(question: Question): Promise<string[]> {
+  const topic = await getTopic(question.topic_id).catch(() => null);
+  return deriveHints({
+    prompt: question.prompt,
+    markscheme: question.markscheme,
+    maxMarks: question.max_marks,
+    format: question.format,
+    topicTitle: topic?.name ?? null,
+  });
+}
+
+// Returns the message to show when the answer is just a shown hint repeated.
+async function hintCopyMessage(
+  question: Question,
+  formData: FormData,
+  payload: AnswerPayload,
+  answerText: string
+): Promise<string | null> {
+  const shown = clampHintLevel(formData.get("hintsShown"));
+  if (shown === 0) return null;
+  const hints = (await hintsFor(question)).slice(0, shown);
+  const candidates = answerCandidates({ answerText, text: payload.text, parts: payload.parts });
+  return candidates.some((c) => isHintCopy(c, hints)) ? HINT_COPY_MESSAGE : null;
+}
+
+export type HintResult =
+  | { hint: string; level: number; total: number }
+  | { message: string };
+
+// Reveals the next hint (level is 1-based). No AI call, no attempt used.
+export async function getQuestionHintAction(
+  questionId: string,
+  level: number
+): Promise<HintResult> {
+  const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
+  if (!await checkKeyRateLimit("practice-hint", profile.id, 30, 60_000)) {
+    return { message: "You're going a bit fast. Wait a few seconds and try again." };
+  }
+  const question = await getQuestionById(questionId);
+  if (!question) return { message: "No question found for this topic." };
+  const hints = await hintsFor(question);
+  const n = clampHintLevel(level);
+  if (n < 1) return { message: "No hint for that level." };
+  return { hint: hints[n - 1], level: n, total: hints.length };
+}
 
 export type PracticeState =
   | {
@@ -71,6 +128,10 @@ export async function submitAnswerAction(
     : payloadToText(format, payload);
   if (!hasImages && answerText.trim().length === 0) {
     return { message: "Write an answer, or attach a photo, before submitting." };
+  }
+  if (!hasImages) {
+    const copied = await hintCopyMessage(question, formData, payload, answerText);
+    if (copied) return { message: copied };
   }
 
   let result;
@@ -207,6 +268,10 @@ export async function submitBankAnswerAction(
     : payloadToText(format, payload);
   if (!hasImages && answerText.trim().length === 0) {
     return { message: "Write an answer, or attach a photo, before submitting." };
+  }
+  if (!hasImages) {
+    const copied = await hintCopyMessage(question, formData, payload, answerText);
+    if (copied) return { message: copied };
   }
 
   let result;
