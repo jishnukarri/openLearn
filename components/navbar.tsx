@@ -12,6 +12,19 @@ export async function NavBar() {
   // home (not the marketing "/") — no separate "Home" link needed.
   // Logged out: "/" is the only home there is.
   const logoHref = session ? roleHome(profile?.role) : "/";
+  // Flagged for a forced password change: no navigation away, the page
+  // itself offers log out.
+  if (session?.mustChangePassword) {
+    return (
+      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center px-4 py-4 sm:px-6">
+          <span className="shrink-0 [&_svg]:h-6 [&_svg]:w-auto sm:[&_svg]:h-[45px] sm:[&_svg]:w-[272px]">
+            <Logo className="text-foreground" />
+          </span>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">

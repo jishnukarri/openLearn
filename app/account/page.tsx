@@ -42,6 +42,16 @@ export default async function AccountPage() {
         <p className="text-sm text-muted">Saved on this device.</p>
       </section>
 
+      <section className="animate-fade-slide-up flex max-w-md flex-col gap-3" style={{ animationDelay: "140ms" }}>
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">Password</h2>
+        <a
+          href="/account/password"
+          className="inline-flex min-h-11 w-fit items-center rounded-xl border border-border bg-surface px-4 text-sm font-medium text-foreground transition-colors hover:border-primary"
+        >
+          Change password
+        </a>
+      </section>
+
       <section
         className="animate-fade-slide-up flex max-w-md flex-col gap-3 border-t border-error/30 pt-6"
         style={{ animationDelay: "160ms" }}
