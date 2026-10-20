@@ -17,6 +17,7 @@ import { LessonVisual } from "./lesson-visual";
 import { WorkedExample } from "./worked-example";
 import { resolveExampleSteps } from "@/lib/worked-example";
 import { QuickCheck } from "./quick-check";
+import { attemptSeed } from "@/lib/shuffle";
 import { LessonTutor } from "./lesson-tutor";
 import type { CoachSession } from "@/lib/lesson-coach-context";
 import { LessonPracticeStep } from "./lesson-practice";
@@ -134,6 +135,8 @@ export function LessonPlayer({
   const [misses, setMisses] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  // Bumps on every navigation so a revisited check gets a fresh option order.
+  const [visit, setVisit] = useState(0);
   const [recapOpen, setRecapOpen] = useState(false);
   const [maxVisited, setMaxVisited] = useState(0);
   // Small record the coach uses to know how this student is getting on.
@@ -210,6 +213,7 @@ export function LessonPlayer({
     } catch {}
     setRecapOpen(false);
     if (idx < planIdx) setCoachSession((c) => ({ ...c, revisits: c.revisits + 1 }));
+    setVisit((v) => v + 1);
     setPlanIdx(idx);
     setMaxVisited((m) => Math.max(m, idx));
   }
@@ -406,10 +410,10 @@ export function LessonPlayer({
                   </div>
 
                   <Instruction>{stepInstruction(step, sec)}</Instruction>
-                  <div className={`grid gap-8 ${hasVisual ? "lg:grid-cols-2 lg:items-start" : ""}`}>
+                  <div className={`grid gap-6 ${hasVisual ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start lg:gap-10" : ""}`}>
                     {/* Left: explanation + example reveal */}
                     <div>
-                      <p className="max-w-[65ch] text-lg leading-relaxed text-foreground">
+                      <p className="mt-0 max-w-[65ch] text-lg leading-relaxed text-foreground">
                         <RichText text={sec.explanation} />
                       </p>
 
@@ -444,13 +448,10 @@ export function LessonPlayer({
                       )}
                     </div>
 
-                    {/* Right: visual (large screens) */}
+                    {/* Visual: stacked first on mobile, right column top-aligned on desktop.
+                        The figure brings its own white panel (lesson-figure). */}
                     {hasVisual && (
-                      // bg-background, not bg-surface — most AI-generated
-                      // SVGs fill their own shapes with var(--color-surface)
-                      // (a "card"/"node" look), which is invisible against a
-                      // wrapper using that exact same token.
-                      <div className="rounded-xl border border-border bg-background p-4">
+                      <div className="order-first min-w-0 lg:order-none">
                         <LessonVisual visual={sec.visual!} />
                       </div>
                     )}
@@ -491,7 +492,8 @@ export function LessonPlayer({
                       </p>
 
                       <QuickCheck
-                        key={`check-${step.sectionIndex}-${attempt}`}
+                        key={`check-${step.sectionIndex}-${attempt}-${visit}`}
+                        seed={attemptSeed(topicId, step.sectionIndex, attempt, visit)}
                         check={sec.check}
                         revealed={answerVisible}
                         onDraft={setHasDraft}
