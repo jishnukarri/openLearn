@@ -23,7 +23,7 @@ const SVG_ATTRS = [
   "font-size", "stroke-width", "stroke-dasharray", "stroke-linecap",
   "stroke-linejoin", "fill-opacity", "stroke-opacity", "opacity",
   "marker-end", "marker-start", "id", "refX", "refY", "markerWidth",
-  "markerHeight", "orient",
+  "markerHeight", "orient", "preserveAspectRatio", "font-weight",
 ];
 
 // Tags whose text content must vanish with the tag, not leak into the
@@ -59,7 +59,82 @@ export function sanitizeLessonSvg(svg: string): string {
   const themed = out.replace(/\s(fill|stroke)="([^"]*)"/g, (match, _name, value) =>
     THEME_COLOR.test(value) ? match : ""
   );
-  return scopeSvgIds(themed);
+  return normaliseSvg(scopeSvgIds(themed));
+}
+
+// ── Rendering robustness ────────────────────────────────────────────────
+// Text with no fill would inherit the page colour (invisible on a dark
+// page), so give it currentColor, which the white lesson panel pins to a
+// dark ink. The root svg drops fixed pixel sizes (CSS makes it fluid),
+// always has a viewBox, and the viewBox grows to contain labels that a
+// conservative width estimate says would be clipped.
+const AVG_CHAR_EM = 0.58;
+const MAX_VIEWBOX = 4000;
+
+export function estimateTextWidth(text: string, fontSize: number): number {
+  return text.length * fontSize * AVG_CHAR_EM;
+}
+
+function num(attrs: string, name: string): number | null {
+  const m = new RegExp(`(?:^|\\s)${name}="(-?[0-9.]+)(?:px)?"`).exec(attrs);
+  return m ? Number(m[1]) : null;
+}
+
+export function normaliseSvg(svg: string): string {
+  const rootMatch = /^<svg\b([^>]*)>/.exec(svg);
+  if (!rootMatch) return svg;
+  let rootAttrs = rootMatch[1];
+
+  const body = svg
+    .slice(rootMatch[0].length)
+    .replace(/<(text|tspan)\b([^>]*)>/g, (full, tag: string, attrs: string) =>
+      /\sfill="/.test(` ${attrs}`) ? full : `<${tag} fill="currentColor"${attrs}>`
+    );
+
+  let vb = /\sviewBox="([^"]*)"/.exec(` ${rootAttrs}`)?.[1]
+    ?.trim().split(/[\s,]+/).map(Number);
+  if (!vb || vb.length !== 4 || vb.some((n) => !Number.isFinite(n)) || vb[2] <= 0 || vb[3] <= 0) {
+    const w = num(rootAttrs, "width") ?? 400;
+    const h = num(rootAttrs, "height") ?? 240;
+    vb = [0, 0, w > 0 ? w : 400, h > 0 ? h : 240];
+  }
+  const [minX, minY, w, h] = vb;
+  let loX = minX;
+  let loY = minY;
+  let maxX = minX + w;
+  let maxY = minY + h;
+
+  const re = /<text\b([^>]*)>([^<]*)(?:<\/text>)?/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body))) {
+    const attrs = m[1];
+    if (/\stransform="/.test(` ${attrs}`)) continue;
+    const text = m[2].trim();
+    const x = num(attrs, "x");
+    const y = num(attrs, "y");
+    if (!text || x === null) continue;
+    const fs = num(attrs, "font-size") ?? 12;
+    const width = estimateTextWidth(text, fs);
+    const anchor = /text-anchor="(start|middle|end)"/.exec(attrs)?.[1] ?? "start";
+    const left = anchor === "middle" ? x - width / 2 : anchor === "end" ? x - width : x;
+    loX = Math.min(loX, left);
+    maxX = Math.max(maxX, left + width);
+    if (y !== null) {
+      loY = Math.min(loY, y - fs * 0.8);
+      maxY = Math.max(maxY, y + fs * 0.35);
+    }
+  }
+  const pad = 6;
+  if (loX < minX) loX -= pad;
+  if (maxX > minX + w) maxX += pad;
+  if (loY < minY) loY -= pad;
+  if (maxY > minY + h) maxY += pad;
+  const nw = Math.min(maxX - loX, MAX_VIEWBOX);
+  const nh = Math.min(maxY - loY, MAX_VIEWBOX);
+  const round = (n: number) => Math.round(n * 10) / 10;
+
+  rootAttrs = rootAttrs.replace(/\s(?:width|height|viewBox|preserveAspectRatio)="[^"]*"/g, "");
+  return `<svg viewBox="${round(loX)} ${round(loY)} ${round(nw)} ${round(nh)}"${rootAttrs}>${body}`;
 }
 
 // SVG ids share the page's id namespace, so an AI-written id="root" could

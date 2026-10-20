@@ -253,10 +253,40 @@ body {
 .lesson-embed svg {
   display: block;
   margin-inline: auto;
+  width: 100%;
   max-width: 100%;
   height: auto;
+  max-height: 30rem;
+  overflow: visible;
   color: var(--foreground);
 }
+/* Figures (svg, image) always sit on a white panel, in any theme, so dark
+   ink stays readable. Tokens are pinned to their light values here. */
+.lesson-figure {
+  --color-background: #faf7f3;
+  --color-surface: #ffffff;
+  --color-border: #e7e0d8;
+  --color-foreground: #1a1512;
+  --color-muted: #5f564b;
+  --color-primary: #534fe0;
+  --color-secondary: #c94a34;
+  --color-highlight: #926006;
+  --color-success: #1a8048;
+  --color-error: #cc3333;
+  color: #1a1512;
+}
+.lesson-panel {
+  background: #ffffff;
+  border: 1px solid #e7e0d8;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  color: #1a1512;
+  overflow: hidden;
+}
+.lesson-figure svg { color: #1a1512; }
+.lesson-figure svg text:not([fill]),
+.lesson-figure svg tspan:not([fill]) { fill: #1a1512; }
+.lesson-figure svg text { font-size: max(12px, 1em); }
 .lesson-embed table {
   width: 100%;
   border-collapse: collapse;
@@ -299,16 +329,19 @@ body {
 .lesson-embed h4 { font-weight: 600; }
 .lesson-embed figcaption,
 .lesson-embed .lesson-embed-caption {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
   color: var(--muted);
-  text-align: center;
+  text-align: left;
 }
 .lesson-embed img {
   display: block;
   margin-inline: auto;
+  width: 100%;
   max-width: 100%;
-  border-radius: 0.75rem;
-  border: 1px solid var(--border);
+  height: auto;
+  max-height: 30rem;
+  object-fit: contain;
 }
 
 @media (prefers-reduced-motion: reduce) {

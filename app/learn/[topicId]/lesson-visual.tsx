@@ -8,8 +8,8 @@ export function LessonVisual({ visual }: { visual: Visual | null | undefined }) 
   if (!visual) return null;
   if (visual.kind === "svg") {
     return (
-      <figure className="lesson-embed">
-        <div dangerouslySetInnerHTML={{ __html: visual.svg }} />
+      <figure className="lesson-embed lesson-figure">
+        <div className="lesson-panel" dangerouslySetInnerHTML={{ __html: visual.svg }} />
         {visual.caption && (
           <figcaption className="lesson-embed-caption">
             {visual.caption}
@@ -28,9 +28,11 @@ export function LessonVisual({ visual }: { visual: Visual | null | undefined }) 
   }
   if (visual.kind === "image" && visual.url) {
     return (
-      <figure className="lesson-embed">
-        {/* eslint-disable-next-line @next/next/no-img-element -- AI-generated image with unknown dimensions */}
-        <img src={visual.url} alt={visual.alt} />
+      <figure className="lesson-embed lesson-figure">
+        <div className="lesson-panel">
+          {/* eslint-disable-next-line @next/next/no-img-element -- AI-generated image with unknown dimensions */}
+          <img src={visual.url} alt={visual.alt} />
+        </div>
       </figure>
     );
   }
