@@ -20,6 +20,9 @@ import { getCoachTopicHistory } from "@/lib/supabase/coach-history";
 import { buildCoachContext, clampIndex, coveredSectionSet, sanitizePlan, sanitizeSession, summarizeHistory, summarizeSession } from "@/lib/lesson-coach-context";
 import { setSimplifiedLesson } from "@/lib/simplified-lessons";
 import { resolveProviderConfig } from "@/lib/ai/client";
+import { validateLesson, type LessonIssue } from "@/lib/lesson-validate";
+import { refreshStaleExamples } from "@/lib/lesson-edit";
+import { generateScenesForLesson } from "@/lib/ai/scenes";
 import { finalizeLessonContent, resanitizeLessonContent } from "@/lib/lesson-finalize";
 import type { LessonContent, LessonSection } from "@/lib/ai/lessons";
 import { withReferenceContext } from "@/lib/rag";
@@ -377,7 +380,9 @@ export async function uploadLessonImageAction(formData: FormData): Promise<strin
   return getFileUrl(fileId);
 }
 
-export async function saveSubtopicLessonAction(formData: FormData): Promise<void> {
+export type SaveLessonResult = { ok: false; issues: LessonIssue[] };
+
+export async function saveSubtopicLessonAction(formData: FormData): Promise<SaveLessonResult | void> {
   await requireAnyRole(["teacher", "admin"]);
   const subtopicId = formData.get("subtopicId");
   const rawContent = formData.get("content");
@@ -385,7 +390,7 @@ export async function saveSubtopicLessonAction(formData: FormData): Promise<void
     throw new Error("Missing subtopic lesson content.");
   }
 
-  const subtopic = await getSubtopic(subtopicId);
+  const [subtopic, stored] = await Promise.all([getSubtopic(subtopicId), getLessonBySubtopic(subtopicId)]);
   if (!subtopic) throw new Error("Subtopic not found.");
 
   let content: LessonContent;
@@ -395,25 +400,22 @@ export async function saveSubtopicLessonAction(formData: FormData): Promise<void
     throw new Error("The lesson contains invalid data. Check the edited fields and try again.");
   }
 
-  if (
-    !content ||
-    !Array.isArray(content.sections) ||
-    content.sections.length === 0 ||
-    content.sections.some((section: LessonSection) =>
-      !section.heading?.trim() ||
-      !section.explanation?.trim() ||
-      !section.example?.trim() ||
-      !section.check?.question?.trim()
-    )
-  ) {
-    throw new Error("Every section needs a heading, explanation, example, and check question.");
+  const issues = validateLesson(content);
+  if (issues.length) return { ok: false, issues };
+
+  // Edited example/heading/explanation text makes the stored animation stale:
+  // rebuild the steps now, then try for a fresh scene (best effort).
+  const { content: refreshed, changed } = refreshStaleExamples(stored, content);
+  let toSave = resanitizeLessonContent(refreshed);
+  if (changed.length) {
+    try {
+      toSave = await generateScenesForLesson(toSave, subtopic.topic.subject.name);
+    } catch {
+      // Never fail the save because the animation couldn't be generated.
+    }
   }
 
-  await createLessonForSubtopic(
-    subtopic.topic.id,
-    subtopic.id,
-    resanitizeLessonContent(content)
-  );
+  await createLessonForSubtopic(subtopic.topic.id, subtopic.id, toSave);
   revalidatePath(`/learn/subtopic/${subtopicId}`);
   redirect(`/learn/subtopic/${subtopicId}`);
 }
