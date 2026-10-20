@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, MoreHorizontal } from "lucide-react";
+import { AlertTriangle, Eye, MoreHorizontal, PencilLine } from "lucide-react";
 import { Button } from "@/components/button";
 
 // ── Scroll-to-advance ──────────────────────────────────────────────────────
@@ -119,3 +119,29 @@ export function QuitModal({ onKeepGoing, onQuit }: { onKeepGoing: () => void; on
   );
 }
 
+
+// ── Stage banners: "watch" (muted) vs "your turn" (primary) ───────────────
+export function WatchLabel({ children = "Worked example: watch how it is done" }: { children?: string }) {
+  return (
+    <p className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-muted">
+      <Eye className="size-4" strokeWidth={2} aria-hidden="true" /> {children}
+    </p>
+  );
+}
+
+export function YourTurnBanner({ instruction, status, next }: { instruction: string; status: string; next: string }) {
+  return (
+    <div className="mb-6 rounded-xl border-2 border-primary/40 bg-primary/10 px-4 py-3" role="group" aria-label="Your turn: try it">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="inline-flex items-center gap-2 font-[family-name:var(--font-display)] text-lg font-semibold text-primary">
+          <PencilLine className="size-5" strokeWidth={2} aria-hidden="true" /> Your turn: try it
+        </p>
+        <p className="rounded-full border border-primary/40 bg-background px-3 py-0.5 text-sm font-medium text-foreground" aria-live="polite">
+          {status}
+        </p>
+      </div>
+      <p className="mt-1 text-base font-medium text-foreground">{instruction}</p>
+      <p className="mt-0.5 text-sm text-muted">{next}</p>
+    </div>
+  );
+}

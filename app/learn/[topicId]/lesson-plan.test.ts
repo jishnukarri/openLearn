@@ -11,6 +11,11 @@ import {
   stageForStep,
   stepInstruction,
   stepLabel,
+  tryState,
+  tryStateLabel,
+  afterCheckText,
+  missHint,
+  canRetry,
 } from "./lesson-plan";
 
 const section = (i: number): LessonSection =>
@@ -95,5 +100,24 @@ describe("navigation helpers", () => {
     const firstCheck = plan.findIndex((s) => s.phase === "check");
     expect(isFirstOfPhase(plan, firstCheck)).toBe(true);
     expect(isFirstOfPhase(plan, plan.findIndex((s, i) => s.phase === "check" && i > firstCheck))).toBe(false);
+  });
+});
+
+describe("try-it step state", () => {
+  it("moves from empty to picked to checked", () => {
+    expect(tryStateLabel(tryState(false, null))).toBe("Not answered yet");
+    expect(tryStateLabel(tryState(true, null))).toBe("Answer picked");
+    expect(tryStateLabel(tryState(true, true))).toBe("Checked: correct");
+    expect(tryStateLabel(tryState(true, false))).toBe("Checked: not yet");
+  });
+  it("always says what happens next", () => {
+    expect(afterCheckText("wrong", true)).toMatch(/Try again/);
+    expect(afterCheckText("correct", true)).toMatch(/Got it, next/);
+    expect(afterCheckText("picked", false)).toMatch(/Check/);
+  });
+  it("offers a hint without the answer and allows one retry", () => {
+    expect(missHint(section(1))).toMatch(/^Hint:/);
+    expect(canRetry(1)).toBe(true);
+    expect(canRetry(2)).toBe(false);
   });
 });

@@ -219,3 +219,50 @@ export function isFirstOfPhase(plan: Step[], index: number): boolean {
   const phase = plan[index]?.phase;
   return !!phase && plan.findIndex((s) => s.phase === phase) === index;
 }
+
+// ── "Your turn" question steps ─────────────────────────────────────────────
+export type TryState = "empty" | "picked" | "correct" | "wrong";
+
+// Visible state of a question step: Not answered yet, Answer picked, Checked.
+export function tryState(hasDraft: boolean, result: boolean | null): TryState {
+  if (result === true) return "correct";
+  if (result === false) return "wrong";
+  return hasDraft ? "picked" : "empty";
+}
+
+export function tryStateLabel(state: TryState): string {
+  switch (state) {
+    case "picked":
+      return "Answer picked";
+    case "correct":
+      return "Checked: correct";
+    case "wrong":
+      return "Checked: not yet";
+    default:
+      return "Not answered yet";
+  }
+}
+
+// Plain words saying what happens next, so nothing is a surprise.
+export function afterCheckText(state: TryState, tapsToCheck: boolean): string {
+  switch (state) {
+    case "correct":
+      return "Well done. Press Got it, next to carry on.";
+    case "wrong":
+      return "Not yet. Read the hint, then press Try again, or see the answer.";
+    case "picked":
+      return tapsToCheck ? "Press Check my answer to see if you are right." : "Press Check to see if you are right.";
+    default:
+      return tapsToCheck ? "Tap an answer. You will see straight away if it is right." : "Pick or write an answer. Then press Check.";
+  }
+}
+
+// Hint offered after a first miss: points back at the idea, never the answer.
+export function missHint(sec: LessonSection): string {
+  return `Hint: think about this idea. ${takeawayFor(sec).line}`;
+}
+
+// After one miss the student may retry; a second miss shows the answer.
+export function canRetry(misses: number): boolean {
+  return misses < 2;
+}

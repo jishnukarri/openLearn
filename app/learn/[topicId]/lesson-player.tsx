@@ -30,10 +30,14 @@ import {
   recapSoFar,
   takeawayFor,
   clampStep,
+  tryState,
+  tryStateLabel,
+  afterCheckText,
+  missHint,
+  canRetry,
 } from "./lesson-plan";
-import { QuitModal } from "./lesson-parts";
+import { QuitModal, WatchLabel, YourTurnBanner } from "./lesson-parts";
 import { LessonHeader } from "./lesson-header";
-import { StuckHelp } from "./lesson-help";
 import { RecapPanel, TakeawayChip } from "./lesson-recap";
 import { ReportButton } from "@/components/report-button";
 
@@ -65,6 +69,20 @@ export function LessonPlayer({
 }) {
   useReducedMotionSafe();
   const router = useRouter();
+
+  // Coach panel: remembered per device on desktop; on phones it is a sheet
+  // that always starts closed.
+  useEffect(() => {
+    try {
+      if (window.matchMedia("(min-width: 1024px)").matches && localStorage.getItem("lesson-coach-open") === "1") setHelpOpen(true);
+    } catch {}
+  }, []);
+  function setCoachOpen(open: boolean) {
+    setHelpOpen(open);
+    try {
+      if (window.matchMedia("(min-width: 1024px)").matches) localStorage.setItem("lesson-coach-open", open ? "1" : "0");
+    } catch {}
+  }
 
   // Hide the site navbar while lesson is mounted
   useEffect(() => {
@@ -103,7 +121,11 @@ export function LessonPlayer({
   const [adaptedSections, setAdaptedSections] = useState<Set<number>>(new Set());
   const [showQuitModal, setShowQuitModal] = useState(false);
   const adaptRequested = useRef<Set<number>>(new Set());
-  const [helpOpen, setHelpOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false); // coach panel open
+  const [hasDraft, setHasDraft] = useState(false);
+  const [misses, setMisses] = useState(0);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [recapOpen, setRecapOpen] = useState(false);
   const [maxVisited, setMaxVisited] = useState(0);
   // Answers per step, so Back and forward again never loses work.
@@ -173,7 +195,9 @@ export function LessonPlayer({
       setFlashcardIdx(saved.flashcardIdx);
       setFlashcardSeen(saved.flashcardSeen);
     }
-    setHelpOpen(false);
+    try {
+      if (!window.matchMedia("(min-width: 1024px)").matches) setHelpOpen(false);
+    } catch {}
     setRecapOpen(false);
     setPlanIdx(idx);
     setMaxVisited((m) => Math.max(m, idx));
@@ -207,6 +231,10 @@ export function LessonPlayer({
 
   function resetStepState() {
     setCheckResult(null);
+    setHasDraft(false);
+    setMisses(0);
+    setShowAnswer(false);
+    setAttempt(0);
     setExampleRevealed(false);
     setFlashcardIdx(0);
     setFlashcardSeen(new Set());
@@ -294,18 +322,17 @@ export function LessonPlayer({
             recapCount={recapItems.length}
             onBack={back}
             onQuit={() => setShowQuitModal(true)}
-            onToggleHelp={() => { setHelpOpen((o) => !o); setRecapOpen(false); }}
+            onToggleHelp={() => { setCoachOpen(!helpOpen); setRecapOpen(false); }}
             onToggleRecap={() => { setRecapOpen((o) => !o); setHelpOpen(false); }}
           />
         )}
-        {!isDone && helpOpen && <StuckHelp key={stepKey} topicId={coachTopicId ?? topicId} context={tutorContext} />}
         {!isDone && recapOpen && <RecapPanel items={recapItems} />}
         <p className="sr-only" aria-live="polite" role="status">
           {isDone ? "Lesson complete" : step ? `${stepLabel(planIdx, plan.length)}. ${stageForStep(step, exampleRevealed)}.` : ""}
         </p>
 
         {/* ── Content ─────────────────────────────────────────────────── */}
-        <div className="grid w-full flex-1 lg:grid-cols-[minmax(0,1fr)_24rem] xl:grid-cols-[minmax(0,1fr)_28rem]">
+        <div className={`grid w-full flex-1 ${!isDone && helpOpen ? "lg:grid-cols-[minmax(0,1fr)_21.25rem]" : "lg:grid-cols-[minmax(0,1fr)_3.25rem]"}`}>
           <div key={stepKey} ref={stepRef} tabIndex={-1} className="animate-step-in mx-auto outline-none w-full max-w-4xl px-2 py-4 sm:px-4 lg:px-10 lg:py-10">
 
             {/* ── Interactive pre-lesson widget ───────────────────────── */}
@@ -379,9 +406,7 @@ export function LessonPlayer({
                         </div>
                       ) : (
                         <div className="mt-6 animate-fade-slide-up rounded-xl border border-border bg-surface p-5">
-                          <h3 className="mb-2 font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">
-                            Worked example
-                          </h3>
+                          <WatchLabel />
                           <p className="max-w-[65ch] text-base leading-relaxed text-foreground">
                             <RichText text={sec.example} />
                           </p>
@@ -419,10 +444,18 @@ export function LessonPlayer({
             {!isDone && step?.phase === "check" && (() => {
               const sec = displayedSections[step.sectionIndex];
               if (!sec) return null;
+              const state = tryState(hasDraft, checkResult);
+              const answerVisible = checkResult === true || (checkResult === false && (showAnswer || !canRetry(misses)));
+              const retryOffered = checkResult === false && !answerVisible;
               return (
                 <div className="w-full px-4 py-8 sm:px-6">
                   <div className="overflow-hidden rounded-2xl">
                     <div className="flex flex-col gap-6 pb-6">
+                      <YourTurnBanner
+                        instruction={stepInstruction(step, sec)}
+                        status={tryStateLabel(state)}
+                        next={afterCheckText(state, sec.check.kind === undefined || sec.check.kind === "mcq")}
+                      />
                       <div className="flex items-center gap-2">
                         <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
                           {sec.heading}
@@ -434,21 +467,15 @@ export function LessonPlayer({
                         )}
                       </div>
 
-                      <p className="font-[family-name:var(--font-display)] text-2xl leading-snug text-foreground">
+                      <p className="font-[family-name:var(--font-display)] text-2xl leading-snug text-foreground sm:text-3xl">
                         <RichText text={sec.check.question} />
                       </p>
 
-                      {checkResult === null ? (
-                        <>
-                          <Instruction>{stepInstruction(step, sec)}</Instruction>
-                          {showHint && <p className="-mt-3 text-sm text-muted">{primaryHint(step, sec)}</p>}
-                        </>
-                      ) : null}
-
                       <QuickCheck
-                        key={`check-${step.sectionIndex}`}
+                        key={`check-${step.sectionIndex}-${attempt}`}
                         check={sec.check}
-                        revealed={checkResult !== null}
+                        revealed={answerVisible}
+                        onDraft={setHasDraft}
                         onResult={(correct, el) => {
                           setCheckResult(correct);
                           const firstTry = !answered.has(step.sectionIndex);
@@ -460,7 +487,10 @@ export function LessonPlayer({
                               (rect.left + rect.width / 2) / window.innerWidth,
                               (rect.top + rect.height / 2) / window.innerHeight
                             );
-                          } else if (firstTry) {
+                          } else {
+                            setMisses((m) => m + 1);
+                          }
+                          if (!correct && firstTry) {
                             setWrongSections((prev) => new Set(prev).add(step.sectionIndex));
                             requestAdaptation(step.sectionIndex);
                           }
@@ -468,8 +498,28 @@ export function LessonPlayer({
                       />
                     </div>
 
+                    {retryOffered && (
+                      <div className="animate-fade-slide-up border-t-2 border-error/40 bg-error/10 p-5" role="group" aria-label="Not yet">
+                        <p className="mb-1 inline-flex items-center gap-2 text-base font-semibold text-error">
+                          <X className="size-4" strokeWidth={2.5} /> Not yet. You can try again.
+                        </p>
+                        <p className="mb-4 text-base text-foreground"><RichText text={missHint(sec)} /></p>
+                        <div className="flex flex-wrap gap-3">
+                          <Button
+                            className="min-h-12 px-8"
+                            onClick={() => { setCheckResult(null); setHasDraft(false); setAttempt((n) => n + 1); }}
+                          >
+                            Try again
+                          </Button>
+                          <Button variant="secondary" className="min-h-12 px-6" onClick={() => setShowAnswer(true)}>
+                            Show the answer
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Result panel */}
-                    {checkResult !== null && (
+                    {answerVisible && (
                       <div
                         className={`animate-fade-slide-up border-t-2 p-5 ${
                           checkResult ? "border-success/40 bg-success/10" : "border-error/40 bg-error/10"
@@ -685,7 +735,11 @@ export function LessonPlayer({
                     </span>
                   </div>
 
-                  <Instruction>{stepInstruction(step, sec)}</Instruction>
+                  <YourTurnBanner
+                    instruction={stepInstruction(step, sec)}
+                    status={tutorFeedback ? "Checked: marked" : tutorAnswer.trim() ? "Answer written" : "Not answered yet"}
+                    next={tutorFeedback ? "Read your feedback, then press Got it, next." : "Press Mark my answer when you are done. You get marks and feedback."}
+                  />
                   <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
                     {/* Question + context */}
                     <div className="rounded-2xl border border-border bg-surface p-6">
@@ -831,6 +885,16 @@ export function LessonPlayer({
             )}
 
             {/* ── Done screen ─────────────────────────────────────────── */}
+            {!isDone && (
+              <div className="px-4 pb-8 sm:px-6">
+                <ReportButton
+                  contextLabel={`Lesson: ${title ?? topicId}`}
+                  topicId={mode === "topic" ? topicId : undefined}
+                  subtopicId={mode === "subtopic" ? topicId : undefined}
+                />
+              </div>
+            )}
+
             {isDone && (
               <div className="w-full px-4 py-16 sm:px-6">
                 <DoneCard
@@ -845,17 +909,10 @@ export function LessonPlayer({
             )}
           </div>
 
-          {/* ── AI tutor sidebar ──────────────────────────────────── */}
+          {/* ── AI coach: slim collapsible side panel (bottom sheet on phones) ── */}
           {!isDone && (
-            <div className="flex flex-col gap-4 lg:sticky lg:top-[var(--lesson-bar,3.5rem)] lg:h-[calc(100dvh-var(--lesson-bar,3.5rem))] lg:border-l lg:border-border lg:bg-surface/40 lg:p-6">
-              <LessonTutor key={stepKey} topicId={coachTopicId ?? topicId} context={tutorContext} />
-              <div className="px-1">
-                <ReportButton
-                  contextLabel={`Lesson: ${title ?? topicId}`}
-                  topicId={mode === "topic" ? topicId : undefined}
-                  subtopicId={mode === "subtopic" ? topicId : undefined}
-                />
-              </div>
+            <div className="lg:sticky lg:top-[var(--lesson-bar,3.5rem)] lg:flex lg:h-[calc(100dvh-var(--lesson-bar,3.5rem))] lg:flex-col lg:overflow-hidden lg:border-l lg:border-border lg:bg-surface/40">
+              <LessonTutor key={stepKey} topicId={coachTopicId ?? topicId} context={tutorContext} open={helpOpen} onOpenChange={setCoachOpen} />
             </div>
           )}
         </div>

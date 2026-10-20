@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { LessonCheck } from "@/lib/ai/lessons";
 import { answersMatch } from "@/lib/question-marking";
 import { Button } from "@/components/button";
@@ -16,27 +16,37 @@ export function QuickCheck({
   check,
   onResult,
   revealed,
+  onDraft,
 }: {
   check: LessonCheck;
   onResult: (correct: boolean, el: HTMLElement) => void;
   revealed: boolean;
+  onDraft?: (hasDraft: boolean) => void;
 }) {
   switch (check.kind) {
     case "multi":
-      return <MultiCheck check={check} onResult={onResult} revealed={revealed} />;
+      return <MultiCheck check={check} onResult={onResult} revealed={revealed} onDraft={onDraft} />;
     case "short":
-      return <ShortCheck check={check} onResult={onResult} revealed={revealed} />;
+      return <ShortCheck check={check} onResult={onResult} revealed={revealed} onDraft={onDraft} />;
     case "matching":
-      return <MatchingCheck check={check} onResult={onResult} revealed={revealed} />;
+      return <MatchingCheck check={check} onResult={onResult} revealed={revealed} onDraft={onDraft} />;
     default:
-      return <McqCheck check={check} onResult={onResult} revealed={revealed} />;
+      return <McqCheck check={check} onResult={onResult} revealed={revealed} onDraft={onDraft} />;
   }
 }
 
 type ResultProps = {
   onResult: (correct: boolean, el: HTMLElement) => void;
   revealed: boolean;
+  onDraft?: (hasDraft: boolean) => void;
 };
+
+// Tells the step whether the student has picked/typed something yet.
+function useDraft(onDraft: ((d: boolean) => void) | undefined, has: boolean) {
+  useEffect(() => {
+    onDraft?.(has);
+  }, [onDraft, has]);
+}
 
 function McqCheck({
   check,
@@ -89,10 +99,12 @@ function MultiCheck({
   check,
   onResult,
   revealed,
+  onDraft,
 }: ResultProps & {
   check: Extract<LessonCheck, { kind: "multi" }>;
 }) {
   const [picked, setPicked] = useState<Set<number>>(new Set());
+  useDraft(onDraft, picked.size > 0);
   const correct = new Set(check.correctIndexes);
 
   return (
@@ -156,10 +168,12 @@ function ShortCheck({
   check,
   onResult,
   revealed,
+  onDraft,
 }: ResultProps & {
   check: Extract<LessonCheck, { kind: "short" }>;
 }) {
   const [text, setText] = useState("");
+  useDraft(check.wordBank && check.wordBank.length > 0 ? undefined : onDraft, text.trim().length > 0);
   // Word bank mode: tappable tiles build the answer (no typing)
   if (check.wordBank && check.wordBank.length > 0) {
     return (
@@ -167,6 +181,7 @@ function ShortCheck({
         check={check as Extract<LessonCheck, { kind: "short" }> & { wordBank: string[] }}
         onResult={onResult}
         revealed={revealed}
+        onDraft={onDraft}
       />
     );
   }
@@ -208,10 +223,12 @@ function WordBankCheck({
   check,
   onResult,
   revealed,
+  onDraft,
 }: ResultProps & {
   check: Extract<LessonCheck, { kind: "short" }> & { wordBank: string[] };
 }) {
   const [selected, setSelected] = useState<string[]>([]);
+  useDraft(onDraft, selected.length > 0);
   const assembled = selected.join(" ");
   const right = check.accepted.some((a) => answersMatch(assembled, a));
 
@@ -296,6 +313,7 @@ function MatchingCheck({
   check,
   onResult,
   revealed,
+  onDraft,
 }: ResultProps & {
   check: Extract<LessonCheck, { kind: "matching" }>;
 }) {
@@ -306,6 +324,7 @@ function MatchingCheck({
       .sort(() => Math.random() - 0.5)
   );
   const allPicked = check.pairs.every((_, i) => picks[i] !== undefined);
+  useDraft(onDraft, Object.keys(picks).length > 0);
   const correctRightIndex = (leftIndex: number) =>
     shuffledRights.findIndex((r) => r.index === leftIndex);
 
