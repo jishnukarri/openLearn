@@ -1,5 +1,6 @@
 "use client";
 
+import { StepNarration } from "@/components/step-narration";
 import { useCallback, useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw } from "lucide-react";
@@ -230,17 +231,16 @@ export function LessonScene({ scene, label = "Worked example animation" }: { sce
       <Panel>
         <svg viewBox={`${vx} ${vy} ${vw} ${vh}`} role="img" aria-label={scene.captions[shownStep]} style={{ width: "100%", height: "auto", maxHeight: "28rem", overflow: "visible", display: "block" }}>
           {scene.elements.map((el, i) =>
-            el.step <= shownStep ? <Shape key={`${run}-${i}`} el={el} animated={!reduce} /> : null
+            el.step < shownStep || (reduce && el.step <= shownStep) ? <Shape key={`${run}-${i}`} el={el} animated={!reduce} /> : el.step === shownStep ? (
+              <motion.g key={`${run}-${i}-${shownStep}`} animate={reduce ? undefined : { opacity: [1, 0.55, 1] }} transition={{ duration: 1.2, ease: "easeInOut", times: [0, 0.5, 1], delay: 0.5 }}>
+                <Shape el={el} animated={!reduce} />
+              </motion.g>
+            ) : null
           )}
         </svg>
       </Panel>
 
-      <p aria-live="polite" className="min-h-14 text-base leading-relaxed text-foreground">
-        <span className="mr-2 inline-flex size-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
-          {shownStep + 1}
-        </span>
-        {scene.captions[shownStep]}
-      </p>
+      <StepNarration steps={scene.captions} index={shownStep} />
 
       {total > 1 && (
         <div className="flex flex-wrap items-center gap-2">
@@ -278,7 +278,6 @@ export function LessonScene({ scene, label = "Worked example animation" }: { sce
               </button>
             ))}
           </div>
-          <span className="text-sm text-muted">Step {shownStep + 1} of {total}</span>
         </div>
       )}
     </div>

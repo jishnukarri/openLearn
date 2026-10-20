@@ -1,14 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Pause, Play, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import type { LessonVisual as Visual } from "@/lib/ai/lessons";
-import { RichText } from "@/components/rich-text";
 import { EASE_OUT } from "@/components/motion";
-import { visibleCount } from "@/lib/worked-example";
 import { LessonVisual } from "./lesson-visual";
 import { WatchLabel } from "./lesson-parts";
+import { StepNarration } from "@/components/step-narration";
 import { LessonScene } from "@/components/lesson-scene";
 import type { Scene } from "@/lib/lesson-scene";
 
@@ -75,7 +74,6 @@ function SteppedExample({ steps, visual }: { steps: string[]; visual?: Visual | 
     else if (e.key === "ArrowLeft") { e.preventDefault(); go(index - 1); }
   };
 
-  const shown = visibleCount(index, total, reduce);
   const atEnd = index >= total - 1;
 
   const hasImage = visual?.kind === "image" && !!visual.url && imageState !== "failed";
@@ -125,57 +123,11 @@ function SteppedExample({ steps, visual }: { steps: string[]; visual?: Visual | 
           className="mb-4 flex min-h-32 items-center rounded-lg bg-background p-5"
           aria-hidden={reduce ? true : undefined}
         >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={reduce ? "all" : index}
-              initial={reduce ? false : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduce ? undefined : { opacity: 0, y: -8 }}
-              transition={{ duration: 0.35, ease: EASE_OUT }}
-              className="flex items-start gap-4"
-            >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary font-display text-lg font-semibold text-white">
-                {index + 1}
-              </span>
-              <p className="text-lg leading-relaxed text-foreground">
-                <RichText text={steps[index] ?? ""} />
-              </p>
-            </motion.div>
-          </AnimatePresence>
+          <p className="text-base text-muted">Follow the steps below.</p>
         </div>
       )}
 
-      <ol className="flex flex-col gap-2" aria-live="polite">
-        <AnimatePresence initial={false}>
-          {steps.slice(0, shown).map((s, i) => {
-            const active = i === index && !reduce;
-            return (
-              <motion.li
-                key={i}
-                layout={!reduce}
-                initial={reduce ? false : { opacity: 0, x: -10 }}
-                animate={{ opacity: active || reduce ? 1 : 0.7, x: 0 }}
-                transition={{ duration: 0.4, ease: EASE_OUT }}
-                aria-current={active ? "step" : undefined}
-                className={`flex items-start gap-3 rounded-lg px-3 py-2 ${
-                  active ? "bg-primary/10 ring-1 ring-primary/40" : ""
-                }`}
-              >
-                <span
-                  className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                    active ? "bg-primary text-white" : "bg-border text-foreground"
-                  }`}
-                >
-                  {i + 1}
-                </span>
-                <span className="text-base leading-relaxed text-foreground">
-                  <RichText text={s} />
-                </span>
-              </motion.li>
-            );
-          })}
-        </AnimatePresence>
-      </ol>
+      <StepNarration steps={steps} index={index} />
 
       {!reduce && total > 1 && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -195,7 +147,6 @@ function SteppedExample({ steps, visual }: { steps: string[]; visual?: Visual | 
           <button type="button" className={controlClass} onClick={() => go(index + 1)} disabled={atEnd} aria-label="Next step">
             <ChevronRight className="size-4" strokeWidth={2} aria-hidden="true" />
           </button>
-          <span className="text-sm text-muted">Step {index + 1} of {total}</span>
         </div>
       )}
     </div>
