@@ -3,8 +3,10 @@
 //   OPENROUTER_API_KEY=sk-or-... bun scripts/compare-scene-models.ts
 //   bun scripts/compare-scene-models.ts --topic "Your topic here"
 //   bun scripts/compare-scene-models.ts --models deepseek/deepseek-v4.1-flash,openai/gpt-6-luna
+//   bun scripts/compare-scene-models.ts --provider hackclub   (uses HACKCLUB_API_KEY)
 //
-// The key is read from the environment or .env.local (OPENROUTER_API_KEY).
+// The key is read from the environment or .env.local (OPENROUTER_API_KEY, or
+// HACKCLUB_API_KEY with --provider hackclub).
 // Results go to .scene-compare/results.json; view them side by side, rendered
 // with the real scene player, at http://localhost:3000/dev/scene-compare
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -25,13 +27,20 @@ function arg(name: string): string | undefined {
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
 
+const PROVIDER = arg("provider") === "hackclub" ? "hackclub" : "openrouter";
+const ENDPOINT =
+  PROVIDER === "hackclub"
+    ? "https://ai.hackclub.com/proxy/v1/chat/completions"
+    : "https://openrouter.ai/api/v1/chat/completions";
+const KEY_NAME = PROVIDER === "hackclub" ? "HACKCLUB_API_KEY" : "OPENROUTER_API_KEY";
+
 function loadKey(): string {
-  if (process.env.OPENROUTER_API_KEY) return process.env.OPENROUTER_API_KEY;
+  if (process.env[KEY_NAME]) return process.env[KEY_NAME] as string;
   if (existsSync(".env.local")) {
-    const m = readFileSync(".env.local", "utf8").match(/^OPENROUTER_API_KEY=(.+)$/m);
+    const m = readFileSync(".env.local", "utf8").match(new RegExp(`^${KEY_NAME}=(.+)$`, "m"));
     if (m) return m[1].trim().replace(/^["']|["']$/g, "");
   }
-  console.error("Set OPENROUTER_API_KEY in your shell (or .env.local) and run again.");
+  console.error(`Set ${KEY_NAME} in your shell (or .env.local) and run again.`);
   process.exit(1);
 }
 
@@ -64,7 +73,7 @@ async function run(model: string, key: string, topic: string): Promise<Result> {
     'Reply with ONLY a JSON object of the form {"exampleScene": {...}} and nothing else.' +
     WORKED_EXAMPLE_GUIDE;
   try {
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const res = await fetch(ENDPOINT, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${key}`,
@@ -113,11 +122,12 @@ async function run(model: string, key: string, topic: string): Promise<Result> {
 }
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
-  console.log("Usage: bun scripts/compare-scene-models.ts [--topic \"...\"] [--models a/b,c/d]\nNeeds OPENROUTER_API_KEY in the environment or .env.local. Makes one paid call per model.");
+  console.log("Usage: bun scripts/compare-scene-models.ts [--topic \"...\"] [--models a/b,c/d]\nNeeds OPENROUTER_API_KEY (or HACKCLUB_API_KEY with --provider hackclub) in the environment or .env.local. Makes one call per model.");
   process.exit(0);
 }
 
 const key = loadKey();
+console.log(`Provider: ${PROVIDER}`);
 const topic = arg("topic") ?? DEFAULT_TOPIC;
 const models = (arg("models")?.split(",") ?? DEFAULT_MODELS).map((m) => m.trim());
 

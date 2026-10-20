@@ -3,7 +3,7 @@
 //   bun scripts/backfill-scenes.ts --limit 20          (dry run, default)
 //   bun scripts/backfill-scenes.ts --limit 20 --write  (saves)
 //
-// Needs OPENROUTER_API_KEY (and optional SCENE_MODEL) plus the DB env used by
+// Needs HACKCLUB_API_KEY or OPENROUTER_API_KEY (SCENE_PROVIDER picks; optional SCENE_MODEL) plus the DB env used by
 // lib/supabase. Dry run makes NO model calls; it only counts and estimates cost.
 import { readFileSync, existsSync } from "node:fs";
 
