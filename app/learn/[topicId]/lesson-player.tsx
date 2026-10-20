@@ -16,6 +16,7 @@ import { AiLoading } from "@/components/ai-loading";
 import { RichText } from "@/components/rich-text";
 import { LessonVisual } from "./lesson-visual";
 import { WorkedExample } from "./worked-example";
+import { builtinSceneFor } from "@/lib/builtin-scenes";
 import { resolveExampleSteps } from "@/lib/worked-example";
 import { QuickCheck } from "./quick-check";
 import { attemptSeed } from "@/lib/shuffle";
@@ -437,6 +438,7 @@ export function LessonPlayer({
                             key={step.sectionIndex}
                             steps={resolveExampleSteps(sec)}
                             visual={sec.exampleVisual}
+                            scene={sec.exampleScene ?? (sec.exampleVisual ? null : builtinSceneFor(sec.heading, sec.explanation))}
                           />
                         </div>
                       )}

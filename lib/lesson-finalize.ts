@@ -1,5 +1,6 @@
 import "server-only";
 import type { LessonContent, LessonInteractive, LessonVisual } from "@/lib/ai/lessons";
+import { parseScene } from "@/lib/lesson-scene";
 import { sanitizeLessonHtml, sanitizeLessonSvg } from "@/lib/lesson-sanitize";
 import { generateLessonImage } from "@/lib/ai/images";
 import { deepCollapseRepeatedChars } from "@/lib/text-sanitize";
@@ -23,6 +24,7 @@ export async function finalizeLessonContent(
       ...section,
       visual: await finalizeVisual(section.visual, topicId),
       exampleVisual: await finalizeVisual(section.exampleVisual, topicId),
+      exampleScene: parseScene(section.exampleScene),
       exampleSteps: cleanSteps(section.exampleSteps),
     }))
   );
@@ -44,6 +46,7 @@ export function resanitizeLessonContent(rawContent: LessonContent): LessonConten
       ...section,
       visual: sanitizeVisual(section.visual),
       exampleVisual: sanitizeVisual(section.exampleVisual),
+      exampleScene: parseScene(section.exampleScene),
       exampleSteps: cleanSteps(section.exampleSteps),
     })),
     interactive: sanitizeInteractive(content.interactive),

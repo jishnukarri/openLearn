@@ -9,6 +9,8 @@ import { EASE_OUT } from "@/components/motion";
 import { visibleCount } from "@/lib/worked-example";
 import { LessonVisual } from "./lesson-visual";
 import { WatchLabel } from "./lesson-parts";
+import { LessonScene } from "@/components/lesson-scene";
+import type { Scene } from "@/lib/lesson-scene";
 
 const STEP_MS = 3800;
 
@@ -22,10 +24,24 @@ const controlClass =
 export function WorkedExample({
   steps,
   visual,
+  scene,
 }: {
   steps: string[];
   visual?: Visual | null;
+  scene?: Scene | null;
 }) {
+  if (scene) {
+    return (
+      <div className="animate-fade-slide-up">
+        <WatchLabel />
+        <LessonScene scene={scene} />
+      </div>
+    );
+  }
+  return <SteppedExample steps={steps} visual={visual} />;
+}
+
+function SteppedExample({ steps, visual }: { steps: string[]; visual?: Visual | null }) {
   const reduce = !!useReducedMotion();
   const total = steps.length;
   const [index, setIndex] = useState(reduce ? total - 1 : 0);
