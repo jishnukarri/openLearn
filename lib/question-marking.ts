@@ -1,5 +1,6 @@
 import type { QuestionFormat } from "@/lib/ai/questions";
 import type { MarkingResult } from "@/lib/ai/marking";
+import { matchesExpected, isKeyTerm, normaliseWord, spellingNote } from "./spelling";
 
 // What the practice form posts for each format (JSON in `answerPayload`).
 export type AnswerPayload = {
@@ -127,36 +128,53 @@ function rationalValue(input: string): number | null {
 // Numeric-aware comparison: "0.50" matches "0.5", "3/10" matches "0.3",
 // otherwise normalized text.
 export function answersMatch(given: string, accepted: string): boolean {
+  return answersMatchDetailed(given, accepted).matched;
+}
+
+// Like answersMatch, but reports a key-term near-miss ("osmosys") so callers
+// can show a gentle spelling note while still awarding the mark.
+export function answersMatchDetailed(
+  given: string,
+  accepted: string
+): { matched: boolean; note?: string } {
   const g = norm(given);
   const a = norm(accepted);
-  if (g === a) return true;
+  if (g === a) return { matched: true };
 
   // Expand abbreviations on the raw strings (before norm strips trailing dots)
   // then norm the expanded result so casing/whitespace is still cleaned up.
   const ge = norm(expandAbbreviations(given));
   const ae = norm(expandAbbreviations(accepted));
-  if (ge === ae) return true;
-  if (ge === a || g === ae) return true;
+  if (ge === ae) return { matched: true };
+  if (ge === a || g === ae) return { matched: true };
 
   const gm = normalizeMathText(given);
   const am = normalizeMathText(accepted);
-  if (gm === am) return true;
+  if (gm === am) return { matched: true };
 
   const gf = parseFraction(g);
   const af = parseFraction(a);
   if (gf && af) {
-    return gf.numerator * af.denominator === af.numerator * gf.denominator;
+    return { matched: gf.numerator * af.denominator === af.numerator * gf.denominator };
   }
 
   const gn = rationalValue(g);
   const an = rationalValue(a);
-  if (gn !== null && an !== null && gn === an) return true;
+  if (gn !== null && an !== null && gn === an) return { matched: true };
 
   // Fuzzy: accept minor typos in longer words (spelling variations, UK/US).
   // Only fires after all exact and numeric checks have failed.
-  if (fuzzyMatch(ge, ae)) return true;
+  const sp = matchesExpected(ge, ae);
+  if (sp.matched) {
+    return sp.exact || !sp.misspelledKeyTerm
+      ? { matched: true }
+      : { matched: true, note: spellingNote(sp.misspelledKeyTerm) };
+  }
+  // Whole-string fallback only when no key term is involved.
+  const anyKey = normaliseWord(ae).split(" ").some((t) => isKeyTerm(t));
+  if (!anyKey && fuzzyMatch(ge, ae)) return { matched: true };
 
-  return false;
+  return { matched: false };
 }
 
 
@@ -327,7 +345,12 @@ export function autoMark(
     }
     case "short-answer": {
       const given = payload.text ?? "";
-      const hit = format.accepted.some((a) => answersMatch(given, a));
+      let note: string | undefined;
+      const hit = format.accepted.some((a) => {
+        const r = answersMatchDetailed(given, a);
+        if (r.matched && r.note) note = r.note;
+        return r.matched;
+      });
       if (!hit && given.trim() !== "") return null; // near-miss → AI judges
       return {
         marksAwarded: hit ? maxMarks : 0,
@@ -335,7 +358,7 @@ export function autoMark(
           {
             point: `Accepted answer: ${format.accepted[0] ?? ""}`,
             met: hit,
-            comment: hit ? "Exactly right." : "No answer given.",
+            comment: hit ? (note ? `Right. ${note}.` : "Exactly right.") : "No answer given.",
           },
         ],
       };

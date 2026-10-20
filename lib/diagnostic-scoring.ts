@@ -1,5 +1,6 @@
 import type { DiagnosticQuestion } from "@/lib/supabase/diagnostic";
 import { markNumeric, parseNumericAnswer } from "@/lib/question-marking";
+import { matchesExpected } from "./spelling";
 import { readNumericMeta } from "@/lib/diagnostic-numeric";
 
 // One diagnostic question's answer, submitted from a single level page.
@@ -42,10 +43,13 @@ export function scoreDiagnosticAnswerInstant(
           .replace(/^(a|an|the)\s+/, "")
           .replace(/[.,!?;:'"]+$/, "")
           .replace(/\s+/g, " ");
-      return typeof payload.blankText === "string" &&
-        normalize(payload.blankText) === normalize(content.blankAnswer)
-        ? 1
-        : 0;
+      if (typeof payload.blankText !== "string") return 0;
+      const gotN = normalize(payload.blankText);
+      const wantN = normalize(content.blankAnswer);
+      if (gotN === wantN) return 1;
+      // Fill-blank in diagnostics: expected answer is treated as a key term
+      // (stricter: exact, or 1 edit on 8+ chars) unless it is an ordinary word.
+      return matchesExpected(gotN, wantN).matched ? 1 : 0;
     }
     case "match": {
       const content = question.content as {
