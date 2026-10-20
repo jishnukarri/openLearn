@@ -18,6 +18,7 @@ import { resolveLessonContent } from "@/lib/class-content";
 import { resolveLessonForSubtopic } from "@/lib/subtopic-content";
 import { getCoachTopicHistory } from "@/lib/supabase/coach-history";
 import { buildCoachContext, clampIndex, coveredSectionSet, sanitizePlan, sanitizeSession, summarizeHistory, summarizeSession } from "@/lib/lesson-coach-context";
+import { setSimplifiedLesson } from "@/lib/simplified-lessons";
 import { resolveProviderConfig } from "@/lib/ai/client";
 import { finalizeLessonContent, resanitizeLessonContent } from "@/lib/lesson-finalize";
 import type { LessonContent, LessonSection } from "@/lib/ai/lessons";
@@ -278,6 +279,9 @@ export async function requestExtraHelpAction(formData: FormData): Promise<void> 
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
   const topicId = formData.get("topicId");
   if (typeof topicId !== "string") throw new Error("Missing topicId.");
+  if (!(await checkKeyRateLimit("extra-help", profile.id, 5, 10 * 60 * 1000))) {
+    throw new Error("You've asked for help a few times already. Please wait a few minutes and try again.");
+  }
 
   const topic = await getTopic(topicId);
   if (!topic) throw new Error("Topic not found.");
@@ -285,7 +289,13 @@ export async function requestExtraHelpAction(formData: FormData): Promise<void> 
   const config = await resolveProviderConfig(profile.id);
   const instructions = await withReferenceContext(topicId, topic.name, topic.custom_instructions);
   const lesson = await generateLesson(topic.name, topic.subject.name, true, instructions, config);
-  await createLesson(topicId, await finalizeLessonContent(lesson, topicId, topic.subject.name));
+  const finalized = await finalizeLessonContent(lesson, topicId, topic.subject.name);
+  if (profile.role === "student") {
+    // Students only get a simpler version for themselves; the shared lesson is untouched.
+    setSimplifiedLesson(profile.id, topicId, finalized);
+  } else {
+    await createLesson(topicId, finalized);
+  }
 
   redirect(`/learn/${topicId}`);
 }

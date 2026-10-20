@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireAnyRole } from "@/lib/appwrite/session";
 import { getTopic } from "@/lib/supabase/topics";
 import { resolveLessonContent } from "@/lib/class-content";
+import { getSimplifiedLesson } from "@/lib/simplified-lessons";
 import { resanitizeLessonContent } from "@/lib/lesson-finalize";
 import { getLessonPractice } from "@/lib/supabase/lesson-personalise";
 import { LessonPlayer } from "./lesson-player";
@@ -20,7 +21,8 @@ export default async function LessonPage({
   if (!topic) notFound();
 
   const isStudent = profile.role === "student";
-  const generated = await resolveLessonContent(topic, profile);
+  const generated =
+    (isStudent ? getSimplifiedLesson(profile.id, topicId) : null) ?? (await resolveLessonContent(topic, profile));
   const lesson = resanitizeLessonContent(generated);
 
   const practice = isStudent
