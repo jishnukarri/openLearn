@@ -27,11 +27,48 @@ const section = (i: number): LessonSection =>
   }) as LessonSection;
 
 describe("buildLessonPlan", () => {
-  it("starts with the interactive and hook, ends with recap then done", () => {
-    const plan = buildLessonPlan(true, true, [section(1), section(2), section(3)]);
-    expect(plan[0]).toEqual({ phase: "interactive" });
-    expect(plan[1]).toEqual({ phase: "hook" });
+  it("opens with the hook then teaching, and ends with recap", () => {
+    const plan = buildLessonPlan(true, true, [section(1), section(2), section(3)], { interactiveKind: "categorize" });
+    expect(plan[0]).toEqual({ phase: "hook" });
+    expect(plan[1]).toEqual({ phase: "teach", sectionIndex: 0 });
     expect(plan.at(-1)).toEqual({ phase: "recap" });
+  });
+
+  const kinds = [undefined, "categorize", "block_sort", "branching", "slider_sim"];
+  for (const kind of kinds) {
+    for (const hasPractice of [false, true]) {
+      it(`never puts an activity before the first teaching step (${kind}, practice=${hasPractice})`, () => {
+        for (const n of [1, 2, 5]) {
+          const plan = buildLessonPlan(!!kind, true, Array.from({ length: n }, (_, i) => section(i)), { interactiveKind: kind, hasPractice });
+          const firstTeach = plan.findIndex((s) => s.phase === "teach");
+          const firstActivity = plan.findIndex((s) => s.phase === "interactive" || s.phase === "practice" || s.phase === "check");
+          expect(firstTeach).toBeGreaterThanOrEqual(0);
+          expect(firstTeach).toBeLessThan(firstActivity === -1 ? Infinity : firstActivity);
+        }
+      });
+    }
+  }
+
+  it("places a sort activity after the last check, labelled Do it now", () => {
+    const plan = buildLessonPlan(true, false, [section(1), section(2)], { interactiveKind: "categorize" });
+    const i = plan.findIndex((s) => s.phase === "interactive");
+    const lastCheck = plan.map((s) => s.phase).lastIndexOf("check");
+    expect(i).toBeGreaterThan(lastCheck);
+    expect(stageForStep(plan[i])).toBe("Do it now");
+  });
+
+  it("keeps a slider-sim as an explanation right after the first teach step", () => {
+    const plan = buildLessonPlan(true, false, [section(1), section(2)], { interactiveKind: "slider_sim", hasPractice: true });
+    expect(plan[0]).toEqual({ phase: "teach", sectionIndex: 0 });
+    expect(plan[1]).toEqual({ phase: "interactive", role: "explore" });
+    expect(stageForStep(plan[1])).toBe("Learn it");
+  });
+
+  it("swaps the sort activity for personalised practice after teaching", () => {
+    const plan = buildLessonPlan(true, true, [section(1), section(2)], { interactiveKind: "categorize", hasPractice: true });
+    expect(plan.some((s) => s.phase === "interactive")).toBe(false);
+    expect(plan.at(-2)).toEqual({ phase: "practice" });
+    expect(stageForStep({ phase: "practice" })).toBe("Do it now");
   });
 
   it("teaches then checks every section in order", () => {

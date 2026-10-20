@@ -92,7 +92,7 @@ export function LessonPlayer({
 
   // Build the lesson plan once from sections
   const plan = useMemo(
-    () => buildLessonPlan(!!interactive, !!hook, sections),
+    () => buildLessonPlan(!!interactive, !!hook, sections, { interactiveKind: interactive?.kind ?? null }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
@@ -335,11 +335,11 @@ export function LessonPlayer({
         <div className={`grid w-full flex-1 ${!isDone && helpOpen ? "lg:grid-cols-[minmax(0,1fr)_21.25rem]" : "lg:grid-cols-[minmax(0,1fr)_3.25rem]"}`}>
           <div key={stepKey} ref={stepRef} tabIndex={-1} className="animate-step-in mx-auto outline-none w-full max-w-4xl px-2 py-4 sm:px-4 lg:px-10 lg:py-10">
 
-            {/* ── Interactive pre-lesson widget ───────────────────────── */}
+            {/* ── Interactive: explanation (slider) or post-teaching activity ── */}
             {!isDone && step?.phase === "interactive" && interactive && (
               <div className="w-full px-4 py-8 sm:px-6">
                 <Instruction>{stepInstruction(step)}</Instruction>
-                <LessonInteractiveWidget interactive={interactive} onContinue={next} />
+                <LessonInteractiveWidget interactive={interactive} onContinue={next} role={step.role ?? "consolidate"} />
               </div>
             )}
 

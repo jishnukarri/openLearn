@@ -2,7 +2,10 @@ import type { LessonCheck, LessonSection } from "@/lib/ai/lessons";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 export type Step =
-  | { phase: "interactive" }
+  // "explore" = a slider-sim explanation placed inside the teaching;
+  // otherwise a consolidation activity placed after the teaching.
+  | { phase: "interactive"; role?: "explore" | "consolidate" }
+  | { phase: "practice" }
   | { phase: "hook" }
   | { phase: "teach"; sectionIndex: number }
   | { phase: "check"; sectionIndex: number }
@@ -30,21 +33,29 @@ export function pickTutorIndex(sections: LessonSection[], i: number): number | n
 }
 
 // ── Lesson plan builder ────────────────────────────────────────────────────
-// Sequence: teach → check → (flashcard every even group) → (tutor every odd group) → recap
+// Sequence: hook → teach → check → (flashcard every even group) → (tutor every
+// odd group) → Do it now → recap. The lesson always opens with teaching: the
+// drag/sort activity (or personalised practice) comes only after it, and a
+// slider-sim is an explanation placed right after the first teaching step.
+// Reordering happens here at build time, so stored lessons keep working.
 export function buildLessonPlan(
   hasInteractive: boolean,
   hasHook: boolean,
-  sections: LessonSection[]
+  sections: LessonSection[],
+  opts: { interactiveKind?: string | null; hasPractice?: boolean } = {}
 ): Step[] {
   const plan: Step[] = [];
-  if (hasInteractive) plan.push({ phase: "interactive" });
+  const explore = hasInteractive && opts.interactiveKind === "slider_sim";
+  const consolidate = hasInteractive && !explore && !opts.hasPractice;
   if (hasHook) plan.push({ phase: "hook" });
+  if (hasInteractive && sections.length === 0) plan.push({ phase: "interactive", role: explore ? "explore" : "consolidate" });
 
   const N = sections.length;
   let lastWasTutor = false;
 
   for (let i = 0; i < N; i++) {
     plan.push({ phase: "teach", sectionIndex: i });
+    if (explore && i === 0) plan.push({ phase: "interactive", role: "explore" });
     plan.push({ phase: "check", sectionIndex: i });
 
     if (i < N - 1) {
@@ -76,6 +87,8 @@ export function buildLessonPlan(
       plan.push({ phase: "tutor", sectionIndex: finalTutorIndex });
     }
   }
+  if (N > 0 && opts.hasPractice) plan.push({ phase: "practice" });
+  else if (N > 0 && consolidate) plan.push({ phase: "interactive", role: "consolidate" });
   plan.push({ phase: "recap" });
   return plan;
 }
@@ -102,7 +115,7 @@ export function cardDefinition(text: string): string {
 
 
 // ── Student-facing navigation helpers ──────────────────────────────────────
-export type StageName = "Learn it" | "See an example" | "Try it" | "Check yourself" | "Wrap up";
+export type StageName = "Learn it" | "See an example" | "Try it" | "Do it now" | "Check yourself" | "Wrap up";
 
 export function stepLabel(index: number, total: number): string {
   return `Step ${Math.min(index + 1, total)} of ${total}`;
@@ -112,6 +125,9 @@ export function stepLabel(index: number, total: number): string {
 export function stageForStep(step: Step, exampleRevealed = false): StageName {
   switch (step.phase) {
     case "interactive":
+      return step.role === "explore" ? "Learn it" : "Do it now";
+    case "practice":
+      return "Do it now";
     case "hook":
       return "Learn it";
     case "teach":
@@ -130,7 +146,11 @@ export function stageForStep(step: Step, exampleRevealed = false): StageName {
 export function stepInstruction(step: Step, sec?: LessonSection): string {
   switch (step.phase) {
     case "interactive":
-      return "Have a play with this, then press the button when you are ready.";
+      return step.role === "explore"
+        ? "Move the sliders and watch what changes. This shows the idea you just read."
+        : "Now you try: sort what you just learned. Tap a card, then tap the column it belongs in, then press Check.";
+    case "practice":
+      return "Now you try: answer each question using what you just learned, then reveal the answer and say how you did.";
     case "hook":
       return "Read this, then press Start.";
     case "teach":
