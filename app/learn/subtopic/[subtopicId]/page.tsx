@@ -3,6 +3,7 @@ import { requireAnyRole } from "@/lib/appwrite/session";
 import { getSubtopic } from "@/lib/supabase/topics";
 import { resolveLessonForSubtopic } from "@/lib/subtopic-content";
 import { resanitizeLessonContent } from "@/lib/lesson-finalize";
+import { getLessonPractice } from "@/lib/supabase/lesson-personalise";
 import { LessonPlayer } from "../../[topicId]/lesson-player";
 import { SubtopicTweakForm } from "../../[topicId]/lesson-forms";
 import { SubtopicLessonEditor } from "@/components/subtopic-lesson-editor";
@@ -23,6 +24,14 @@ export default async function SubtopicLessonPage({
 
   const isPreview = profile.role !== "student";
 
+  const practice = isPreview
+    ? null
+    : await getLessonPractice({
+        studentId: profile.id,
+        topic: { id: subtopic.topic.id, name: subtopic.topic.name, subject_id: subtopic.topic.subject_id },
+        subtopic: { id: subtopic.id, name: subtopic.name },
+      });
+
   // Students get the same full-width, full-screen lesson experience as topic lessons.
   if (!isPreview) {
     return (
@@ -31,6 +40,7 @@ export default async function SubtopicLessonPage({
         hook={lesson.hook}
         interactive={lesson.interactive}
         sections={lesson.sections}
+        practice={practice}
         mode="subtopic"
         coachTopicId={subtopic.topic.id}
         title={subtopic.name}

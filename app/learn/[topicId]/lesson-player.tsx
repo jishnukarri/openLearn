@@ -16,6 +16,8 @@ import { RichText } from "@/components/rich-text";
 import { LessonVisual } from "./lesson-visual";
 import { QuickCheck } from "./quick-check";
 import { LessonTutor } from "./lesson-tutor";
+import { LessonPracticeStep } from "./lesson-practice";
+import type { LessonPractice } from "@/lib/lesson-personalise";
 import {
   type Step,
   buildLessonPlan,
@@ -47,6 +49,7 @@ export function LessonPlayer({
   hook,
   interactive,
   sections,
+  practice,
   practiceHref,
   flashcardsHref,
   coachTopicId,
@@ -59,6 +62,7 @@ export function LessonPlayer({
   hook?: string;
   interactive?: LessonInteractive | null;
   sections: LessonSection[];
+  practice?: LessonPractice | null;
   practiceHref?: string;
   flashcardsHref?: string;
   coachTopicId?: string;
@@ -92,7 +96,7 @@ export function LessonPlayer({
 
   // Build the lesson plan once from sections
   const plan = useMemo(
-    () => buildLessonPlan(!!interactive, !!hook, sections, { interactiveKind: interactive?.kind ?? null }),
+    () => buildLessonPlan(!!interactive, !!hook, sections, { interactiveKind: interactive?.kind ?? null, hasPractice: !!practice?.items.length }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
@@ -340,6 +344,13 @@ export function LessonPlayer({
               <div className="w-full px-4 py-8 sm:px-6">
                 <Instruction>{stepInstruction(step)}</Instruction>
                 <LessonInteractiveWidget interactive={interactive} onContinue={next} role={step.role ?? "consolidate"} />
+              </div>
+            )}
+
+            {/* ── Personalised practice, after the teaching ───────────── */}
+            {!isDone && step?.phase === "practice" && practice && (
+              <div className="w-full px-4 py-8 sm:px-6">
+                <LessonPracticeStep practice={practice} instruction={stepInstruction(step)} onDone={next} />
               </div>
             )}
 

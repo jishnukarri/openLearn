@@ -3,6 +3,7 @@ import { requireAnyRole } from "@/lib/appwrite/session";
 import { getTopic } from "@/lib/supabase/topics";
 import { resolveLessonContent } from "@/lib/class-content";
 import { resanitizeLessonContent } from "@/lib/lesson-finalize";
+import { getLessonPractice } from "@/lib/supabase/lesson-personalise";
 import { LessonPlayer } from "./lesson-player";
 import { SimplifyForm, TweakForm } from "./lesson-forms";
 import { ReportButton } from "@/components/report-button";
@@ -22,6 +23,10 @@ export default async function LessonPage({
   const generated = await resolveLessonContent(topic, profile);
   const lesson = resanitizeLessonContent(generated);
 
+  const practice = isStudent
+    ? await getLessonPractice({ studentId: profile.id, topic: { id: topic.id, name: topic.name, subject_id: topic.subject_id } })
+    : null;
+
   // Students get a full-page, full-width lesson experience
   if (isStudent) {
     return (
@@ -30,6 +35,7 @@ export default async function LessonPage({
         hook={lesson.hook}
         interactive={lesson.interactive}
         sections={lesson.sections}
+        practice={practice}
         exitHref="/dashboard"
         title={topic.name}
         subtitle={topic.subject.name}
@@ -58,6 +64,7 @@ export default async function LessonPage({
         hook={lesson.hook}
         interactive={lesson.interactive}
         sections={lesson.sections}
+        practice={practice}
         exitHref="/dashboard"
         title={topic.name}
         subtitle={topic.subject.name}
