@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { LessonCheck } from "@/lib/ai/lessons";
 import { answersMatch } from "@/lib/question-marking";
 import { Button } from "@/components/button";
@@ -9,6 +9,7 @@ import { RichText } from "@/components/rich-text";
 import { MatchingBoard } from "@/components/matching-board";
 import { ExplainBox } from "@/components/explain-box";
 import { explainCheckAnswerAction } from "@/app/actions/lessons";
+import { seededShuffle, shuffleOptions } from "@/lib/shuffle";
 
 const MCQ_LABELS = ["A", "B", "C", "D", "E"];
 
@@ -17,21 +18,24 @@ export function QuickCheck({
   onResult,
   revealed,
   onDraft,
+  seed = "check",
 }: {
   check: LessonCheck;
+  // Seed for this attempt: new attempt or revisit gives a new option order.
+  seed?: string;
   onResult: (correct: boolean, el: HTMLElement, picked?: string) => void;
   revealed: boolean;
   onDraft?: (hasDraft: boolean) => void;
 }) {
   switch (check.kind) {
     case "multi":
-      return <MultiCheck check={check} onResult={onResult} revealed={revealed} onDraft={onDraft} />;
+      return <MultiCheck check={check} onResult={onResult} revealed={revealed} onDraft={onDraft} seed={seed} />;
     case "short":
-      return <ShortCheck check={check} onResult={onResult} revealed={revealed} onDraft={onDraft} />;
+      return <ShortCheck check={check} onResult={onResult} revealed={revealed} onDraft={onDraft} seed={seed} />;
     case "matching":
-      return <MatchingCheck check={check} onResult={onResult} revealed={revealed} onDraft={onDraft} />;
+      return <MatchingCheck check={check} onResult={onResult} revealed={revealed} onDraft={onDraft} seed={seed} />;
     default:
-      return <McqCheck check={check} onResult={onResult} revealed={revealed} onDraft={onDraft} />;
+      return <McqCheck check={check} onResult={onResult} revealed={revealed} onDraft={onDraft} seed={seed} />;
   }
 }
 
@@ -39,6 +43,7 @@ type ResultProps = {
   onResult: (correct: boolean, el: HTMLElement, picked?: string) => void;
   revealed: boolean;
   onDraft?: (hasDraft: boolean) => void;
+  seed: string;
 };
 
 // Tells the step whether the student has picked/typed something yet.
@@ -52,15 +57,19 @@ function McqCheck({
   check,
   onResult,
   revealed,
+  seed,
 }: ResultProps & {
   check: Extract<LessonCheck, { correctIndex: number }>;
 }) {
   const [picked, setPicked] = useState<number | null>(null);
-  const wrong = revealed && picked !== null && picked !== check.correctIndex;
+  // Displayed order for this attempt; correctIndex follows the shuffle.
+  const view = useMemo(() => shuffleOptions(check.question, check.options, seed), [check.question, check.options, seed]);
+  const correctShown = view.position[check.correctIndex];
+  const wrong = revealed && picked !== null && picked !== correctShown;
   return (
     <div className="flex flex-col gap-2">
-      {check.options.map((option, idx) => {
-        const isCorrect = idx === check.correctIndex;
+      {view.options.map((option, idx) => {
+        const isCorrect = idx === correctShown;
         const state = revealed
           ? isCorrect
             ? "correct"
@@ -78,7 +87,7 @@ function McqCheck({
             label={MCQ_LABELS[idx]}
             onClick={(el) => {
               setPicked(idx);
-              onResult(isCorrect, el, check.options[idx]);
+              onResult(isCorrect, el, option);
             }}
           >
             <RichText text={option} />
@@ -100,17 +109,19 @@ function MultiCheck({
   onResult,
   revealed,
   onDraft,
+  seed,
 }: ResultProps & {
   check: Extract<LessonCheck, { kind: "multi" }>;
 }) {
   const [picked, setPicked] = useState<Set<number>>(new Set());
   useDraft(onDraft, picked.size > 0);
-  const correct = new Set(check.correctIndexes);
+  const view = useMemo(() => shuffleOptions(check.question, check.options, seed), [check.question, check.options, seed]);
+  const correct = new Set(check.correctIndexes.map((i) => view.position[i]));
 
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm text-muted">You can pick more than one.</p>
-      {check.options.map((option, idx) => {
+      {view.options.map((option, idx) => {
         const isSelected = picked.has(idx);
         const isCorrect = correct.has(idx);
         let style = isSelected
@@ -169,6 +180,7 @@ function ShortCheck({
   onResult,
   revealed,
   onDraft,
+  seed,
 }: ResultProps & {
   check: Extract<LessonCheck, { kind: "short" }>;
 }) {
@@ -182,6 +194,7 @@ function ShortCheck({
         onResult={onResult}
         revealed={revealed}
         onDraft={onDraft}
+        seed={seed}
       />
     );
   }
@@ -224,6 +237,7 @@ function WordBankCheck({
   onResult,
   revealed,
   onDraft,
+  seed,
 }: ResultProps & {
   check: Extract<LessonCheck, { kind: "short" }> & { wordBank: string[] };
 }) {
@@ -232,8 +246,8 @@ function WordBankCheck({
   const assembled = selected.join(" ");
   const right = check.accepted.some((a) => answersMatch(assembled, a));
 
-  // Shuffle word bank once on mount so it doesn't just show answer order
-  const [shuffled] = useState(() => [...check.wordBank].sort(() => Math.random() - 0.5));
+  // Seeded per attempt so the tiles move on retry but never between renders.
+  const shuffled = useMemo(() => seededShuffle(check.wordBank, seed), [check.wordBank, seed]);
 
   function toggleWord(word: string) {
     if (revealed) return;
@@ -314,14 +328,14 @@ function MatchingCheck({
   onResult,
   revealed,
   onDraft,
+  seed,
 }: ResultProps & {
   check: Extract<LessonCheck, { kind: "matching" }>;
 }) {
   const [picks, setPicks] = useState<Record<number, number>>({});
-  const [shuffledRights] = useState(() =>
-    check.pairs
-      .map((pair, index) => ({ label: pair.right, index }))
-      .sort(() => Math.random() - 0.5)
+  const shuffledRights = useMemo(
+    () => seededShuffle(check.pairs.map((pair, index) => ({ label: pair.right, index })), seed),
+    [check.pairs, seed]
   );
   const allPicked = check.pairs.every((_, i) => picks[i] !== undefined);
   useDraft(onDraft, Object.keys(picks).length > 0);
