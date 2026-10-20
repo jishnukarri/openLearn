@@ -9,6 +9,7 @@ import { AiLoading } from "@/components/ai-loading";
 import { Button } from "@/components/button";
 import { OptionButton } from "@/components/option-button";
 import { TextInput, TextArea } from "@/components/text-input";
+import { NumericAnswer } from "@/components/numeric-answer";
 import { MatchingBoard } from "@/components/matching-board";
 import { RichText } from "@/components/rich-text";
 import type { ClientDiagnosticQuestion } from "@/lib/diagnostic-client";
@@ -69,7 +70,9 @@ export function LevelForm({
       ? mcqIndex !== null
       : question.type === "fill_blank"
         ? blankText.trim().length > 0
-        : question.type === "short_answer"
+        : question.type === "numeric"
+          ? blankText.trim().length > 0
+          : question.type === "short_answer"
           ? shortAnswer.trim().length > 0
           : question.type === "match"
             ? question.lefts.every((_, i) => matches[i] !== undefined)
@@ -135,6 +138,10 @@ export function LevelForm({
           </div>
         );
       })()}
+
+      {question.type === "numeric" && (
+        <NumericAnswer value={blankText} onChange={setBlankText} unit={question.unit} />
+      )}
 
       {question.type === "match" && (
         <MatchingBoard

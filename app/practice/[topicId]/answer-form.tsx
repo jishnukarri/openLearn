@@ -16,6 +16,7 @@ import { RichText } from "@/components/rich-text";
 import { MatchingBoard } from "@/components/matching-board";
 import { ExplainBox } from "@/components/explain-box";
 import { AnswerEditor } from "@/components/answer-editor";
+import { NumericAnswer } from "@/components/numeric-answer";
 import { MathAnswerComposer } from "@/components/math-answer-composer";
 import {
   createPracticeUploadSessionAction,
@@ -216,6 +217,10 @@ export function AnswerForm({
               className={`${inputClass} flex-1`}
             />
           </div>
+        )}
+
+        {format.type === "numeric" && (
+          <NumericAnswer value={text} onChange={setText} unit={format.unit} />
         )}
 
         {format.type === "calculation" && (

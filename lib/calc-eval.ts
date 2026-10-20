@@ -33,8 +33,9 @@ function tokenize(src: string): Tok[] | null {
 }
 
 export function evaluateExpression(src: string, ans = 0): number | null {
-  const toks = tokenize(src);
-  if (!toks || toks.length === 0) return null;
+  const tokens = tokenize(src);
+  if (!tokens || tokens.length === 0) return null;
+  const toks: Tok[] = tokens;
   let p = 0;
   const peek = () => toks[p];
   const isOp = (v: string) => peek()?.t === "op" && (peek() as { v: string }).v === v;
