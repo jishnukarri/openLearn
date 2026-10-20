@@ -1,5 +1,6 @@
 "use client";
 
+import { AnswerFeedback, FeedbackDetailText } from "./answer-feedback";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -552,53 +553,26 @@ export function LessonPlayer({
                     )}
 
                     {/* Result panel */}
-                    {answerVisible && (
-                      <div
-                        className={`animate-fade-slide-up border-t-2 p-5 ${
-                          checkResult ? "border-success/40 bg-success/10" : "border-error/40 bg-error/10"
-                        }`}
-                      >
-                        <div className="mb-3 flex items-center gap-2">
-                          <span
-                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                              checkResult ? "bg-success text-white" : "bg-error text-white"
-                            }`}
-                          >
-                            {checkResult ? (
-                              <Check className="size-4" strokeWidth={2.5} />
-                            ) : (
-                              <X className="size-4" strokeWidth={2.5} />
-                            )}
-                          </span>
-                          <span className={`text-sm font-semibold ${checkResult ? "text-success" : "text-error"}`}>
-                            {checkResult ? "Correct!" : `Answer: ${getCorrectAnswerLabel(sec.check)}`}
-                          </span>
-                        </div>
-                        {(() => {
-                          const pos = sec.visualPosition ?? "middle";
-                          const vis = sec.visual ? (
-                            <div className="mb-3"><LessonVisual visual={sec.visual} /></div>
-                          ) : null;
-                          return (
+                    {answerVisible && (() => {
+                      const pos = sec.visualPosition ?? "middle";
+                      return (
+                        <AnswerFeedback
+                          correct={!!checkResult}
+                          answerLabel={checkResult ? "" : getCorrectAnswerLabel(sec.check)}
+                          explanation={sec.explanation}
+                          detail={
                             <>
-                              {pos === "top" && vis}
-                              <p className="mb-3 text-sm text-foreground">
-                                <RichText text={sec.explanation} />
-                              </p>
-                              {pos === "middle" && vis}
-                              <p className="mb-4 text-sm text-muted">
-                                <RichText text={sec.example} />
-                              </p>
-                              {pos === "bottom" && vis}
+                              {sec.visual && pos === "top" && <div className="mb-3"><LessonVisual visual={sec.visual} /></div>}
+                              <FeedbackDetailText explanation={sec.explanation} example={sec.example} />
+                              {sec.visual && pos !== "top" && <div className="mt-3"><LessonVisual visual={sec.visual} /></div>}
                             </>
-                          );
-                        })()}
-                        <div className="mb-4">
+                          }
+                        >
                           <TakeawayChip line={takeawayFor(sec).line} />
-                        </div>
-                        <PrimaryAction label="Got it, next" onClick={next} fullWidth />
-                      </div>
-                    )}
+                          <PrimaryAction label="Got it, next" onClick={next} fullWidth />
+                        </AnswerFeedback>
+                      );
+                    })()}
                   </div>
                 </div>
               );
