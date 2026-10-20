@@ -471,19 +471,24 @@ export async function tweakLesson(
   instruction: string,
   topicName: string,
   subjectName: string,
-  config?: ProviderConfig
+  config?: ProviderConfig,
+  customInstructions?: string | null
 ): Promise<LessonContent> {
+  const note = customInstructions?.trim()
+    ? `\n\nThe teacher's standing instructions for this topic (keep following them): ${customInstructions.trim()}`
+    : "";
   return chatJson<LessonContent>(
     `Here is an existing GCSE lesson on "${topicName}" (subject: ` +
       `"${subjectName}") as JSON:\n\n${JSON.stringify(current)}\n\n` +
       `Revise it according to this instruction from the reviewer: ` +
-      `"${instruction}". Keep the same overall structure (3-5 sections, ` +
+      `"${instruction}". Change only what the instruction asks. Keep the hook, interactive, other sections, their checks and exampleSteps unchanged unless the instruction explicitly concerns them. Keep the same overall structure (3-5 sections, ` +
       `each with a quick check) unless the instruction says otherwise. ` +
       `Each check's "kind" is one of: "mcq" (4 options, correctIndex), ` +
       `"multi" (options + correctIndexes, 2+ correct), "short" (accepted ` +
       `answers list), or "matching" (3-4 left/right pairs) — use whichever ` +
       `the instruction asks for or fits best. Return the complete revised ` +
       `lesson, not a diff.` +
+      note +
       VISUAL_GUIDE +
       STEPS_GUIDE,
     SCHEMA,

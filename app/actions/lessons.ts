@@ -325,7 +325,8 @@ export async function tweakLessonAction(formData: FormData): Promise<void> {
     instruction,
     topic.name,
     topic.subject.name,
-    config
+    config,
+    topic.custom_instructions
   );
   await createLesson(topicId, await finalizeLessonContent(revised, topicId, topic.subject.name));
 
@@ -354,7 +355,8 @@ export async function tweakSubtopicLessonAction(formData: FormData): Promise<voi
     instruction.trim(),
     subtopic.name,
     subtopic.topic.subject.name,
-    config
+    config,
+    subtopic.topic.custom_instructions
   );
   await createLessonForSubtopic(
     subtopic.topic.id,
