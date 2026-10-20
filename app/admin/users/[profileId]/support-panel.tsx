@@ -29,7 +29,7 @@ const ACTIONS: Record<
     button: "Reset password",
     title: "Reset this student's password?",
     explain:
-      "A new temporary password is created and shown to you once. Every device is signed out, so the student must sign in with it.",
+      "A new temporary password is created and shown to you once. Every device is signed out. The student must sign in with it, then choose a new password before doing anything else. They cannot reuse the temporary one.",
     confirm: "Reset password",
     pending: "Resetting password…",
   },
@@ -64,7 +64,7 @@ const ACTIONS: Record<
 };
 
 const ACTION_LABELS: Record<string, string> = {
-  reset_password: "Password reset",
+  reset_password: "Password reset (student must choose a new password at next login)",
   sign_out_everywhere: "Signed out everywhere",
   block_account: "Account blocked",
   unblock_account: "Account unblocked",
@@ -252,7 +252,7 @@ export function SupportPanel({
             </Button>
           </div>
           <p className="text-sm text-muted">
-            It will not be shown again. Tell the student to change it after signing in.
+            It will not be shown again. At next login the student must choose a new password and cannot reuse this one.
           </p>
         </div>
       )}
