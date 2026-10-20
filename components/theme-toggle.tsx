@@ -79,3 +79,20 @@ export function ThemeChoiceGroup() {
     </div>
   );
 }
+
+// Labelled row for the navbar user menu.
+export function ThemeMenuRow() {
+  const choice = useThemeChoice();
+  const resolved = choice === null ? null : resolveTheme(choice);
+  const next = resolved === "dark" ? "light" : "dark";
+  return (
+    <button
+      type="button"
+      onClick={() => applyTheme(next)}
+      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-foreground hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
+    >
+      {next === "dark" ? <Moon className="size-4" strokeWidth={2} aria-hidden /> : <Sun className="size-4" strokeWidth={2} aria-hidden />}
+      {resolved ? `${next === "dark" ? "Dark" : "Light"} mode` : "Colour mode"}
+    </button>
+  );
+}

@@ -3,7 +3,7 @@ import { getSession } from "@/lib/appwrite/session";
 import { getProfileByAppwriteId } from "@/lib/supabase/profiles";
 import { logout } from "@/app/actions/auth";
 import { roleHome } from "@/lib/roles";
-import { ThemeToggle } from "./theme-toggle";
+import { ThemeMenuRow, ThemeToggle } from "./theme-toggle";
 
 export async function NavBar() {
   const session = await getSession();
@@ -63,6 +63,7 @@ export async function NavBar() {
                 >
                   Account settings
                 </a>
+                <ThemeMenuRow />
                 <form action={logout}>
                   <button
                     type="submit"
