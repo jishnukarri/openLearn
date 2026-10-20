@@ -400,8 +400,9 @@ body {
   --sidebar-ring: #534fe0;
 }
 
-/* Fullscreen lesson mode — hides the app navbar */
-.lesson-mode header {
+/* Fullscreen lesson mode — hides the app navbar only (a direct child of body),
+   not the lesson's own header with the Quit button. */
+.lesson-mode > header {
   display: none !important;
 }
 
