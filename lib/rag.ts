@@ -1,4 +1,6 @@
 import "server-only";
+import { db } from "@/lib/supabase/database-client";
+import { composeInstructions } from "@/lib/instructions";
 import { extractTextFromFile } from "@/lib/extract-text";
 import { chunkText } from "@/lib/text-chunk";
 import { generateEmbedding } from "@/lib/ai/embeddings";
@@ -72,6 +74,11 @@ export async function withReferenceContext(
   baseInstructions?: string | null
 ): Promise<string | undefined> {
   const reference = await getReferenceContext(topicId, topicName);
-  const combined = [baseInstructions, reference].filter(Boolean).join("");
-  return combined || undefined;
+  const { data } = await db
+    .from("topics")
+    .select("subjects(custom_instructions)")
+    .eq("id", topicId)
+    .maybeSingle();
+  const subjectNote = (data as any)?.subjects?.custom_instructions as string | null | undefined;
+  return composeInstructions(subjectNote, baseInstructions, reference);
 }
