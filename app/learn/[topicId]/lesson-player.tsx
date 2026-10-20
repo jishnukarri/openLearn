@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { animated, useSpring, useTrail } from "@react-spring/web";
+import { animated, useTrail } from "@react-spring/web";
 import { X, Check, Trophy, PartyPopper, Puzzle, Sparkles, NotebookPen } from "lucide-react";
 import type { LessonSection, LessonInteractive } from "@/lib/ai/lessons";
 import { LessonInteractiveWidget } from "@/components/interactives/lesson-interactive";
-import { completeLessonAction, adaptNextSectionAction, markOpenAnswerAction } from "@/app/actions/lessons";
+import { completeLessonAction, adaptNextSectionAction, markOpenAnswerAction, type LessonCompletion } from "@/app/actions/lessons";
+import { CountUp } from "@/components/results-motion";
 import { celebrate, burstAt } from "@/lib/confetti";
 import { springs, useReducedMotionSafe } from "@/lib/motion";
 import { Button, ButtonLink } from "@/components/button";
@@ -125,7 +126,7 @@ export function LessonPlayer({
   const [correctCount, setCorrectCount] = useState(0);
   const [answered, setAnswered] = useState<Set<number>>(new Set());
   const [wrongSections, setWrongSections] = useState<Set<number>>(new Set());
-  const [xp, setXp] = useState<number | null>(null);
+  const [completion, setCompletion] = useState<LessonCompletion | null>(null);
   const [coachEdits, setCoachEdits] = useState<Record<number, { explanation: string; example: string }>>({});
   const [adaptedSections, setAdaptedSections] = useState<Set<number>>(new Set());
   const [showQuitModal, setShowQuitModal] = useState(false);
@@ -263,8 +264,12 @@ export function LessonPlayer({
   async function finish() {
     setIsDone(true);
     celebrate();
-    const result = await completeLessonAction(topicId, mode);
-    setXp(result.xp);
+    const result = await completeLessonAction(topicId, mode, {
+      firstTryCorrect: correctCount,
+      checksTotal: sections.length,
+      hintsUsed: coachSession.hints,
+    });
+    setCompletion(result);
   }
 
   function next() {
@@ -928,7 +933,7 @@ export function LessonPlayer({
                   exitHref={exitHref}
                   correctCount={correctCount}
                   total={sections.length}
-                  xp={xp}
+                  completion={completion}
                 />
               </div>
             )}
@@ -953,24 +958,19 @@ function DoneCard({
   exitHref,
   correctCount,
   total,
-  xp,
+  completion,
 }: {
   practiceHref: string;
   flashcardsHref: string;
   exitHref: string;
   correctCount: number;
   total: number;
-  xp: number | null;
+  completion: LessonCompletion | null;
 }) {
   const trail = useTrail(3, {
     from: { opacity: 0, y: 16, scale: 0.95 },
     to: { opacity: 1, y: 0, scale: 1 },
     config: springs.gentle,
-  });
-
-  const xpSpring = useSpring({
-    n: xp !== null ? 20 : 0,
-    config: { tension: 60, friction: 20 },
   });
 
   const perfect = correctCount === total;
@@ -1008,15 +1008,21 @@ function DoneCard({
           </p>
           <p className="text-xs text-muted">correct</p>
         </div>
-        {xp !== null && (
+        {completion !== null && completion.earned > 0 && (
           <div className="rounded-xl border border-highlight/40 bg-highlight/10 px-4 py-2 text-center">
             <p className="font-[family-name:var(--font-mono)] text-2xl font-bold text-highlight">
-              +<animated.span>{xpSpring.n.to((v) => Math.round(v))}</animated.span>
+              +<CountUp value={completion.earned} unit="" label={`${completion.earned} XP earned`} />
             </p>
-            <p className="text-xs text-muted">XP earned</p>
+            <p className="text-sm text-muted">XP earned</p>
           </div>
         )}
       </animated.div>
+
+      {completion !== null && completion.breakdown && (
+        <animated.p style={trail[1]} className="text-sm text-muted">
+          You earned {completion.earned} XP. {completion.breakdown}
+        </animated.p>
+      )}
 
       <animated.div style={trail[2]} className="flex w-full flex-col items-center gap-3">
         <ButtonLink href={practiceHref} className="w-full justify-center">

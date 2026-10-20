@@ -5,7 +5,7 @@ import { MotionConfig, animate, motion, useMotionValue, useReducedMotion } from 
 import { EASE_OUT } from "@/components/motion";
 
 // Counts up to a percentage so the headline number is earned, not dropped.
-export function CountUp({ value, className }: { value: number; className?: string }) {
+export function CountUp({ value, className, unit = "%", label }: { value: number; className?: string; unit?: string; label?: string }) {
   const reduce = useReducedMotion();
   const mv = useMotionValue(reduce ? value : 0);
   const [shown, setShown] = useState(reduce ? value : 0);
@@ -20,9 +20,9 @@ export function CountUp({ value, className }: { value: number; className?: strin
   }, [mv, value, reduce]);
 
   return (
-    <span className={className} aria-label={`${value} percent`}>
+    <span className={className} aria-label={label ?? `${value} percent`}>
       {shown}
-      <span className="text-[0.5em] text-muted">%</span>
+      {unit && <span className="text-[0.5em] text-muted">{unit}</span>}
     </span>
   );
 }

@@ -22,21 +22,67 @@ import { resolveProviderConfig } from "@/lib/ai/client";
 import { finalizeLessonContent, resanitizeLessonContent } from "@/lib/lesson-finalize";
 import type { LessonContent, LessonSection } from "@/lib/ai/lessons";
 import { withReferenceContext } from "@/lib/rag";
-import { awardXp, markTopicComplete, markSubtopicComplete } from "@/lib/supabase/progress";
+import { awardXp, awardRawXp, markTopicComplete, markSubtopicComplete, isTopicCompleted, getCompletedSubtopicIds } from "@/lib/supabase/progress";
+import { clampPerformance, lessonXp, xpBreakdownLine, type LessonPerformance } from "@/lib/lesson-xp";
 import { uploadFile, getFileUrl } from "@/lib/appwrite/storage";
+
+export type LessonCompletion = {
+  xp: number; // profile total after this award
+  streak: number;
+  earned: number;
+  breakdown: string;
+  repeat: boolean;
+  hintsUsed: number;
+};
 
 export async function completeLessonAction(
   id: string,
-  mode: "topic" | "subtopic" = "topic"
-): Promise<{ xp: number; streak: number }> {
+  mode: "topic" | "subtopic" = "topic",
+  rawPerformance?: Partial<LessonPerformance>
+): Promise<LessonCompletion> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
   // Only real students earn XP and progress — admin/teacher visits are previews.
-  if (profile.role !== "student") return { xp: profile.xp, streak: profile.streak_count };
+  if (profile.role !== "student") {
+    return { xp: profile.xp, streak: profile.streak_count, earned: 0, breakdown: "", repeat: false, hintsUsed: 0 };
+  }
 
-  await awardXp(profile.id, 2); // 20 XP for finishing a lesson
+  const repeat =
+    mode === "subtopic"
+      ? (await getCompletedSubtopicIds(profile.id)).has(id)
+      : await isTopicCompleted(profile.id, id);
+
+  // The number of checks comes from the stored lesson, not the client.
+  let serverChecks = Math.round(Number(rawPerformance?.checksTotal)) || 0;
+  try {
+    if (mode === "subtopic") {
+      const sub = await getSubtopic(id);
+      if (sub) serverChecks = (await resolveLessonForSubtopic(sub, profile.id)).sections.length;
+    } else {
+      const topic = await getTopic(id);
+      if (topic) serverChecks = (await resolveLessonContent(topic, profile)).sections.length;
+    }
+  } catch {
+    // keep the clamped client figure
+  }
+  const perf = clampPerformance(rawPerformance, serverChecks);
+
+  let result = lessonXp(perf, { repeat });
+  // Replays pay a little, but only a few per day.
+  if (repeat && !await checkKeyRateLimit("lesson-repeat-xp", profile.id, 5, 24 * 60 * 60_000)) {
+    result = { ...result, total: 0 };
+  }
+
+  await awardRawXp(profile.id, result.total);
   if (mode === "subtopic") await markSubtopicComplete(profile.id, id);
   else await markTopicComplete(profile.id, id);
-  return { xp: profile.xp + 20, streak: profile.streak_count };
+  return {
+    xp: profile.xp + result.total,
+    streak: profile.streak_count,
+    earned: result.total,
+    breakdown: result.total === 0 ? "Daily limit for repeat lessons reached." : xpBreakdownLine(result),
+    repeat,
+    hintsUsed: result.hintsUsed,
+  };
 }
 
 // Finishing a recall deck is revision: students earn 10 XP for it. The

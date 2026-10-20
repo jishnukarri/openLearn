@@ -47,6 +47,12 @@ export async function getCompletedTopicIds(studentId: string): Promise<Set<strin
 
 // XP per mark, plus a streak bump — called once per submitted answer.
 export async function awardXp(profileId: string, marksAwarded: number): Promise<void> {
+  await awardRawXp(profileId, marksAwarded * 10);
+}
+
+// Same as awardXp but takes XP directly (lesson XP is not a multiple of 10).
+export async function awardRawXp(profileId: string, xpAmount: number): Promise<void> {
+  const amount = Math.max(0, Math.round(xpAmount));
   const { data: profile, error: fetchError } = await db
     .from("profiles")
     .select("xp, streak_count, last_active_date")
@@ -65,7 +71,7 @@ export async function awardXp(profileId: string, marksAwarded: number): Promise<
   const { error: updateError } = await db
     .from("profiles")
     .update({
-      xp: profile.xp + marksAwarded * 10,
+      xp: profile.xp + amount,
       streak_count: streak,
       last_active_date: today,
     })
