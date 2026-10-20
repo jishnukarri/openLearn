@@ -1,6 +1,7 @@
 import "server-only";
 
 import { chatJson, type ProviderConfig } from "./client";
+import { COACH_SCOPE_RULE } from "@/lib/lesson-coach-context";
 
 const TUTOR_SCHEMA = {
   type: "object",
@@ -20,6 +21,13 @@ export type CoachTurn = {
   options: string[];
   correctIndex: number;
   explanation: string;
+};
+
+// Scoped coaching extras. lessonContext then holds ONLY the material up to
+// the student's current step; nothing later is ever sent.
+export type CoachScope = {
+  coveredTopics: string[];
+  studentSummary: string; // session + topic history, already token-capped
 };
 
 export type CoachHistoryItem = { role: "student" | "coach"; text: string };
@@ -44,7 +52,8 @@ export async function askLessonTutor(
   lessonContext: string,
   history: CoachHistoryItem[],
   message: string,
-  config: ProviderConfig
+  config: ProviderConfig,
+  scope?: CoachScope
 ): Promise<CoachTurn> {
   const transcript = history
     .slice(-8)
@@ -53,8 +62,18 @@ export async function askLessonTutor(
 
   const result = await chatJson<CoachTurn>(
     `You are a friendly, sharp GCSE study coach. The student is working ` +
-      `through a lesson on "${topicName}" in ${subjectName}. The step on ` +
-      `screen is:\n${lessonContext}\n\n` +
+      `through a lesson on "${topicName}" in ${subjectName}. ` +
+      (scope
+        ? `Lesson material covered so far (the ONLY material you may use):\n${lessonContext}\n\n` +
+          `Covered topics: ${scope.coveredTopics.join(", ") || "none yet"}.\n` +
+          `${COACH_SCOPE_RULE} Quiz questions must be answerable from that material alone. ` +
+          `Never reveal the answer to a check question the student has not answered yet.\n` +
+          (scope.studentSummary
+            ? `About this student (use lightly, never quote it back verbatim): ${scope.studentSummary}\n` +
+              `Favour questions on material they got wrong, if it is in the covered material. If they have just got a question wrong, your first suggestion should refer to it, for example "You picked X on the last question, want to go through why?". When they are just starting, offer a quick quiz on what is covered so far.\n`
+            : `When they are just starting, offer a quick quiz on what is covered so far.\n`) +
+          `\n`
+        : `The step on screen is:\n${lessonContext}\n\n`) +
       (transcript ? `Conversation so far:\n${transcript}\n\n` : "") +
       `Student now says: "${message}"\n\n` +
       `Do not penalise spelling, grammar or punctuation, except where a key scientific term is misspelled so that it becomes a different or ambiguous term.\n\n` +

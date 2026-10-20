@@ -14,6 +14,10 @@ import {
 import { generateLesson, tweakLesson } from "@/lib/ai/lessons";
 import { askLessonTutor, rewriteLessonStep, adaptNextSection, type CoachTurn, type CoachHistoryItem } from "@/lib/ai/lesson-tutor";
 import { explainAnswer } from "@/lib/ai/explain";
+import { resolveLessonContent } from "@/lib/class-content";
+import { resolveLessonForSubtopic } from "@/lib/subtopic-content";
+import { getCoachTopicHistory } from "@/lib/supabase/coach-history";
+import { buildCoachContext, clampIndex, coveredSectionSet, sanitizePlan, sanitizeSession, summarizeHistory, summarizeSession } from "@/lib/lesson-coach-context";
 import { resolveProviderConfig } from "@/lib/ai/client";
 import { finalizeLessonContent, resanitizeLessonContent } from "@/lib/lesson-finalize";
 import type { LessonContent, LessonSection } from "@/lib/ai/lessons";
@@ -63,14 +67,22 @@ export async function explainCheckAnswerAction({
 
 export async function askLessonTutorAction({
   topicId,
-  context,
+  mode = "topic",
+  lessonId,
   question,
   history = [],
+  stepIndex = 0,
+  plan: rawPlan,
+  session: rawSession,
 }: {
   topicId: string;
-  context: string;
+  mode?: "topic" | "subtopic";
+  lessonId?: string;
   question: string;
   history?: CoachHistoryItem[];
+  stepIndex?: number;
+  plan?: unknown;
+  session?: unknown;
 }): Promise<CoachTurn> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
   if (!await checkKeyRateLimit("lesson-coach", profile.id, 20, 60_000)) {
@@ -83,14 +95,32 @@ export async function askLessonTutorAction({
   const topic = await getTopic(topicId);
   if (!topic) throw new Error("Topic not found.");
 
+  // Lesson text comes from the stored lesson, never from the client. The
+  // client only sends the plan's shape and a step index, both validated.
+  let lesson: LessonContent;
+  if (mode === "subtopic") {
+    const sub = lessonId ? await getSubtopic(lessonId) : null;
+    if (!sub || sub.topic.id !== topic.id) throw new Error("Lesson not found.");
+    lesson = resanitizeLessonContent(await resolveLessonForSubtopic(sub, profile.id));
+  } else {
+    lesson = resanitizeLessonContent(await resolveLessonContent(topic, profile));
+  }
+  const plan = sanitizePlan(rawPlan, lesson.sections.length);
+  const cur = clampIndex(stepIndex, plan.length);
+  const ctx = buildCoachContext({ plan, sections: lesson.sections, hook: lesson.hook, stepIndex: cur });
+  const covered = coveredSectionSet(plan, cur);
+  const sessionText = summarizeSession(sanitizeSession(rawSession, lesson.sections.length), lesson.sections, covered);
+  const historyText = summarizeHistory(await getCoachTopicHistory(profile.id, topic.id, topic.subject.id, topic.name));
+
   const config = await resolveProviderConfig(profile.id);
   return askLessonTutor(
     topic.name,
     topic.subject.name,
-    context.slice(0, 4000),
+    ctx.text,
     history.slice(-8).map((h) => ({ role: h.role === "student" ? "student" : "coach", text: String(h.text).slice(0, 600) })),
     question.trim(),
-    config
+    config,
+    { coveredTopics: ctx.coveredTopics, studentSummary: [sessionText, historyText].filter(Boolean).join(" ") }
   );
 }
 
