@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/appwrite/session";
 import { createServerUsers } from "@/lib/appwrite/server";
 import { checkKeyRateLimit } from "@/lib/rate-limit";
 import { db } from "@/lib/supabase/database-client";
+import { MUST_CHANGE_PASSWORD_PREF } from "@/lib/password-policy";
 import { logAdminAction } from "@/lib/supabase/admin-audit";
 
 export type SupportResult =
@@ -91,10 +92,12 @@ export async function resetPassword(profileId: string, reason: string): Promise<
     async (id) => {
       const users = createServerUsers();
       await users.updatePassword({ userId: id, password: tempPassword });
+      const prefs = await users.getPrefs(id);
+      await users.updatePrefs(id, { ...prefs, [MUST_CHANGE_PASSWORD_PREF]: true });
       await users.deleteSessions({ userId: id });
       return { tempPassword };
     },
-    "Password reset and all sessions signed out."
+    "Password reset and all sessions signed out. The student must choose a new password at next login."
   );
 }
 

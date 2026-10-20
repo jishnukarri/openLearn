@@ -11,6 +11,7 @@ import {
 } from "@/lib/appwrite/server";
 import { SESSION_COOKIE } from "@/lib/appwrite/session";
 import { createProfile, getProfileByAppwriteId } from "@/lib/supabase/profiles";
+import { PasswordSchema, readMustChangePassword, FORCED_PASSWORD_PATH } from "@/lib/password-policy";
 import { roleHome } from "@/lib/roles";
 import { isHttpsRequest } from "@/lib/cookie-options";
 import { checkRateLimit, checkKeyRateLimit } from "@/lib/rate-limit";
@@ -33,7 +34,7 @@ export type AuthFormState =
 const SignupSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long.").trim(),
   email: z.email("Please enter a valid email.").trim(),
-  password: z.string().min(8, "Password must be at least 8 characters long."),
+  password: PasswordSchema,
 });
 
 const LoginSchema = z.object({
@@ -161,6 +162,7 @@ export async function login(
   const { email, password } = validated.data;
 
   let userId: string;
+  let mustChange = false;
   try {
     // Verifies the password (throws on mismatch). Its secret is unusable —
     // see the comment in signup() — so we only use it to confirm the
@@ -184,6 +186,13 @@ export async function login(
     }
     return { message: "Incorrect email or password." };
   }
+
+  try {
+    mustChange = readMustChangePassword(await createServerUsers().getPrefs(userId));
+  } catch {
+    // Guards re-check the flag on the next request anyway.
+  }
+  if (mustChange) redirect(FORCED_PASSWORD_PATH);
 
   const profile = await getProfileByAppwriteId(userId);
 

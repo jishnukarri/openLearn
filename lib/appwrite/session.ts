@@ -6,6 +6,7 @@ import { createSessionClient } from "./server";
 import { getProfileByAppwriteId, type ProfileRole } from "@/lib/supabase/profiles";
 import { canManageSubject } from "@/lib/roles";
 import { getSubject } from "@/lib/supabase/subjects";
+import { forcedPasswordRedirect, readMustChangePassword } from "@/lib/password-policy";
 
 export const SESSION_COOKIE = "openlearn_session";
 
@@ -20,7 +21,13 @@ export const getSession = cache(async () => {
   try {
     const account = createSessionClient(secret);
     const user = await account.get();
-    return { userId: user.$id, email: user.email, name: user.name };
+    // account.get() already returns prefs, so the flag costs no extra call.
+    return {
+      userId: user.$id,
+      email: user.email,
+      name: user.name,
+      mustChangePassword: readMustChangePassword(user.prefs),
+    };
   } catch {
     return null;
   }
@@ -29,6 +36,8 @@ export const getSession = cache(async () => {
 export async function requireSession() {
   const session = await getSession();
   if (!session) redirect("/login");
+  const forced = forcedPasswordRedirect(session);
+  if (forced) redirect(forced);
   return session;
 }
 
