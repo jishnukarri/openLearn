@@ -21,7 +21,7 @@ export type Step =
 // that never get shown in this free-text format, so reusing their question
 // text here reads as broken/nonsensical rather than as an essay prompt.
 export function isTutorFriendly(sec: LessonSection): boolean {
-  return sec.check.kind === "short";
+  return sec?.check?.kind === "short";
 }
 
 // Picks the best section index for a tutor step within a just-finished
@@ -172,7 +172,7 @@ export function stepInstruction(step: Step, sec?: LessonSection): string {
     case "teach":
       return "Read the idea below, then press Show me how to see it in action.";
     case "check": {
-      const kind = sec?.check.kind;
+      const kind = sec?.check?.kind;
       if (kind === "multi") return "Tap every answer you think is right, then press Check my answer.";
       if (kind === "matching") return "Match each item on the left to the right one, then check.";
       if (kind === "short") return "Fill in the answer, then press Check my answer.";
@@ -193,7 +193,7 @@ export function stepInstruction(step: Step, sec?: LessonSection): string {
 export function primaryHint(step: Step, sec?: LessonSection): string {
   switch (step.phase) {
     case "check": {
-      const kind = sec?.check.kind;
+      const kind = sec?.check?.kind;
       if (kind === "multi" || kind === "short" || kind === "matching") return "Pick or write an answer, then press Check.";
       return "Tap an answer and you will see straight away if you got it.";
     }

@@ -42,7 +42,9 @@ export function resanitizeLessonContent(rawContent: LessonContent): LessonConten
   const content = deepCollapseRepeatedChars(rawContent);
   return {
     ...content,
-    sections: (content.sections ?? []).map((section) => ({
+    // A section with no check can't be played (the plan and player both read
+    // section.check), so a malformed stored section is dropped, not rendered.
+    sections: (content.sections ?? []).filter((section) => section && section.check).map((section) => ({
       ...section,
       visual: sanitizeVisual(section.visual),
       exampleVisual: sanitizeVisual(section.exampleVisual),
