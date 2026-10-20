@@ -22,6 +22,8 @@ export async function finalizeLessonContent(
     (content.sections ?? []).map(async (section) => ({
       ...section,
       visual: await finalizeVisual(section.visual, topicId),
+      exampleVisual: await finalizeVisual(section.exampleVisual, topicId),
+      exampleSteps: cleanSteps(section.exampleSteps),
     }))
   );
   return {
@@ -41,6 +43,8 @@ export function resanitizeLessonContent(rawContent: LessonContent): LessonConten
     sections: (content.sections ?? []).map((section) => ({
       ...section,
       visual: sanitizeVisual(section.visual),
+      exampleVisual: sanitizeVisual(section.exampleVisual),
+      exampleSteps: cleanSteps(section.exampleSteps),
     })),
     interactive: sanitizeInteractive(content.interactive),
   };
@@ -71,6 +75,15 @@ function sanitizeInteractive(
     default:
       return null;
   }
+}
+
+function cleanSteps(steps: string[] | undefined | null): string[] | undefined {
+  const out = (Array.isArray(steps) ? steps : [])
+    .filter((x): x is string => typeof x === "string")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  return out.length ? out : undefined;
 }
 
 function sanitizeVisual(
@@ -106,5 +119,10 @@ async function finalizeVisual(
     cleaned.url ??
     (await generateLessonImage(cleaned.prompt, topicId)) ??
     undefined;
+  if (!url) {
+    // Kept (prompt + alt, no url) so the failure is visible in stored data;
+    // the player falls back to the animated step frame for it.
+    console.error("Lesson image not generated; saved without url:", cleaned.alt);
+  }
   return { ...cleaned, url };
 }

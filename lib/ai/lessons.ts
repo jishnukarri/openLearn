@@ -93,6 +93,10 @@ export type LessonSection = {
   heading: string;
   explanation: string;
   example: string;
+  // Worked-example visual (diagram or image) and short step annotations the
+  // player animates over it. Optional: older lessons derive steps from `example`.
+  exampleVisual?: LessonVisual | null;
+  exampleSteps?: string[];
   visual?: LessonVisual | null;
   visualPosition?: "top" | "middle" | "bottom";
   check: LessonCheck;
@@ -236,6 +240,23 @@ const SCHEMA = {
             },
             required: ["kind"],
           },
+          exampleVisual: {
+            type: "object",
+            properties: {
+              kind: { type: "string", enum: ["svg", "html", "image"] },
+              svg: { type: "string" },
+              html: { type: "string" },
+              caption: { type: "string" },
+              prompt: { type: "string" },
+              alt: { type: "string" },
+            },
+            required: ["kind"],
+          },
+          exampleSteps: {
+            type: "array",
+            description: "3-5 short annotations (one short sentence each) walking through the worked example in order.",
+            items: { type: "string" },
+          },
           check: {
             type: "object",
             properties: {
@@ -284,6 +305,16 @@ const SCHEMA = {
 // Shared prompt snippet describing when and how a section may carry a
 // visual. Kept in lockstep with the allowlists in lib/lesson-sanitize.ts
 // and the theme tokens in app/globals.css.
+const WORKED_EXAMPLE_GUIDE =
+  `\n\nEVERY worked example must be visual first. For each section also ` +
+  `write "exampleVisual" (same shape as "visual", same rules: prefer kind ` +
+  `"svg" — a labelled diagram of the worked example itself, e.g. the ` +
+  `numbers on a diagram, the stages drawn out — otherwise kind "image" with ` +
+  `a "prompt" and "alt") AND "exampleSteps": 3-5 short annotations, one ` +
+  `short sentence each, in order, that the student sees appear one by one ` +
+  `over the visual (each a single clear action, ending with the answer). ` +
+  `"example" stays as the full text version. Never leave exampleVisual out.`;
+
 const VISUAL_GUIDE =
   `\n\nOptionally, a section may include a "visual" when (and only when) a ` +
   `picture genuinely teaches the idea better than words. Pick the first that fits:\n` +
@@ -426,7 +457,7 @@ export async function generateLesson(
       `Write for a 15-16 year old. Plain prose only — no **, *, #, or ` +
       `bullet dashes anywhere. Math/chemistry as LaTeX: $x^2$ inline, ` +
       `$$formula$$ standalone. Never plain-text approximations. ` +
-      `${INTERACTIVE_GUIDE}${helpNote}${instructionNote}${VISUAL_GUIDE}`,
+      `${INTERACTIVE_GUIDE}${helpNote}${instructionNote}${VISUAL_GUIDE}${WORKED_EXAMPLE_GUIDE}`,
     SCHEMA,
     config
   );
@@ -453,7 +484,8 @@ export async function tweakLesson(
       `answers list), or "matching" (3-4 left/right pairs) — use whichever ` +
       `the instruction asks for or fits best. Return the complete revised ` +
       `lesson, not a diff.` +
-      VISUAL_GUIDE,
+      VISUAL_GUIDE +
+      WORKED_EXAMPLE_GUIDE,
     SCHEMA,
     config
   );

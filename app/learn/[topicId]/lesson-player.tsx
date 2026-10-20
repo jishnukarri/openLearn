@@ -14,6 +14,8 @@ import { Button, ButtonLink } from "@/components/button";
 import { AiLoading } from "@/components/ai-loading";
 import { RichText } from "@/components/rich-text";
 import { LessonVisual } from "./lesson-visual";
+import { WorkedExample } from "./worked-example";
+import { resolveExampleSteps } from "@/lib/worked-example";
 import { QuickCheck } from "./quick-check";
 import { LessonTutor } from "./lesson-tutor";
 import type { CoachSession } from "@/lib/lesson-coach-context";
@@ -420,11 +422,12 @@ export function LessonPlayer({
                           />
                         </div>
                       ) : (
-                        <div className="mt-6 animate-fade-slide-up rounded-xl border border-border bg-surface p-5">
-                          <WatchLabel />
-                          <p className="max-w-[65ch] text-base leading-relaxed text-foreground">
-                            <RichText text={sec.example} />
-                          </p>
+                        <div className="mt-6">
+                          <WorkedExample
+                            key={step.sectionIndex}
+                            steps={resolveExampleSteps(sec)}
+                            visual={sec.exampleVisual}
+                          />
                         </div>
                       )}
 

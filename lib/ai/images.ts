@@ -18,8 +18,12 @@ export async function generateLessonImage(
   topicId: string
 ): Promise<string | null> {
   try {
-    const bytes = await generateBytes(prompt);
-    if (!bytes) return null;
+    // One retry: the image models intermittently return text only.
+    const bytes = (await generateBytes(prompt)) ?? (await generateBytes(prompt));
+    if (!bytes) {
+      console.error("Lesson image generation returned no image data");
+      return null;
+    }
 
     const fileId = await uploadFile({
       bytes,
