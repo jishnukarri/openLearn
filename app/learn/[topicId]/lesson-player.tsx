@@ -995,12 +995,6 @@ function DoneCard({
         )}
       </animated.div>
 
-      {completion !== null && completion.breakdown && (
-        <animated.p style={trail[1]} className="text-sm text-muted">
-          You earned {completion.earned} XP. {completion.breakdown}
-        </animated.p>
-      )}
-
       <animated.div style={trail[2]} className="flex w-full flex-col items-center gap-3">
         <ButtonLink href={practiceHref} className="w-full justify-center">
           Practice a real exam question →
