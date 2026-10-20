@@ -23,6 +23,7 @@ import {
   getPracticeUploadStatusAction,
   uploadPracticeImagesAction,
 } from "@/app/actions/practice-uploads";
+import { HintButton, HintPanel, useHints } from "@/components/hint-panel";
 import type { ClientFormat } from "@/lib/question-client";
 import type { AnswerPayload } from "@/lib/question-marking";
 
@@ -69,6 +70,7 @@ export function AnswerForm({
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
 
+  const hintState = useHints(questionId);
   const result = state && "feedback" in state ? state : null;
 
   useEffect(() => {
@@ -152,6 +154,9 @@ export function AnswerForm({
           name="answerPayload"
           value={JSON.stringify(payload)}
         />
+        <input type="hidden" name="hintsShown" value={hintState.hints.length} />
+
+        {!result && <HintPanel state={hintState} />}
 
         {format.type === "data-analysis" && (
           <div className="lesson-embed overflow-x-auto">
@@ -338,9 +343,12 @@ export function AnswerForm({
           <p className="text-sm text-error">{state.message}</p>
         )}
         {pending && <StatusLine text="Marking your answer…" />}
-        <Button type="submit" disabled={pending} className="self-start">
-          {pending ? "Marking..." : "Submit answer"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" disabled={pending}>
+            {pending ? "Marking..." : "Submit answer"}
+          </Button>
+          {!result && <HintButton state={hintState} disabled={pending} />}
+        </div>
       </form>
 
       {result && (

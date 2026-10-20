@@ -24,6 +24,7 @@ import { ExplainBox } from "@/components/explain-box";
 import { AnswerEditor } from "@/components/answer-editor";
 import { NumericAnswer } from "@/components/numeric-answer";
 import { MathAnswerComposer } from "@/components/math-answer-composer";
+import { HintButton, HintPanel, useHints } from "@/components/hint-panel";
 import { toClientFormat } from "@/lib/question-client";
 import type { AnswerPayload } from "@/lib/question-marking";
 import type { Question } from "@/lib/supabase/questions";
@@ -221,6 +222,7 @@ function QuestionForm({
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
+  const hintState = useHints(question.id);
 
   const result = state && "feedback" in state ? state : null;
 
@@ -301,6 +303,7 @@ function QuestionForm({
         <input type="hidden" name="answerPayload" value={JSON.stringify(payload)} />
         {sessionId && <input type="hidden" name="sessionId" value={sessionId} />}
         <input type="hidden" name="isRetry" value={String(isRetry)} />
+        <input type="hidden" name="hintsShown" value={hintState.hints.length} />
 
         {question.prompt && (
           <div className="flex flex-col gap-2">
@@ -312,6 +315,8 @@ function QuestionForm({
             </p>
           </div>
         )}
+
+        {!result && <HintPanel state={hintState} />}
 
         {format.type === "data-analysis" && (
           <div className="lesson-embed overflow-x-auto">
@@ -499,9 +504,12 @@ function QuestionForm({
 
         {pending && <StatusLine text="Marking your answer…" />}
         {!result && (
-          <Button type="submit" disabled={pending} className="self-start">
-            {pending ? "Marking..." : "Submit answer"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" disabled={pending}>
+              {pending ? "Marking..." : "Submit answer"}
+            </Button>
+            <HintButton state={hintState} disabled={pending} />
+          </div>
         )}
       </form>
 
