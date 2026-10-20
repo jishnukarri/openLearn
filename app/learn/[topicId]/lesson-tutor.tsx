@@ -6,6 +6,8 @@ import { StatusLine } from "@/components/pending-status";
 import { BrandMark } from "@/components/brand-mark";
 import { askLessonTutorAction } from "@/app/actions/lessons";
 import type { CoachTurn } from "@/lib/ai/lesson-tutor";
+import type { CoachSession } from "@/lib/lesson-coach-context";
+import type { Step } from "./lesson-plan";
 
 const SUGGESTIONS = [
   { label: "Quiz me", message: "Quiz me with a multiple-choice question on this step." },
@@ -21,16 +23,28 @@ type Msg =
 
 export function LessonTutor({
   topicId,
-  context,
+  mode,
+  lessonId,
+  plan,
+  stepIndex,
+  session,
+  onHint,
   open,
   onOpenChange,
 }: {
   topicId: string;
-  context: string;
+  mode: "topic" | "subtopic";
+  lessonId: string;
+  plan: Step[];
+  stepIndex: number;
+  session: CoachSession;
+  onHint?: () => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const [question, setQuestion] = useState("");
+  // Opening suggestion: refer to a just-missed question, else offer a quiz.
+  const lastMiss = [...session.answers].reverse().find((a) => !a.correct);
   const [thread, setThread] = useState<Msg[]>([]);
   const [pendingQ, setPendingQ] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +72,7 @@ export function LessonTutor({
     setThread((t) => [...t, { role: "student", text: trimmed }]);
     startTransition(async () => {
       try {
-        const turn = await askLessonTutorAction({ topicId, context, question: trimmed, history });
+        const turn = await askLessonTutorAction({ topicId, mode, lessonId, question: trimmed, history, stepIndex, plan, session });
         setThread((t) => [...t, { role: "coach", turn }]);
       } catch {
         setError("I couldn't reach your study coach. Please try again.");
@@ -109,7 +123,7 @@ export function LessonTutor({
           <BrandMark size={28} />
           <div className="min-w-0 flex-1">
             <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">Your AI study coach</h2>
-            <p className="text-sm text-muted">Here for this step of the lesson</p>
+            <p className="text-sm text-muted">Knows up to step {stepIndex + 1}</p>
           </div>
           <button
             type="button"
@@ -127,7 +141,10 @@ export function LessonTutor({
             key={suggestion.label}
             type="button"
             disabled={isPending}
-            onClick={() => ask(suggestion.message)}
+            onClick={() => {
+              if (suggestion.label === "Give me a hint") onHint?.();
+              ask(suggestion.message);
+            }}
             className="min-h-11 rounded-full border border-border px-3 py-1.5 text-sm text-muted transition-colors hover:border-primary hover:text-foreground disabled:opacity-50"
           >
             {suggestion.label}
@@ -137,7 +154,18 @@ export function LessonTutor({
 
       <div className="mt-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto text-sm leading-6" aria-live="polite">
         {thread.length === 0 && !pendingQ && (
-          <p className="text-muted">Stuck, or want to test yourself? Tap Quiz me, or ask your own question.</p>
+          lastMiss ? (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => ask(lastMiss.picked ? `I picked "${lastMiss.picked}" on the last question. Can you go through why that was not right?` : "I got the last question wrong. Can you go through why?")}
+              className="min-h-11 self-start rounded-2xl rounded-bl-md bg-background px-3 py-2 text-left text-foreground transition-colors hover:text-primary disabled:opacity-50"
+            >
+              {lastMiss.picked ? `You picked "${lastMiss.picked}" on the last question. Want to go through why?` : "That last question was tricky. Want to go through why?"}
+            </button>
+          ) : (
+            <p className="text-muted">Stuck, or want to test yourself? Tap Quiz me for a quick quiz on what you have covered.</p>
+          )
         )}
         {thread.map((m, i) =>
           m.role === "student" ? (

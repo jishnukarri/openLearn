@@ -16,6 +16,7 @@ import { RichText } from "@/components/rich-text";
 import { LessonVisual } from "./lesson-visual";
 import { QuickCheck } from "./quick-check";
 import { LessonTutor } from "./lesson-tutor";
+import type { CoachSession } from "@/lib/lesson-coach-context";
 import { LessonPracticeStep } from "./lesson-practice";
 import type { LessonPractice } from "@/lib/lesson-personalise";
 import {
@@ -132,6 +133,8 @@ export function LessonPlayer({
   const [attempt, setAttempt] = useState(0);
   const [recapOpen, setRecapOpen] = useState(false);
   const [maxVisited, setMaxVisited] = useState(0);
+  // Small record the coach uses to know how this student is getting on.
+  const [coachSession, setCoachSession] = useState<CoachSession>({ answers: [], hints: 0, revisits: 0 });
   // Answers per step, so Back and forward again never loses work.
   const memory = useRef<Record<number, StepMemory>>({});
   const stepRef = useRef<HTMLDivElement>(null);
@@ -203,6 +206,7 @@ export function LessonPlayer({
       if (!window.matchMedia("(min-width: 1024px)").matches) setHelpOpen(false);
     } catch {}
     setRecapOpen(false);
+    if (idx < planIdx) setCoachSession((c) => ({ ...c, revisits: c.revisits + 1 }));
     setPlanIdx(idx);
     setMaxVisited((m) => Math.max(m, idx));
   }
@@ -487,8 +491,12 @@ export function LessonPlayer({
                         check={sec.check}
                         revealed={answerVisible}
                         onDraft={setHasDraft}
-                        onResult={(correct, el) => {
+                        onResult={(correct, el, picked) => {
                           setCheckResult(correct);
+                          setCoachSession((c) => {
+                            const prior = c.answers.filter((a) => a.section === step.sectionIndex);
+                            return { ...c, answers: [...c.answers.filter((a) => a.section !== step.sectionIndex), { section: step.sectionIndex, correct, picked: picked ?? prior[0]?.picked, tries: (prior[0]?.tries ?? 0) + 1 }].slice(-40) };
+                          });
                           const firstTry = !answered.has(step.sectionIndex);
                           setAnswered((prev) => new Set(prev).add(step.sectionIndex));
                           if (correct) {
@@ -923,7 +931,7 @@ export function LessonPlayer({
           {/* ── AI coach: slim collapsible side panel (bottom sheet on phones) ── */}
           {!isDone && (
             <div className="lg:sticky lg:top-[var(--lesson-bar,3.5rem)] lg:flex lg:h-[calc(100dvh-var(--lesson-bar,3.5rem))] lg:flex-col lg:overflow-hidden lg:border-l lg:border-border lg:bg-surface/40">
-              <LessonTutor key={stepKey} topicId={coachTopicId ?? topicId} context={tutorContext} open={helpOpen} onOpenChange={setCoachOpen} />
+              <LessonTutor key={stepKey} topicId={coachTopicId ?? topicId} mode={mode} lessonId={topicId} plan={plan} stepIndex={planIdx} session={coachSession} onHint={() => setCoachSession((c) => ({ ...c, hints: c.hints + 1 }))} open={helpOpen} onOpenChange={setCoachOpen} />
             </div>
           )}
         </div>

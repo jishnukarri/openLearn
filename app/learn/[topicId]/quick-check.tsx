@@ -19,7 +19,7 @@ export function QuickCheck({
   onDraft,
 }: {
   check: LessonCheck;
-  onResult: (correct: boolean, el: HTMLElement) => void;
+  onResult: (correct: boolean, el: HTMLElement, picked?: string) => void;
   revealed: boolean;
   onDraft?: (hasDraft: boolean) => void;
 }) {
@@ -36,7 +36,7 @@ export function QuickCheck({
 }
 
 type ResultProps = {
-  onResult: (correct: boolean, el: HTMLElement) => void;
+  onResult: (correct: boolean, el: HTMLElement, picked?: string) => void;
   revealed: boolean;
   onDraft?: (hasDraft: boolean) => void;
 };
@@ -78,7 +78,7 @@ function McqCheck({
             label={MCQ_LABELS[idx]}
             onClick={(el) => {
               setPicked(idx);
-              onResult(isCorrect, el);
+              onResult(isCorrect, el, check.options[idx]);
             }}
           >
             <RichText text={option} />
