@@ -36,6 +36,7 @@ export async function markAnswer(
   const parsed = await chatJson<{ feedback: PointFeedback[] }>(
     `You are marking a GCSE exam answer strictly to the markscheme below. ` +
       `Do not award credit for anything not covered by a markscheme point. ` +
+      `Do not penalise spelling, grammar or punctuation, except where a key scientific term is misspelled so that it becomes a different or ambiguous term. ` +
       `For each point, decide if the answer meets it, and give a short ` +
       `comment explaining why. Write the comment talking directly to the ` +
       `person who wrote the answer — say "you" and quote their own words ` +
@@ -55,7 +56,7 @@ const MARK_PROMPT = (question: string, markscheme: MarkPoint[]) =>
   `You are marking a GCSE exam answer strictly to the markscheme below. The ` +
   `answer is handwritten, shown to you as photo(s)/scan(s) — read the ` +
   `handwriting carefully first, then mark exactly as you would typed text. ` +
-  `Do not award credit for anything not covered by a markscheme point. For ` +
+  `Do not penalise spelling, grammar or punctuation, except where a key scientific term is misspelled so that it becomes a different or ambiguous term. Do not award credit for anything not covered by a markscheme point. For ` +
   `each point, decide if the answer meets it, and give a short comment ` +
   `explaining why, talking directly to the person who wrote it — say "you" ` +
   `and quote their own words back where useful, never say "the student". ` +
@@ -126,6 +127,7 @@ export async function markAnswersBatch(
 
   const prompt =
     `You are marking GCSE diagnostic answers strictly to each question's markscheme. ` +
+    `Do not penalise spelling, grammar or punctuation, except where a key scientific term is misspelled so that it becomes a different or ambiguous term. ` +
     `For each question, evaluate every markscheme point (given as "1. ... | 2. ...") ` +
     `and say whether the student's answer meets it. Respond with the questionId exactly ` +
     `as given.\n\nData (TOON format):\n${encoded}`;

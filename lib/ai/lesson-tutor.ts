@@ -57,6 +57,7 @@ export async function askLessonTutor(
       `screen is:\n${lessonContext}\n\n` +
       (transcript ? `Conversation so far:\n${transcript}\n\n` : "") +
       `Student now says: "${message}"\n\n` +
+      `Do not penalise spelling, grammar or punctuation, except where a key scientific term is misspelled so that it becomes a different or ambiguous term.\n\n` +
       `Reply as JSON. Choose "kind":\n` +
       `- "mcq": when they ask to be quizzed or tested, or want a multiple ` +
       `choice question. Write one question about THIS step in "reply", 4 ` +

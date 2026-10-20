@@ -140,7 +140,7 @@ const MARK_SCHEMA = {
 function markPrompt(questions: { questionNumber: number; prompt: string; markscheme: { point: string }[] }[]) {
   return (
     `You are marking a student's handwritten exam script, shown as photo(s)/scan(s). ` +
-    `Read the handwriting carefully. Below is every question on the paper with its ` +
+    `Do not penalise spelling, grammar or punctuation, except where a key scientific term is misspelled so that it becomes a different or ambiguous term. Read the handwriting carefully. Below is every question on the paper with its ` +
     `markscheme. Find the student's answer to each question in the images (it may not ` +
     `answer every question) and mark strictly against the markscheme points — do not ` +
     `award credit for anything not covered by a point. For each point, decide met/not ` +
