@@ -26,6 +26,7 @@ import {
   buildLessonPlan,
   getCorrectAnswerLabel,
   cardDefinition,
+  vocabCardForSection,
   stageForStep,
   stepLabel,
   stepInstruction,
@@ -595,10 +596,10 @@ export function LessonPlayer({
 
             {/* ── Flashcard slide ─────────────────────────────────────── */}
             {!isDone && step?.phase === "flashcard" && (() => {
-              const cards = step.cardIndices.map((i) => ({
-                term: displayedSections[i].heading,
-                def: cardDefinition(displayedSections[i].explanation),
-              }));
+              const cards = step.cardIndices.flatMap((i) => {
+                const c = vocabCardForSection(displayedSections[i]);
+                return c ? [c] : [];
+              });
               const card = cards[flashcardIdx];
               const allRated = Object.keys(flashcardRatings).length >= cards.length;
               const currentRating = flashcardRatings[flashcardIdx];

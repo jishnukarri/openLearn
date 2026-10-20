@@ -1,3 +1,4 @@
+import { lessonVocabCard } from "../../../lib/flashcard-quality";
 import type { LessonCheck, LessonSection } from "@/lib/ai/lessons";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -52,6 +53,9 @@ export function buildLessonPlan(
 
   const N = sections.length;
   let lastWasTutor = false;
+  // Only sections that make a genuine term -> definition card join the vocabulary check.
+  const cardIndicesFor = (i: number) =>
+    [i - 1, i].filter((k) => k >= 0 && sections[k] && vocabCardForSection(sections[k]) !== null);
 
   for (let i = 0; i < N; i++) {
     plan.push({ phase: "teach", sectionIndex: i });
@@ -63,7 +67,10 @@ export function buildLessonPlan(
       const groupNum = Math.floor(i / 2);
       if (isGroupEnd) {
         if (groupNum % 2 === 0) {
-          plan.push({ phase: "flashcard", cardIndices: [i - 1, i] });
+          {
+            const cardIndices = cardIndicesFor(i);
+            if (cardIndices.length > 0) plan.push({ phase: "flashcard", cardIndices });
+          }
           lastWasTutor = false;
         } else {
           const tutorIndex = pickTutorIndex(sections, i);
@@ -71,7 +78,10 @@ export function buildLessonPlan(
             plan.push({ phase: "tutor", sectionIndex: tutorIndex });
             lastWasTutor = true;
           } else {
-            plan.push({ phase: "flashcard", cardIndices: [i - 1, i] });
+            {
+            const cardIndices = cardIndicesFor(i);
+            if (cardIndices.length > 0) plan.push({ phase: "flashcard", cardIndices });
+          }
             lastWasTutor = false;
           }
         }
@@ -105,6 +115,12 @@ export function getCorrectAnswerLabel(check: LessonCheck): string {
     default:
       return check.options[check.correctIndex] ?? "";
   }
+}
+
+// Vocabulary card for a section (heading = term, defining sentence = answer), or null if not card-shaped.
+export function vocabCardForSection(sec: LessonSection): { term: string; def: string } | null {
+  const c = lessonVocabCard(sec.heading, sec.explanation);
+  return c ? { term: c.front, def: c.back } : null;
 }
 
 export function cardDefinition(text: string): string {
