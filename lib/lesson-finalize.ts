@@ -1,7 +1,7 @@
 import "server-only";
 import type { LessonContent, LessonInteractive, LessonVisual } from "@/lib/ai/lessons";
 import { parseScene } from "@/lib/lesson-scene";
-import { sanitizeLessonHtml, sanitizeLessonSvg } from "@/lib/lesson-sanitize";
+import { sanitizeVisual } from "@/lib/lesson-visual";
 import { generateLessonImage } from "@/lib/ai/images";
 import { generateScenesForLesson } from "@/lib/ai/scenes";
 import { deepCollapseRepeatedChars } from "@/lib/text-sanitize";
@@ -24,8 +24,8 @@ export async function finalizeLessonContent(
   const sections = await Promise.all(
     (content.sections ?? []).map(async (section) => ({
       ...section,
-      visual: await finalizeVisual(section.visual, topicId),
-      exampleVisual: await finalizeVisual(section.exampleVisual, topicId),
+      visual: await finalizeVisual(section.visual, topicId, section.heading),
+      exampleVisual: await finalizeVisual(section.exampleVisual, topicId, section.heading),
       exampleScene: parseScene(section.exampleScene),
       exampleSteps: cleanSteps(section.exampleSteps),
     }))
@@ -56,8 +56,8 @@ export function resanitizeLessonContent(rawContent: LessonContent): LessonConten
     // section.check), so a malformed stored section is dropped, not rendered.
     sections: (content.sections ?? []).filter((section) => section && section.check).map((section) => ({
       ...section,
-      visual: sanitizeVisual(section.visual),
-      exampleVisual: sanitizeVisual(section.exampleVisual),
+      visual: sanitizeVisual(section.visual, section.heading),
+      exampleVisual: sanitizeVisual(section.exampleVisual, section.heading),
       exampleScene: parseScene(section.exampleScene),
       exampleSteps: cleanSteps(section.exampleSteps),
     })),
@@ -101,32 +101,12 @@ function cleanSteps(steps: string[] | undefined | null): string[] | undefined {
   return out.length ? out : undefined;
 }
 
-function sanitizeVisual(
-  visual: LessonVisual | undefined | null
-): LessonVisual | null {
-  if (!visual) return null;
-  switch (visual.kind) {
-    case "svg": {
-      const svg = sanitizeLessonSvg(visual.svg ?? "");
-      return svg ? { kind: "svg", svg, caption: visual.caption } : null;
-    }
-    case "html": {
-      const html = sanitizeLessonHtml(visual.html ?? "");
-      return html ? { kind: "html", html } : null;
-    }
-    case "image":
-      // Accept teacher-uploaded images (url set, prompt empty) and AI images (prompt+alt set).
-      return (visual.url && visual.alt) || (visual.prompt && visual.alt) ? visual : null;
-    default:
-      return null;
-  }
-}
-
 async function finalizeVisual(
   visual: LessonVisual | undefined | null,
-  topicId: string
+  topicId: string,
+  fallbackAlt = ""
 ): Promise<LessonVisual | null> {
-  const cleaned = sanitizeVisual(visual);
+  const cleaned = sanitizeVisual(visual, fallbackAlt);
   if (!cleaned) return null;
   if (cleaned.kind !== "image") return cleaned;
 
