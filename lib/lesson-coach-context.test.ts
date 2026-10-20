@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LessonSection } from "@/lib/ai/lessons";
-import { buildLessonPlan } from "@/app/learn/[topicId]/lesson-plan";
+import { buildLessonPlan } from "../app/learn/[topicId]/lesson-plan";
 import {
   buildCoachContext,
   clampIndex,
