@@ -363,7 +363,7 @@ export function AnswerForm({
               >
                 <p
                   className={`${point.met ? "text-success" : "text-error"} ${
-                    point.met ? "animate-bounce-once" : ""
+                    point.met ? "animate-settle" : ""
                   }`}
                 >
                   <span className="inline-flex items-center gap-1.5">

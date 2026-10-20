@@ -130,7 +130,7 @@ export function LevelForm({
                 onChange={(e) => setBlankText(e.target.value)}
                 placeholder="type here"
                 size={Math.max(6, blankText.length || 10)}
-                className="inline-block rounded-md border-0 border-b-2 border-dashed border-primary bg-primary/10 px-2 py-0.5 align-baseline font-[family-name:var(--font-sans)] text-lg font-medium text-primary placeholder:text-primary/50 outline-none focus-visible:bg-primary/15"
+                className="inline-block rounded-md border border-dashed border-primary bg-primary/10 px-2 py-0.5 align-baseline font-[family-name:var(--font-sans)] text-lg font-medium text-primary placeholder:text-primary/50 outline-none focus-visible:bg-primary/15"
               />
               <span>{after}</span>
             </p>

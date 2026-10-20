@@ -232,7 +232,7 @@ export function SupportPanel({
       </div>
 
       {tempPassword && (
-        <div className="flex flex-col gap-2 border-l-4 border-highlight bg-highlight/10 p-4">
+        <div className="flex flex-col gap-2 rounded-lg border border-highlight/40 bg-highlight/10 p-4">
           <p className="text-sm font-medium text-foreground">Temporary password (shown once)</p>
           <div className="flex flex-wrap items-center gap-3">
             <code className="rounded-md bg-background px-3 py-2 font-[family-name:var(--font-mono)] text-base tracking-wider text-foreground select-all">

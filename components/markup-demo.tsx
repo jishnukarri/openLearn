@@ -62,7 +62,7 @@ function AnnotatedAnswer({ tokens }: { tokens: Token[] }) {
         t.status === "hit" ? (
           <span
             key={i}
-            className="rounded-md border-b-2 border-success bg-success/10 px-0.5 font-medium"
+            className="bg-success/10 px-0.5 font-medium underline decoration-success decoration-2 underline-offset-4"
           >
             {t.text}
           </span>
