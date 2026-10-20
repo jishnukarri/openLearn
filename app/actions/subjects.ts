@@ -546,7 +546,7 @@ export async function regenerateTopicLessonAction(formData: FormData): Promise<v
   const config = await resolveProviderConfig(profile.id);
   const instructions = await withReferenceContext(topicId, topic.name, topic.custom_instructions);
   const lesson = await generateLesson(topic.name, topic.subject.name, false, instructions, config);
-  await createLesson(topicId, await finalizeLessonContent(lesson, topicId));
+  await createLesson(topicId, await finalizeLessonContent(lesson, topicId, topic.subject.name));
   revalidatePath("/admin/subjects");
   revalidatePath("/admin/subjects/[subjectId]", "page");
   revalidatePath("/teacher/subjects");
@@ -566,7 +566,7 @@ export async function requestTopicEditAction(formData: FormData): Promise<void> 
   if (!current) throw new Error("Topic lesson not found.");
   const config = await resolveProviderConfig(profile.id);
   const revised = await tweakLesson(current, instruction.trim(), topic.name, topic.subject.name, config);
-  await createLesson(topicId, await finalizeLessonContent(revised, topicId));
+  await createLesson(topicId, await finalizeLessonContent(revised, topicId, topic.subject.name));
   revalidatePath("/admin/subjects");
   revalidatePath("/admin/subjects/[subjectId]", "page");
   revalidatePath("/teacher/subjects");

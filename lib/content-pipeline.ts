@@ -29,7 +29,7 @@ export async function pregenerateTopicContent(
 
   if (!lesson) {
     const rawContent = await generateLesson(topic.name, topic.subject.name, false, instructions, config);
-    const finalized = await finalizeLessonContent(rawContent, topicId);
+    const finalized = await finalizeLessonContent(rawContent, topicId, topic.subject.name);
     await createLesson(topicId, finalized);
     lesson = finalized;
   }

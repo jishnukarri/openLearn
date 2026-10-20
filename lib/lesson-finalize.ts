@@ -3,6 +3,7 @@ import type { LessonContent, LessonInteractive, LessonVisual } from "@/lib/ai/le
 import { parseScene } from "@/lib/lesson-scene";
 import { sanitizeLessonHtml, sanitizeLessonSvg } from "@/lib/lesson-sanitize";
 import { generateLessonImage } from "@/lib/ai/images";
+import { generateScenesForLesson } from "@/lib/ai/scenes";
 import { deepCollapseRepeatedChars } from "@/lib/text-sanitize";
 
 // Runs between AI generation and createLesson(): sanitizes every visual
@@ -16,7 +17,8 @@ import { deepCollapseRepeatedChars } from "@/lib/text-sanitize";
 // is dropped rather than failing the lesson.
 export async function finalizeLessonContent(
   rawContent: LessonContent,
-  topicId: string
+  topicId: string,
+  subjectName?: string
 ): Promise<LessonContent> {
   const content = deepCollapseRepeatedChars(rawContent);
   const sections = await Promise.all(
@@ -28,11 +30,19 @@ export async function finalizeLessonContent(
       exampleSteps: cleanSteps(section.exampleSteps),
     }))
   );
-  return {
+  const result: LessonContent = {
     ...content,
     sections,
     interactive: sanitizeInteractive(content.interactive),
   };
+  // Scenes come from a separate cheap model (lib/ai/scenes.ts); never throws,
+  // and with no key / on failure the content is returned unchanged.
+  if (!subjectName) return result;
+  try {
+    return await generateScenesForLesson(result, subjectName);
+  } catch {
+    return result;
+  }
 }
 
 // Re-sanitizes stored visuals (and drops an invalid interactive) at read

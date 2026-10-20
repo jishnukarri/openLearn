@@ -285,7 +285,7 @@ export async function requestExtraHelpAction(formData: FormData): Promise<void> 
   const config = await resolveProviderConfig(profile.id);
   const instructions = await withReferenceContext(topicId, topic.name, topic.custom_instructions);
   const lesson = await generateLesson(topic.name, topic.subject.name, true, instructions, config);
-  await createLesson(topicId, await finalizeLessonContent(lesson, topicId));
+  await createLesson(topicId, await finalizeLessonContent(lesson, topicId, topic.subject.name));
 
   redirect(`/learn/${topicId}`);
 }
@@ -317,7 +317,7 @@ export async function tweakLessonAction(formData: FormData): Promise<void> {
     topic.subject.name,
     config
   );
-  await createLesson(topicId, await finalizeLessonContent(revised, topicId));
+  await createLesson(topicId, await finalizeLessonContent(revised, topicId, topic.subject.name));
 
   redirect(`/learn/${topicId}`);
 }
@@ -349,7 +349,7 @@ export async function tweakSubtopicLessonAction(formData: FormData): Promise<voi
   await createLessonForSubtopic(
     subtopic.topic.id,
     subtopic.id,
-    await finalizeLessonContent(revised, subtopic.id)
+    await finalizeLessonContent(revised, subtopic.id, subtopic.topic.subject.name)
   );
 
   redirect(`/learn/subtopic/${subtopicId}`);

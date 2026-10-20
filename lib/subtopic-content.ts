@@ -38,7 +38,7 @@ export async function resolveLessonForSubtopic(
     subtopic.topic.custom_instructions
   );
   const generated = await generateLesson(subtopic.name, subtopic.topic.subject.name, false, instructions, config);
-  const finalized = await finalizeLessonContent(generated, subtopic.id);
+  const finalized = await finalizeLessonContent(generated, subtopic.id, subtopic.topic.subject.name);
   await createLessonForSubtopic(subtopic.topic.id, subtopic.id, finalized);
   return finalized;
 }

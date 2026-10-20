@@ -33,7 +33,7 @@ export async function resolveLessonContent(
       [topic.custom_instructions, `For this class: ${fork.notes}`].filter(Boolean).join("\n\n")
     );
     const generated = await generateLesson(topic.name, topic.subject.name, false, instructions, config);
-    const finalized = await finalizeLessonContent(generated, topic.id);
+    const finalized = await finalizeLessonContent(generated, topic.id, topic.subject.name);
     await createLesson(topic.id, finalized, fork.classId);
     return finalized;
   }
@@ -44,7 +44,7 @@ export async function resolveLessonContent(
   const config = await resolveProviderConfig(profile.id);
   const instructions = await withReferenceContext(topic.id, topic.name, topic.custom_instructions);
   const generated = await generateLesson(topic.name, topic.subject.name, false, instructions, config);
-  const finalized = await finalizeLessonContent(generated, topic.id);
+  const finalized = await finalizeLessonContent(generated, topic.id, topic.subject.name);
   await createLesson(topic.id, finalized);
   return finalized;
 }

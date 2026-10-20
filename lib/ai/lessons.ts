@@ -1,6 +1,10 @@
 import "server-only";
 import { chatJson, type ProviderConfig } from "./client";
-import { WORKED_EXAMPLE_GUIDE } from "./scene-prompt";
+// Animated scenes (exampleScene) are generated separately by lib/ai/scenes.ts
+// with a cheaper model, so the main prompt only asks for step annotations.
+const STEPS_GUIDE =
+  `\n\nFor each section also write "exampleSteps": 3-5 short sentences ` +
+  `walking through the worked example in order, the last giving the answer.`;
 
 // ── Interactive pre-lesson widget ───────────────────────────────────────────
 // Generated for a specific subject archetype. Follows the Interact →
@@ -258,40 +262,6 @@ const SCHEMA = {
             },
             required: ["kind"],
           },
-          exampleScene: {
-            type: "object",
-            description: "Animated scene for the worked example: canvas w,h (about 400x260), one caption per step (3-5), and elements.",
-            properties: {
-              w: { type: "number" },
-              h: { type: "number" },
-              captions: { type: "array", items: { type: "string" } },
-              elements: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    type: { type: "string", enum: ["circle", "rect", "line", "arrow", "path", "text", "group"] },
-                    step: { type: "integer" },
-                    enter: { type: "string", enum: ["fade", "draw", "scale", "slide"] },
-                    motion: { type: "object" },
-                    cx: { type: "number" }, cy: { type: "number" }, r: { type: "number" },
-                    x: { type: "number" }, y: { type: "number" }, w: { type: "number" }, h: { type: "number" },
-                    x1: { type: "number" }, y1: { type: "number" }, x2: { type: "number" }, y2: { type: "number" },
-                    d: { type: "string" },
-                    text: { type: "string" },
-                    size: { type: "number" },
-                    anchor: { type: "string", enum: ["start", "middle", "end"] },
-                    fill: { type: "string" },
-                    stroke: { type: "string" },
-                    dashed: { type: "boolean" },
-                    children: { type: "array", items: { type: "object" } },
-                  },
-                  required: ["type"],
-                },
-              },
-            },
-            required: ["captions", "elements"],
-          },
           exampleSteps: {
             type: "array",
             description: "3-5 short annotations (one short sentence each) walking through the worked example in order.",
@@ -487,7 +457,7 @@ export async function generateLesson(
       `Write for a 15-16 year old. Plain prose only — no **, *, #, or ` +
       `bullet dashes anywhere. Math/chemistry as LaTeX: $x^2$ inline, ` +
       `$$formula$$ standalone. Never plain-text approximations. ` +
-      `${INTERACTIVE_GUIDE}${helpNote}${instructionNote}${VISUAL_GUIDE}${WORKED_EXAMPLE_GUIDE}`,
+      `${INTERACTIVE_GUIDE}${helpNote}${instructionNote}${VISUAL_GUIDE}${STEPS_GUIDE}`,
     SCHEMA,
     config
   );
@@ -515,7 +485,7 @@ export async function tweakLesson(
       `the instruction asks for or fits best. Return the complete revised ` +
       `lesson, not a diff.` +
       VISUAL_GUIDE +
-      WORKED_EXAMPLE_GUIDE,
+      STEPS_GUIDE,
     SCHEMA,
     config
   );
