@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
-import { Check, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { EASE_OUT } from "@/components/motion";
 import { ButtonLink } from "@/components/button";
 

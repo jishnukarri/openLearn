@@ -26,7 +26,7 @@ import { validateLesson, type LessonIssue } from "@/lib/lesson-validate";
 import { refreshStaleExamples } from "@/lib/lesson-edit";
 import { generateScenesForLesson } from "@/lib/ai/scenes";
 import { finalizeLessonContent, resanitizeLessonContent } from "@/lib/lesson-finalize";
-import type { LessonContent, LessonSection } from "@/lib/ai/lessons";
+import type { LessonContent } from "@/lib/ai/lessons";
 import { withReferenceContext } from "@/lib/rag";
 import { awardXp, awardRawXp, markTopicComplete, markSubtopicComplete, isTopicCompleted, getCompletedSubtopicIds } from "@/lib/supabase/progress";
 import { recordLessonMiss, resolveLessonMiss, resolveLessonMissById } from "@/lib/supabase/lesson-misses";

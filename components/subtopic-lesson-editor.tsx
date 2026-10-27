@@ -124,7 +124,7 @@ function ImagePanel({
             // Already sanitized (lib/lesson-sanitize) when the lesson was stored.
             dangerouslySetInnerHTML={{ __html: aiDiagram.kind === "svg" ? aiDiagram.svg : aiDiagram.html }}
           />
-          <p className="text-sm text-muted">Made by AI. You can't edit it here.</p>
+          <p className="text-sm text-muted">Made by AI. You can&apos;t edit it here.</p>
           <button type="button" disabled={uploading} onClick={() => setConfirm("replace")} className={smallBtn}>
             Replace with my image
           </button>
