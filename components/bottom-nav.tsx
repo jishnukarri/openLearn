@@ -61,7 +61,10 @@ export function BottomNav() {
   if (isFullscreen) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/90 backdrop-blur-md sm:hidden">
+    <>
+      {/* Spacer so the last of the page is never hidden behind the fixed bar. */}
+      <div aria-hidden className="h-[calc(4.25rem+env(safe-area-inset-bottom))] shrink-0 sm:hidden" />
+    <nav className="fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom)] border-t border-border bg-background/90 backdrop-blur-md sm:hidden">
       <div className="flex items-stretch">
         {ITEMS.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -69,7 +72,7 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-1 flex-col items-center justify-center gap-1 py-3 text-3xs font-medium transition-colors ${
+              className={`flex flex-1 flex-col items-center justify-center gap-1 py-3 text-xs font-medium transition-colors ${
                 active ? "text-primary" : "text-muted hover:text-foreground"
               }`}
             >
@@ -79,8 +82,7 @@ export function BottomNav() {
           );
         })}
       </div>
-      {/* Safe area padding for iOS home indicator */}
-      <div className="h-safe-bottom" />
     </nav>
+    </>
   );
 }
