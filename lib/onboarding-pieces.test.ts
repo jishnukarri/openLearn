@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ONBOARDING_PIECES,
   allComplete,
+  isMissingTableError,
   completedCount,
   getPiece,
   nextIncompletePiece,
@@ -38,5 +39,16 @@ describe("onboarding pieces", () => {
   it("looks pieces up by key", () => {
     expect(getPiece("how-xp-works")?.title).toBeTruthy();
     expect(getPiece("x")).toBeUndefined();
+  });
+});
+
+describe("isMissingTableError", () => {
+  it("recognises missing-table codes and messages", () => {
+    expect(isMissingTableError({ code: "42P01" })).toBe(true);
+    expect(isMissingTableError({ code: "PGRST205" })).toBe(true);
+    expect(isMissingTableError({ message: 'relation "onboarding_progress" does not exist' })).toBe(true);
+  });
+  it("ignores other errors", () => {
+    expect(isMissingTableError({ code: "23505", message: "duplicate key" })).toBe(false);
   });
 });

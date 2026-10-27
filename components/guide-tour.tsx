@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { ArrowLeft, Check } from "lucide-react";
 import { EASE_OUT } from "@/components/motion";
 import { Button } from "@/components/button";
+import { SubmitButton } from "@/components/submit-button";
+import { tourKeyDelta } from "@/lib/tour-keys";
 
 export type TourStep = {
   id: string;
@@ -40,11 +42,22 @@ export function GuideTour({
     [steps.length]
   );
 
+  // Move focus to the new step's heading so keyboard and screen-reader users
+  // land on the content (not the initial render).
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    headingRef.current?.focus({ preventScroll: true });
+  }, [index]);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === "ArrowRight") go(1);
-      else if (e.key === "ArrowLeft") go(-1);
+      const delta = tourKeyDelta({ ...e, key: e.key, metaKey: e.metaKey, ctrlKey: e.ctrlKey, altKey: e.altKey, shiftKey: e.shiftKey, defaultPrevented: e.defaultPrevented, target: e.target as HTMLElement | null });
+      if (delta) go(delta);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -58,7 +71,7 @@ export function GuideTour({
             {steps.map((s, i) => (
               <li key={s.id} aria-current={i === index ? "step" : undefined}>
                 <span
-                  className={`block h-2 rounded-full transition-all duration-300 ${
+                  className={`block h-2 rounded-full transition-all duration-300 motion-reduce:transition-none ${
                     i === index ? "w-6 bg-primary" : i < index ? "w-2 bg-primary/50" : "w-2 bg-border"
                   }`}
                 />
@@ -86,7 +99,7 @@ export function GuideTour({
               aria-label={`Step ${index + 1} of ${steps.length}: ${step.heading}`}
             >
               <div>
-                <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold leading-tight text-foreground">
+                <h1 ref={headingRef} tabIndex={-1} className="outline-none font-[family-name:var(--font-display)] text-3xl font-semibold leading-tight text-foreground">
                   {step.heading}
                 </h1>
                 <p className="mt-2 text-base text-muted">{step.body}</p>
@@ -108,9 +121,9 @@ export function GuideTour({
           {last ? (
             <form action={completeAction}>
               <input type="hidden" name="piece" value={pieceKey} />
-              <Button type="submit" className="gap-2">
+              <SubmitButton className="gap-2" pendingText="Saving…">
                 <Check className="size-4" strokeWidth={2.5} aria-hidden /> {completeLabel}
-              </Button>
+              </SubmitButton>
             </form>
           ) : (
             <Button type="button" onClick={() => go(1)}>

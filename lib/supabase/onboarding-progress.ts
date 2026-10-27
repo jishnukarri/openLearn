@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./database-client";
+import { isMissingTableError } from "@/lib/onboarding-pieces";
 
 export type OnboardingProgress = {
   completed: Set<string>;
@@ -8,14 +9,6 @@ export type OnboardingProgress = {
   available: boolean;
 };
 
-function isMissingTable(error: { code?: string; message?: string }): boolean {
-  return (
-    error.code === "42P01" ||
-    error.code === "PGRST205" ||
-    /onboarding_progress/.test(error.message ?? "") && /(does not exist|schema cache)/.test(error.message ?? "")
-  );
-}
-
 export async function getCompletedPieces(profileId: string): Promise<OnboardingProgress> {
   try {
     const { data, error } = await db
@@ -23,7 +16,7 @@ export async function getCompletedPieces(profileId: string): Promise<OnboardingP
       .select("piece")
       .eq("profile_id", profileId);
     if (error) {
-      if (isMissingTable(error)) {
+      if (isMissingTableError(error)) {
         console.warn("onboarding_progress table is missing; skipping checklist.");
         return { completed: new Set(), available: false };
       }
@@ -40,5 +33,13 @@ export async function markPieceComplete(profileId: string, piece: string): Promi
   const { error } = await db
     .from("onboarding_progress")
     .upsert({ profile_id: profileId, piece }, { onConflict: "profile_id,piece", ignoreDuplicates: true });
-  if (error) throw error;
+  if (error) {
+    // Without the table the checklist is hidden anyway; finishing a tour
+    // must not crash on it.
+    if (isMissingTableError(error)) {
+      console.warn("onboarding_progress table is missing; completion not saved.");
+      return;
+    }
+    throw error;
+  }
 }

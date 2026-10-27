@@ -69,3 +69,14 @@ export function shouldShowChecklist(
 ): boolean {
   return available && !allComplete(completed, pieces);
 }
+
+// True when a Postgres/PostgREST error means onboarding_progress doesn't exist
+// yet (migration not applied).
+export function isMissingTableError(error: { code?: string; message?: string }): boolean {
+  const message = error.message ?? "";
+  return (
+    error.code === "42P01" ||
+    error.code === "PGRST205" ||
+    (/onboarding_progress/.test(message) && /(does not exist|schema cache)/.test(message))
+  );
+}
