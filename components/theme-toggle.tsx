@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useRef, useSyncExternalStore, type KeyboardEvent } from "react";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { EASE_OUT } from "@/components/motion";
@@ -53,17 +53,38 @@ const OPTIONS: { value: ThemeChoice; label: string; hint: string; icon: typeof S
 // Full chooser for account settings.
 export function ThemeChoiceGroup() {
   const choice = useThemeChoice();
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const selectedIndex = OPTIONS.findIndex((o) => o.value === choice);
+  const tabbableIndex = selectedIndex === -1 ? 0 : selectedIndex;
+
+  function onKeyDown(event: KeyboardEvent, index: number) {
+    const last = OPTIONS.length - 1;
+    let target: number;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") target = index === last ? 0 : index + 1;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") target = index === 0 ? last : index - 1;
+    else if (event.key === "Home") target = 0;
+    else if (event.key === "End") target = last;
+    else return;
+    event.preventDefault();
+    applyTheme(OPTIONS[target].value);
+    refs.current[target]?.focus();
+  }
 
   return (
     <div role="radiogroup" aria-label="Colour mode" className="grid gap-3 sm:grid-cols-3">
-      {OPTIONS.map(({ value, label, hint, icon: Icon }) => {
+      {OPTIONS.map(({ value, label, hint, icon: Icon }, index) => {
         const selected = choice === value;
         return (
           <button
             key={value}
+            ref={(el) => {
+              refs.current[index] = el;
+            }}
             type="button"
             role="radio"
             aria-checked={selected}
+            tabIndex={index === tabbableIndex ? 0 : -1}
+            onKeyDown={(e) => onKeyDown(e, index)}
             onClick={() => applyTheme(value)}
             className={`flex min-h-24 flex-col items-start gap-2 rounded-xl border p-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
               selected ? "border-primary bg-primary/10" : "border-border bg-surface hover:border-primary/60"
