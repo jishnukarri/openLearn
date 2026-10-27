@@ -20,7 +20,7 @@ import { db } from "@/lib/supabase/database-client";
 import { buildStudentPoolDiagnostic, buildStudentRecapPoolDiagnostic } from "@/lib/guest-diagnostic";
 import {
   scoreDiagnosticAnswerInstant,
-  type LevelAnswerPayload,
+  sanitiseLevelPayload,
 } from "@/lib/diagnostic-scoring";
 import { markAnswersBatch } from "@/lib/ai/marking";
 
@@ -180,12 +180,14 @@ export async function submitDiagnosticLevelAction(formData: FormData): Promise<v
   const question = questions[position];
   if (!question) throw new Error("Question not found for this level.");
 
-  let payload: LevelAnswerPayload;
+  let parsedPayload: unknown;
   try {
-    payload = JSON.parse(payloadRaw) as LevelAnswerPayload;
+    parsedPayload = payloadRaw.length > 20_000 ? null : JSON.parse(payloadRaw);
   } catch {
-    throw new Error("Invalid answer.");
+    parsedPayload = null;
   }
+  const payload = sanitiseLevelPayload(parsedPayload);
+  if (!payload) throw new Error("Invalid answer.");
 
   // Score instantly for objective question types — no AI needed.
   // Short-answer questions are stored with score=-1 and batch-marked at the

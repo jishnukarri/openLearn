@@ -1,7 +1,7 @@
 import type { DiagnosticQuestion } from "@/lib/supabase/diagnostic";
-import { markNumeric, parseNumericAnswer } from "@/lib/question-marking";
+import { markNumeric, parseNumericAnswer } from "./question-marking";
 import { matchesExpected } from "./spelling";
-import { readNumericMeta } from "@/lib/diagnostic-numeric";
+import { readNumericMeta } from "./diagnostic-numeric";
 
 // One diagnostic question's answer, submitted from a single level page.
 export type LevelAnswerPayload = {
@@ -11,12 +11,29 @@ export type LevelAnswerPayload = {
   shortAnswer?: string;
 };
 
+const MAX_ANSWER_TEXT = 2000;
+
+/** Coerces the untrusted posted JSON into a well-typed, size-capped payload. */
+export function sanitiseLevelPayload(raw: unknown): LevelAnswerPayload | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const out: LevelAnswerPayload = {};
+  if (Number.isInteger(o.mcqIndex)) out.mcqIndex = o.mcqIndex as number;
+  if (typeof o.blankText === "string") out.blankText = o.blankText.slice(0, MAX_ANSWER_TEXT);
+  if (typeof o.shortAnswer === "string") out.shortAnswer = o.shortAnswer.slice(0, MAX_ANSWER_TEXT);
+  if (Array.isArray(o.matches)) {
+    out.matches = o.matches.slice(0, 50).map((n) => (Number.isInteger(n) ? (n as number) : -1));
+  }
+  return out;
+}
+
 // Scores objective question types instantly (no AI). Returns null for
 // short_answer — those are batch-marked by markAnswersBatch at the end.
 export function scoreDiagnosticAnswerInstant(
   question: DiagnosticQuestion,
   payload: LevelAnswerPayload
 ): number | null {
+  if (!payload || typeof payload !== "object") return 0;
   switch (question.type) {
     case "mcq": {
       const content = question.content as { correctIndex: number };
@@ -28,7 +45,8 @@ export function scoreDiagnosticAnswerInstant(
       if (meta) {
         const target = parseNumericAnswer(content.blankAnswer);
         if (!target) return 0;
-        return markNumeric(payload.blankText ?? "", { value: target.value, ...meta }).fraction;
+        const given = typeof payload.blankText === "string" ? payload.blankText : "";
+        return markNumeric(given, { value: target.value, ...meta }).fraction;
       }
       // Not AI-marked — a plain string comparison against whatever single
       // phrasing the AI happened to generate as "the" answer. Forgiving a
@@ -46,6 +64,7 @@ export function scoreDiagnosticAnswerInstant(
       if (typeof payload.blankText !== "string") return 0;
       const gotN = normalize(payload.blankText);
       const wantN = normalize(content.blankAnswer);
+      if (!gotN) return 0;
       if (gotN === wantN) return 1;
       // Fill-blank in diagnostics: expected answer is treated as a key term
       // (stricter: exact, or 1 edit on 8+ chars) unless it is an ordinary word.
