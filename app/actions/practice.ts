@@ -28,6 +28,7 @@ import { resolveProviderConfig } from "@/lib/ai/client";
 import { resolveQuestionContent } from "@/lib/class-content";
 import { awardXp } from "@/lib/supabase/progress";
 import { checkKeyRateLimit } from "@/lib/rate-limit";
+import { claimAnswerSlot, ALREADY_RECORDED_MESSAGE } from "@/lib/answer-lock";
 
 import {
   deriveHints,
@@ -187,6 +188,12 @@ export async function submitAnswerAction(
 
   result = { ...result, marksAwarded: Math.max(0, Math.min(result.marksAwarded, question.max_marks)) };
 
+  // Cross-instance lock: an identical answer submitted twice at once records
+  // and pays once.
+  if (!(await claimAnswerSlot(profile.id, question.id, answerText))) {
+    return { message: ALREADY_RECORDED_MESSAGE };
+  }
+
   const priorBest = profile.role === "student" ? await getBestMarksLast24h(profile.id, question.id) : 0;
 
   await recordAnswer({
@@ -329,6 +336,12 @@ export async function submitBankAnswerAction(
   const correct = result.marksAwarded === question.max_marks;
 
   result = { ...result, marksAwarded: Math.max(0, Math.min(result.marksAwarded, question.max_marks)) };
+
+  // Cross-instance lock: an identical answer submitted twice at once records
+  // and pays once.
+  if (!(await claimAnswerSlot(profile.id, question.id, answerText))) {
+    return { message: ALREADY_RECORDED_MESSAGE };
+  }
 
   const priorBest = profile.role === "student" ? await getBestMarksLast24h(profile.id, question.id) : 0;
 

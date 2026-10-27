@@ -50,9 +50,24 @@ export async function awardXp(profileId: string, marksAwarded: number): Promise<
   await awardRawXp(profileId, marksAwarded * 10);
 }
 
+// Set once the atomic RPC (20261027_atomic_xp.sql) proves missing, so we warn
+// once and stop probing it for this process.
+let rpcMissing = false;
+
 // Same as awardXp but takes XP directly (lesson XP is not a multiple of 10).
 export async function awardRawXp(profileId: string, xpAmount: number): Promise<void> {
   const amount = Math.max(0, Math.round(xpAmount));
+  if (!rpcMissing) {
+    try {
+      const { error } = await db.rpc("award_xp", { p_profile: profileId, p_amount: amount });
+      if (!error) return;
+      rpcMissing = true;
+      console.warn("[xp] award_xp RPC unavailable, using read-modify-write fallback:", error.message);
+    } catch (e) {
+      rpcMissing = true;
+      console.warn("[xp] award_xp RPC failed, using read-modify-write fallback:", e instanceof Error ? e.message : e);
+    }
+  }
   const { data: profile, error: fetchError } = await db
     .from("profiles")
     .select("xp, streak_count, last_active_date")
