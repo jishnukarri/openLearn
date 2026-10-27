@@ -170,7 +170,10 @@ const SCAFFOLD_SYSTEM =
   `"fraction" steps have two boxes (top/bottom) and answer "top/bottom". "text" answers are ` +
   `a short exact word or phrase. Every step needs ONE exact machine-checkable answer. ` +
   `Use plain language and the question's own numbers. Steps before the last must not ` +
-  `contain the final answer. The last step must ask for the original answer.`;
+  `contain the final answer. The last step must ask for the original answer. ` +
+  `A later step's prompt may insert the student's earlier answer with {1}, {2}... ` +
+  `(1-based step number), e.g. "Work out {1} divided by {2}" — use this so each step ` +
+  `visibly builds on the last.`;
 
 const EXPLAIN_SYSTEM =
   `You help a GCSE student who got a question wrong twice. Write a short teaching card on ` +
