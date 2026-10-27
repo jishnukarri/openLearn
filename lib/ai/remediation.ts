@@ -124,6 +124,10 @@ export async function generateRemediation(question: Question, opts: Opts = {}): 
 const inFlightHints = new Map<string, Promise<string[] | null>>();
 const inFlightRemediation = new Map<string, Promise<Remediation | null>>();
 
+export function readCachedHints(q: Question): string[] | null {
+  return cachedHints(q);
+}
+
 function cachedHints(q: Question): string[] | null {
   const h = readFormatCache(q.format).hints;
   return Array.isArray(h) && h.length === 3 && h.every((s) => typeof s === "string" && s.trim()) ? (h as string[]) : null;

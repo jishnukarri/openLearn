@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { requireAnyRole } from "@/lib/appwrite/session";
+import { requireAnyRole, requireRole } from "@/lib/appwrite/session";
 import { getTopic, getSubtopic } from "@/lib/supabase/topics";
 import { resolveQuestionForSubtopic } from "@/lib/subtopic-content";
 import {
@@ -34,6 +34,9 @@ import {
   HINT_COPY_MESSAGE,
 } from "@/lib/question-hints";
 
+import { getOrCreateHints, getOrCreateRemediation, readCachedHints } from "@/lib/ai/remediation";
+import { checkScaffoldAnswer, checkTransferAnswer } from "@/lib/ai/remediation-helpers";
+import type { Remediation } from "@/lib/question-remediation";
 import type { PointFeedback } from "@/lib/ai/marking";
 import type { Question } from "@/lib/supabase/questions";
 
@@ -59,7 +62,8 @@ async function hintCopyMessage(
 ): Promise<string | null> {
   const shown = clampHintLevel(formData.get("hintsShown"));
   if (shown === 0) return null;
-  const hints = (await hintsFor(question)).slice(0, shown);
+  // Both the cached AI hints and the deterministic ones count as "shown".
+  const hints = [...(readCachedHints(question) ?? []).slice(0, shown), ...(await hintsFor(question)).slice(0, shown)];
   const candidates = answerCandidates({ answerText, text: payload.text, parts: payload.parts });
   return candidates.some((c) => isHintCopy(c, hints)) ? HINT_COPY_MESSAGE : null;
 }
@@ -347,4 +351,125 @@ export async function newSimilarSubtopicQuestionAction(formData: FormData): Prom
   await resolveQuestionForSubtopic(subtopic, profile.id, { force: true });
 
   redirect(`/practice/subtopic/${subtopicId}`);
+}
+
+/* ── escalating feedback: AI hints, remediation, completion ───────────── */
+
+const TEN_MIN = 10 * 60_000;
+const RATE_MESSAGE = "You're going a bit fast. Wait a moment and try again.";
+
+export type Unavailable = { unavailable: true; message?: string };
+
+async function topicTitleFor(question: Question): Promise<string | null> {
+  const topic = await getTopic(question.topic_id).catch(() => null);
+  return topic?.name ?? null;
+}
+
+// AI hint for a level (1..3), generated on first need and cached for everyone.
+// On failure returns {unavailable:true}; the masked mark-scheme hints are
+// deliberately not used as a fallback.
+export async function getHintAction(input: {
+  questionId: string;
+  level: number;
+}): Promise<{ hint: string; level: number; maxLevel: number } | Unavailable> {
+  const { profile } = await requireRole("student");
+  if (!await checkKeyRateLimit("practice-ai-hint", profile.id, 20, TEN_MIN)) {
+    return { unavailable: true, message: RATE_MESSAGE };
+  }
+  const level = clampHintLevel(input?.level);
+  if (level < 1 || typeof input?.questionId !== "string") return { unavailable: true };
+  const question = await getQuestionById(input.questionId);
+  if (!question) return { unavailable: true };
+  const hints = await getOrCreateHints(question, await topicTitleFor(question));
+  if (!hints) return { unavailable: true };
+  return { hint: hints[level - 1], level, maxLevel: hints.length };
+}
+
+// Remediation for a question (scaffold or explain). Answers are stripped:
+// the client checks every answer through checkScaffoldStepAction /
+// checkTransferAction so nothing can be read ahead of time.
+function redact(r: Remediation): Remediation {
+  if (r.type === "scaffold") {
+    return { type: "scaffold", steps: r.steps.map(({ answer: _a, accepted: _acc, ...rest }) => ({ ...rest, answer: "" })) };
+  }
+  const { correctIndex: _c, accepted: _a, ...tc } = r.transferCheck;
+  return { ...r, transferCheck: tc };
+}
+
+export async function getRemediationAction(input: {
+  questionId: string;
+}): Promise<Remediation | Unavailable> {
+  const { profile } = await requireRole("student");
+  if (!await checkKeyRateLimit("practice-remediation", profile.id, 20, TEN_MIN)) {
+    return { unavailable: true, message: RATE_MESSAGE };
+  }
+  if (typeof input?.questionId !== "string") return { unavailable: true };
+  const question = await getQuestionById(input.questionId);
+  if (!question) return { unavailable: true };
+  const rem = await getOrCreateRemediation(question, await topicTitleFor(question));
+  return rem ? redact(rem) : { unavailable: true };
+}
+
+// Marks one scaffold step server-side. Never returns the step's answer; a
+// wrong try gets the step's own nudge (which never contains the answer).
+export async function checkScaffoldStepAction(input: {
+  questionId: string;
+  stepIndex: number;
+  answer: string;
+}): Promise<{ correct: boolean; hint?: string }> {
+  const { profile } = await requireRole("student");
+  if (!await checkKeyRateLimit("practice-scaffold", profile.id, 120, TEN_MIN)) return { correct: false };
+  if (typeof input?.questionId !== "string" || typeof input?.answer !== "string" || input.answer.length > 200) {
+    return { correct: false };
+  }
+  const question = await getQuestionById(input.questionId);
+  if (!question) return { correct: false };
+  const rem = await getOrCreateRemediation(question, null);
+  if (!rem || rem.type !== "scaffold") return { correct: false };
+  const step = rem.steps[input.stepIndex];
+  if (!step) return { correct: false };
+  const correct = checkScaffoldAnswer(step, input.answer);
+  return correct ? { correct } : { correct, ...(step.hint ? { hint: step.hint } : {}) };
+}
+
+// Marks the transfer check of an explain remediation. For mcq the answer is
+// the chosen option's index (as text) or its text.
+export async function checkTransferAction(input: {
+  questionId: string;
+  answer: string;
+}): Promise<{ correct: boolean }> {
+  const { profile } = await requireRole("student");
+  if (!await checkKeyRateLimit("practice-transfer", profile.id, 60, TEN_MIN)) return { correct: false };
+  if (typeof input?.questionId !== "string" || typeof input?.answer !== "string" || input.answer.length > 200) {
+    return { correct: false };
+  }
+  const question = await getQuestionById(input.questionId);
+  if (!question) return { correct: false };
+  const rem = await getOrCreateRemediation(question, null);
+  if (!rem || rem.type !== "explain") return { correct: false };
+  return { correct: checkTransferAnswer(rem.transferCheck, input.answer) };
+}
+
+// A question finished through remediation: no marks, no XP, no answer row.
+// It is logged as an incorrect, resolved retry so the session can move on
+// (Next appears) while mastery still sees it was not got first time.
+export async function completeAfterRemediationAction(input: {
+  questionId: string;
+  sessionId?: string | null;
+}): Promise<{ ok: boolean }> {
+  const { profile } = await requireRole("student");
+  if (!await checkKeyRateLimit("practice-remediation-done", profile.id, 60, TEN_MIN)) return { ok: false };
+  if (typeof input?.questionId !== "string") return { ok: false };
+  const question = await getQuestionById(input.questionId);
+  if (!question) return { ok: false };
+  if (typeof input.sessionId === "string" && (await isQuestionSessionOwner(input.sessionId, profile.id))) {
+    await recordQuestionSessionAttempt({
+      questionId: question.id,
+      studentId: profile.id,
+      sessionId: input.sessionId,
+      correct: false,
+      isRetry: true,
+    });
+  }
+  return { ok: true };
 }
