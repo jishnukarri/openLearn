@@ -1,4 +1,5 @@
 import { RichText } from "@/components/rich-text";
+import { Callout } from "@/components/callout";
 import { notFound } from "next/navigation";
 import { requireAnyRole } from "@/lib/appwrite/session";
 import { getTopic } from "@/lib/supabase/topics";
@@ -31,9 +32,9 @@ export default async function PracticePage({
   return (
     <PageShell size="wide">
       {profile.role !== "student" && (
-        <div className="rounded-xl border border-highlight/40 bg-highlight/10 px-4 py-2 text-sm text-highlight-ink">
+        <Callout tone="warning" size="sm" role="none">
           Previewing as {profile.role}, answers here won&apos;t earn XP.
-        </div>
+        </Callout>
       )}
 
       <PageHeader title="Practice" description={`${topic.subject.name} · ${topic.name}`} />

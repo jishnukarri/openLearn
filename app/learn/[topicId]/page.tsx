@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Callout } from "@/components/callout";
 import { requireAnyRole } from "@/lib/appwrite/session";
 import { getTopic } from "@/lib/supabase/topics";
 import { resolveLessonContent } from "@/lib/class-content";
@@ -51,9 +52,9 @@ export default async function LessonPage({
     <div className="flex flex-col">
       <div className="border-b border-border bg-surface">
         <div className="mx-auto flex max-w-5xl flex-col gap-4 px-6 py-4">
-          <div className="rounded-xl border border-highlight/40 bg-highlight/10 px-4 py-2 text-sm text-highlight-ink">
+          <Callout tone="warning" size="sm" role="none">
             Previewing as {profile.role}, completing this won&apos;t earn XP.
-          </div>
+          </Callout>
           <div className="flex flex-wrap items-start gap-3">
             <SimplifyForm topicId={topicId} />
             <TweakForm topicId={topicId} />
