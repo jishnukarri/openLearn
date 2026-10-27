@@ -13,7 +13,17 @@ export async function listPublishedAdminSubjects(): Promise<SubjectSummary[]> {
     .eq("status", "published")
     .order("name");
   if (error) throw error;
-  return (data as any[])
+  type PublishedSubjectRow = {
+    id: string;
+    name: string;
+    status: SubjectSummary["status"];
+    created_at: string;
+    created_by: string;
+    subject_exam_boards: { exam_boards: SubjectSummary["exam_boards"][number] }[];
+    topics: { id: string }[];
+    profiles: { role: string } | null;
+  };
+  return (data as unknown as PublishedSubjectRow[])
     .filter((d) => d.profiles?.role === "admin")
     .map((d) => ({
       id: d.id,
@@ -21,8 +31,8 @@ export async function listPublishedAdminSubjects(): Promise<SubjectSummary[]> {
       status: d.status,
       created_at: d.created_at,
       created_by: d.created_by,
-      exam_boards: d.subject_exam_boards.flatMap((row: any) => row.exam_boards),
-      topicCount: (d.topics as any[]).length,
+      exam_boards: d.subject_exam_boards.flatMap((row) => row.exam_boards),
+      topicCount: d.topics.length,
     }));
 }
 
@@ -57,7 +67,12 @@ export async function copySubjectForTeacher(
   if (subjectError) throw subjectError;
   const newSubjectId: string = newSubject.id;
 
-  const boardLinks = (source.subject_exam_boards as any[]) ?? [];
+  const boardLinks = (source.subject_exam_boards as unknown as {
+    exam_board_id: string;
+    spec_text: string | null;
+    spec_url: string | null;
+    status: string;
+  }[] | null) ?? [];
   if (boardLinks.length > 0) {
     const { error } = await db.from("subject_exam_boards").insert(
       boardLinks.map((b) => ({

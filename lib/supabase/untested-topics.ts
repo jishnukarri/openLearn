@@ -24,8 +24,8 @@ export async function getUntestedTopicsForSession(
     db.from("knowledge_model").select("subject_id, topic_name").eq("student_id", studentId).in("subject_id", subjectIds),
     Promise.all(subjectIds.map((id) => listPublishedTopicsBySubject(id))),
   ]);
-  const tested = new Set((known ?? []).map((k: any) => `${k.subject_id}::${k.topic_name}`));
-  const names = new Map((subjects ?? []).map((s: any) => [s.id, s.name as string]));
+  const tested = new Set((known ?? []).map((k: { subject_id: string; topic_name: string }) => `${k.subject_id}::${k.topic_name}`));
+  const names = new Map((subjects ?? []).map((s: { id: string; name: string }) => [s.id, s.name] as const));
 
   return subjectIds
     .map((subjectId, i) => ({

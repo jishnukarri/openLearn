@@ -63,7 +63,9 @@ export async function getTopic(topicId: string): Promise<TopicWithSubject | null
   if (error) throw error;
   if (!data) return null;
 
-  const { subjects, ...topic } = data as any;
+  const { subjects, ...topic } = data as unknown as Topic & {
+    subjects: TopicWithSubject["subject"];
+  };
   return { ...topic, subject: subjects };
 }
 

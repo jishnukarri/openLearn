@@ -26,7 +26,20 @@ export type SubmissionAnswer = {
   feedback: { point: string; met: boolean; comment: string }[];
 };
 
-function mapSubmission(r: any): Submission {
+type SubmissionRow = {
+  id: string;
+  paper_id: string;
+  roster_entry_id: string | null;
+  detected_reference_code: string | null;
+  status: SubmissionStatus;
+  error_message: string | null;
+  image_file_ids: string[] | null;
+  total_marks_awarded: number | null;
+  total_possible_marks: number | null;
+  created_at: string;
+};
+
+function mapSubmission(r: SubmissionRow): Submission {
   return {
     id: r.id,
     paperId: r.paper_id,
@@ -121,7 +134,13 @@ export async function getSubmissionsForPaper(paperId: string): Promise<
     .eq("paper_id", paperId)
     .order("created_at");
   if (error) throw error;
-  return (data as any[]).map((r) => {
+  type SubmissionWithRosterRow = SubmissionRow & {
+    paper_roster_entries: {
+      custom_name: string | null;
+      profiles: { full_name: string | null; email: string | null } | null;
+    } | null;
+  };
+  return (data as unknown as SubmissionWithRosterRow[]).map((r) => {
     const roster = r.paper_roster_entries;
     const displayName = roster
       ? roster.custom_name ?? roster.profiles?.full_name ?? roster.profiles?.email ?? null
@@ -149,7 +168,15 @@ export async function getSubmissionAnswers(submissionId: string): Promise<Submis
     .eq("submission_id", submissionId)
     .order("question_number");
   if (error) throw error;
-  return (data as any[]).map((r) => ({
+  type AnswerRow = {
+    id: string;
+    submission_id: string;
+    question_number: number;
+    marks_awarded: number;
+    max_marks: number;
+    feedback: SubmissionAnswer["feedback"];
+  };
+  return (data as unknown as AnswerRow[]).map((r) => ({
     id: r.id,
     submissionId: r.submission_id,
     questionNumber: r.question_number,

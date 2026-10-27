@@ -67,7 +67,15 @@ export async function getTopicDiagnosticPools(
   if (error) throw error;
 
   const byTopic = new Map<string, PoolQuestionRow[]>();
-  for (const row of data as any[]) {
+  type PoolRow = {
+    id: string;
+    topic_id: string;
+    type: PoolQuestionRow["type"];
+    prompt: string;
+    max_marks: number;
+    content: PoolQuestionRow["content"];
+  };
+  for (const row of data as unknown as PoolRow[]) {
     const list = byTopic.get(row.topic_id) ?? [];
     list.push({
       id: row.id,

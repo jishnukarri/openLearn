@@ -266,7 +266,17 @@ export async function getPendingShortAnswers(sessionId: string): Promise<
     .eq("diagnostic_answers.score", -1);
   if (error) throw error;
 
-  return (data as any[])
+  type PendingRow = {
+    id: string;
+    prompt: string;
+    max_marks: number;
+    content: unknown;
+    diagnostic_answers:
+      | { score: number; answer_text: string | null }
+      | { score: number; answer_text: string | null }[]
+      | null;
+  };
+  return (data as unknown as PendingRow[])
     .map((row) => {
       // diagnostic_answers.question_id is that table's primary key, so this
       // is a to-one relationship — PostgREST embeds it as a single object,
@@ -316,7 +326,12 @@ export async function buildKnowledgeModel(
     { subjectId: string; topicName: string | null; total: number; count: number }
   >();
 
-  for (const row of data as any[]) {
+  type SubjectTopicRow = {
+    subject_id: string;
+    topic_name: string | null;
+    diagnostic_answers: { score: number } | { score: number }[] | null;
+  };
+  for (const row of data as unknown as SubjectTopicRow[]) {
     const key = `${row.subject_id}:${row.topic_name ?? ""}`;
     const bucket = buckets.get(key) ?? {
       subjectId: row.subject_id,
@@ -369,7 +384,11 @@ export async function getSessionResultsByTopic(
   if (error) throw error;
 
   const buckets = new Map<string, { total: number; count: number }>();
-  for (const row of data as any[]) {
+  type TopicRow = {
+    topic_name: string | null;
+    diagnostic_answers: { score: number } | { score: number }[] | null;
+  };
+  for (const row of data as unknown as TopicRow[]) {
     const key = row.topic_name ?? "General";
     const bucket = buckets.get(key) ?? { total: 0, count: 0 };
     const answers = Array.isArray(row.diagnostic_answers)
@@ -414,7 +433,24 @@ export async function getSessionQuestionReviews(
     .order("position");
   if (error) throw error;
 
-  return (data as any[]).map((row) => {
+  type ReviewRow = {
+    id: string;
+    topic_name: string | null;
+    type: QuestionReview["type"];
+    prompt: string;
+    max_marks: number;
+    content: {
+      options?: string[];
+      correctIndex: number;
+      blankAnswer?: string;
+      pairs: { left: string; right: string }[];
+    };
+    diagnostic_answers:
+      | { score: number | null; answer_text: string | null }
+      | { score: number | null; answer_text: string | null }[]
+      | null;
+  };
+  return (data as unknown as ReviewRow[]).map((row) => {
     // Same to-one embed shape as getPendingShortAnswers above — an object,
     // not an array. The old [0] index always missed, defaulting every
     // question's score to 0 regardless of how it was actually answered.
@@ -427,7 +463,7 @@ export async function getSessionQuestionReviews(
     if (row.type === "mcq") correctAnswer = c.options?.[c.correctIndex] ?? null;
     else if (row.type === "fill_blank") correctAnswer = c.blankAnswer ?? null;
     else if (row.type === "match")
-      correctAnswer = (c.pairs as { left: string; right: string }[])
+      correctAnswer = c.pairs
         .map((p) => `${p.left} → ${p.right}`)
         .join(", ");
 

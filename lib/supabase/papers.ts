@@ -93,7 +93,16 @@ export async function getPaperQuestions(paperId: string): Promise<PaperQuestion[
     .eq("paper_id", paperId)
     .order("question_number");
   if (error) throw error;
-  return (data as any[]).map((r) => ({
+  type QuestionRow = {
+    id: string;
+    paper_id: string;
+    question_number: number;
+    prompt: string;
+    max_marks: number;
+    markscheme: PaperQuestion["markscheme"];
+    image_url: string | null;
+  };
+  return (data as unknown as QuestionRow[]).map((r) => ({
     id: r.id,
     paperId: r.paper_id,
     questionNumber: r.question_number,
@@ -116,7 +125,15 @@ export async function listPapersForTeacher(teacherId: string): Promise<Paper[]> 
     .eq("teacher_id", teacherId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data as any[]).map((d) => ({
+  type PaperRow = {
+    id: string;
+    teacher_id: string;
+    class_id: string;
+    title: string;
+    status: Paper["status"];
+    created_at: string;
+  };
+  return (data as unknown as PaperRow[]).map((d) => ({
     id: d.id,
     teacherId: d.teacher_id,
     classId: d.class_id,
@@ -207,7 +224,15 @@ export async function getRosterForPaper(paperId: string): Promise<
     .eq("paper_id", paperId)
     .order("created_at");
   if (error) throw error;
-  return (data as any[]).map((r) => ({
+  type RosterRow = {
+    id: string;
+    paper_id: string;
+    student_id: string | null;
+    custom_name: string | null;
+    reference_code: string;
+    profiles: { full_name: string | null; email: string | null } | null;
+  };
+  return (data as unknown as RosterRow[]).map((r) => ({
     id: r.id,
     paperId: r.paper_id,
     studentId: r.student_id,
