@@ -49,6 +49,7 @@ export function RenameSubject({ subjectId, name }: { subjectId: string; name: st
           defaultValue={name}
           required
           minLength={2}
+          maxLength={120}
           autoFocus
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
         />

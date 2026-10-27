@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { Button } from "@/components/button";
+import { SubmitButton } from "@/components/submit-button";
 import { PendingAiOverlay } from "@/components/pending-ai-overlay";
 
 // Opens a confirmation dialog before running a slow "replace the lesson"
@@ -68,13 +69,14 @@ export function RegenerateLessonButton({
               variant="secondary"
               size="compact"
               className="!shadow-none"
+              autoFocus
               onClick={() => dialogRef.current?.close()}
             >
               Cancel
             </Button>
-            <Button type="submit" size="compact" className="!shadow-none">
+            <SubmitButton size="compact" className="!shadow-none" pendingText="Replacing…">
               Replace lesson
-            </Button>
+            </SubmitButton>
           </div>
           <PendingAiOverlay
             title="Regenerating the lesson"

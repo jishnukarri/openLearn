@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/button";
+import { SubmitButton } from "@/components/submit-button";
 import { PendingAiOverlay } from "@/components/pending-ai-overlay";
 import { RegenerateLessonButton } from "@/components/regenerate-lesson-button";
 import { EASE_OUT } from "@/components/motion";
@@ -81,9 +82,9 @@ export function TopicInstructionsForm({
         />
         <form action={regenerateFlashcardsAction}>
           <input type="hidden" name="topicId" value={topicId} />
-          <Button type="submit" variant="secondary" size="compact" className="!shadow-none">
+          <SubmitButton variant="secondary" size="compact" className="!shadow-none" pendingText="Regenerating…">
             Regenerate flashcards
-          </Button>
+          </SubmitButton>
           <PendingAiOverlay
             title="Regenerating flashcards"
             messages={["Reading your instructions…", "Writing the cards…", "Nearly there…"]}
