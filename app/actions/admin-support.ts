@@ -91,9 +91,12 @@ export async function resetPassword(profileId: string, reason: string): Promise<
     "reset_password",
     async (id) => {
       const users = createServerUsers();
-      await users.updatePassword({ userId: id, password: tempPassword });
+      // Flag first: if the password step then fails, the account is merely
+      // forced to change a password it already knows, never left with an
+      // unflagged temporary one.
       const prefs = await users.getPrefs(id);
       await users.updatePrefs(id, { ...prefs, [MUST_CHANGE_PASSWORD_PREF]: true });
+      await users.updatePassword({ userId: id, password: tempPassword });
       await users.deleteSessions({ userId: id });
       return { tempPassword };
     },
