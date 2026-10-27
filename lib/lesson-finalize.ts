@@ -22,7 +22,7 @@ export async function finalizeLessonContent(
 ): Promise<LessonContent> {
   const content = deepCollapseRepeatedChars(rawContent);
   const sections = await Promise.all(
-    (content.sections ?? []).map(async (section) => ({
+    (content.sections ?? []).filter((section) => section && section.check).map(async (section) => ({
       ...section,
       visual: await finalizeVisual(section.visual, topicId, section.heading),
       exampleVisual: await finalizeVisual(section.exampleVisual, topicId, section.heading),
