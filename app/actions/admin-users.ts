@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/appwrite/session";
 import { updateProfileRole, deleteProfileById } from "@/lib/supabase/admin-users";
 import { createServerUsers } from "@/lib/appwrite/server";
+import { isUuid } from "@/lib/ids";
+import { logAdminAction } from "@/lib/supabase/admin-audit";
 
 export async function updateRoleAction(formData: FormData): Promise<void> {
-  await requireRole("admin");
+  const { profile: admin } = await requireRole("admin");
 
   const profileId = formData.get("profileId");
   const role = formData.get("role");
@@ -17,7 +19,16 @@ export async function updateRoleAction(formData: FormData): Promise<void> {
     throw new Error("Invalid role.");
   }
 
+  if (!isUuid(profileId)) throw new Error("Invalid profileId.");
+  // An admin demoting themselves could leave the platform with no admin.
+  if (profileId === admin.id) throw new Error("You can't change your own role.");
+
   await updateProfileRole(profileId, role as "admin" | "teacher" | "student" | "pending_teacher");
+  try {
+    await logAdminAction({ adminId: admin.id, targetId: profileId, action: "change_role", reason: `role set to ${role}` });
+  } catch {
+    console.warn("admin_audit_log unavailable; role change was not recorded.");
+  }
   revalidatePath("/admin/users");
 }
 
@@ -30,6 +41,7 @@ export async function deleteUserAccountAction(formData: FormData): Promise<void>
 
   const profileId = formData.get("profileId");
   if (typeof profileId !== "string") throw new Error("Missing profileId.");
+  if (!isUuid(profileId)) throw new Error("Invalid profileId.");
   if (profileId === admin.id) {
     throw new Error("You can't delete your own account from here.");
   }
