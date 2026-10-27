@@ -2,7 +2,7 @@
 
 import * as z from "zod";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { requireAnyRole, requireOwnerOrAdmin } from "@/lib/appwrite/session";
 import {
   createSubject,
@@ -594,7 +594,25 @@ export async function updateQuestionVerificationAction(input: {
   prompt?: string;
   modelAnswer?: string;
 }): Promise<void> {
-  await requireAnyRole(["admin", "teacher"]);
+  if (typeof input?.questionId !== "string" || !input.questionId) throw new Error("Missing questionId.");
+  // The question id comes from the client: resolve its subject and require
+  // ownership, so a teacher can't edit another teacher's question bank.
+  const { db } = await import("@/lib/supabase/database-client");
+  const { data: q } = await db
+    .from("questions")
+    .select("topics(subject_id)")
+    .eq("id", input.questionId)
+    .maybeSingle();
+  const topics = (q as { topics: { subject_id: string } | { subject_id: string }[] | null } | null)?.topics;
+  const subjectId = (Array.isArray(topics) ? topics[0] : topics)?.subject_id;
+  if (!subjectId) notFound();
+  await requireOwnerOrAdmin(subjectId);
+  if (input.prompt !== undefined && (typeof input.prompt !== "string" || input.prompt.length > 5000)) {
+    throw new Error("Invalid prompt.");
+  }
+  if (input.modelAnswer !== undefined && (typeof input.modelAnswer !== "string" || input.modelAnswer.length > 10000)) {
+    throw new Error("Invalid model answer.");
+  }
   const { updateQuestionVerification } = await import("@/lib/supabase/questions");
   await updateQuestionVerification(input.questionId, input.verified, {
     prompt: input.prompt,
