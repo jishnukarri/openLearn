@@ -12,7 +12,16 @@ import "server-only";
 // yields null so lesson generation is never affected.
 import { parseScene, type Scene } from "@/lib/lesson-scene";
 import { findTextCollisions } from "@/lib/scene-layout";
-import { hackClubFetch } from "./client";
+import {
+  callCheapModel,
+  cheapFetch,
+  cheapKey,
+  cheapModel,
+  cheapProvider,
+  FatalModelError,
+  warnOnce as warnOnceShared,
+  type Msg,
+} from "./cheap-model";
 import type { LessonContent } from "@/lib/ai/lessons";
 import {
   buildRetryPrompt,
@@ -23,82 +32,38 @@ import {
   type SceneSectionInput,
 } from "./scene-helpers";
 
-const ENDPOINTS = {
-  openrouter: "https://openrouter.ai/api/v1/chat/completions",
-  hackclub: "https://ai.hackclub.com/proxy/v1/chat/completions",
-} as const;
-type SceneProvider = keyof typeof ENDPOINTS;
-
-function sceneProvider(): SceneProvider {
-  const v = process.env.SCENE_PROVIDER;
-  if (v === "hackclub" || v === "openrouter") return v;
-  return process.env.HACKCLUB_API_KEY ? "hackclub" : "openrouter";
-}
-
-function providerKey(): string | undefined {
-  return sceneProvider() === "hackclub" ? process.env.HACKCLUB_API_KEY : process.env.OPENROUTER_API_KEY;
-}
-const DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash";
 const CALL_TIMEOUT_MS = 100_000;
 const LESSON_TIMEOUT_MS = 150_000;
 const MAX_SECTIONS = 8;
 const CONCURRENCY = 4;
 
-const warned = new Set<string>();
 function warnOnce(key: string, msg: string) {
-  if (warned.has(key)) return;
-  warned.add(key);
-  console.warn(`[scenes] ${msg}`);
+  warnOnceShared("scenes", key, msg);
 }
 
-type Msg = { role: "system" | "user" | "assistant"; content: string };
-
-class FatalSceneError extends Error {}
-
 async function callModel(messages: Msg[], apiKey: string, model: string, fetchImpl: typeof fetch): Promise<string> {
-  const provider = sceneProvider();
-  const res = await fetchImpl(ENDPOINTS[provider], {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      messages,
-      // DeepSeek V4.1 Flash is a reasoning model: at 3000 tokens its thinking
-      // alone used up the budget and the JSON was cut off. Keep thinking short
-      // and leave plenty of room for the scene itself.
-      max_tokens: 8000,
-      reasoning: { effort: "low" },
-      response_format: { type: "json_object" },
-    }),
-    signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+  return callCheapModel(messages, {
+    apiKey,
+    model,
+    fetchImpl,
+    label: "scenes",
+    // Keep thinking short and leave plenty of room for the scene itself.
+    maxTokens: 8000,
+    timeoutMs: CALL_TIMEOUT_MS,
   });
-  if (res.status === 402) {
-    warnOnce("402", `${provider} returned 402 (insufficient credits or quota); scenes disabled until that is fixed.`);
-    throw new FatalSceneError("402");
-  }
-  if (res.status === 401) {
-    warnOnce("401", `${provider} rejected the API key (401); scenes disabled.`);
-    throw new FatalSceneError("401");
-  }
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
-  if (data?.error) throw new Error(String(data.error.message ?? "provider error"));
-  const content = data?.choices?.[0]?.message?.content;
-  if (typeof content !== "string" || !content) throw new Error("empty response");
-  return content;
 }
 
 export async function generateSceneForSection(
   section: SceneSectionInput,
   opts: { apiKey?: string; model?: string; fetchImpl?: typeof fetch } = {}
 ): Promise<Scene | null> {
-  const apiKey = opts.apiKey ?? providerKey();
+  const apiKey = opts.apiKey ?? cheapKey();
   if (!apiKey) {
-    warnOnce("nokey", `No API key for scene provider "${sceneProvider()}"; skipping scene generation.`);
+    warnOnce("nokey", `No API key for scene provider "${cheapProvider()}"; skipping scene generation.`);
     return null;
   }
-  const model = opts.model ?? (process.env.SCENE_MODEL || DEFAULT_MODEL);
-  const fetchImpl = opts.fetchImpl ?? (sceneProvider() === "hackclub" ? (hackClubFetch as unknown as typeof fetch) : fetch);
+  const model = opts.model ?? cheapModel();
+  const fetchImpl = opts.fetchImpl ?? cheapFetch();
   const messages: Msg[] = [
     { role: "system", content: SCENE_SYSTEM_PROMPT },
     { role: "user", content: buildScenePrompt(section) },
@@ -125,7 +90,7 @@ export async function generateSceneForSection(
     // Out of retries: keep a scene whose only problems are soft (label near a line).
     return softFallback;
   } catch (e) {
-    if (!(e instanceof FatalSceneError)) {
+    if (!(e instanceof FatalModelError)) {
       console.warn("[scenes] generation failed:", e instanceof Error ? e.message : e);
     }
     return null;
@@ -139,7 +104,7 @@ export async function generateScenesForLesson(
   subjectName: string,
   opts: { apiKey?: string; model?: string; fetchImpl?: typeof fetch } = {}
 ): Promise<LessonContent> {
-  if (!(opts.apiKey ?? providerKey())) return content;
+  if (!(opts.apiKey ?? cheapKey())) return content;
   const sections = content.sections ?? [];
   const todo = sections
     .map((s, i) => ({ s, i }))
