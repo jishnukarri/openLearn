@@ -22,6 +22,7 @@ import {
 import { generateTopicsForSubject, generateSingleTopic } from "@/lib/ai/topics";
 import { generateLesson } from "@/lib/ai/lessons";
 import { checkKeyRateLimit } from "@/lib/rate-limit";
+import { withInFlight } from "@/lib/in-flight";
 import { resolveProviderConfig } from "@/lib/ai/client";
 import { generateTopicDiagnosticPool } from "@/lib/ai/diagnostic-pool";
 import { saveTopicDiagnosticPool } from "@/lib/supabase/topic-diagnostic-questions";
@@ -75,7 +76,7 @@ export async function addExamBoardAction(
 }
 
 const CreateSubjectSchema = z.object({
-  name: z.string().min(2, "Subject name must be at least 2 characters.").trim(),
+  name: z.string().min(2, "Subject name must be at least 2 characters.").max(120, "Subject name must be 120 characters or fewer.").trim(),
   examBoardIds: z.array(z.string()).min(1, "Pick at least one exam board."),
 });
 
@@ -420,7 +421,7 @@ export async function saveSubjectInstructionsAction(formData: FormData): Promise
   }
   await requireOwnerOrAdmin(subjectId);
 
-  await updateSubjectInstructions(subjectId, instructions);
+  await updateSubjectInstructions(subjectId, instructions.slice(0, 4000));
   revalidatePath("/admin/subjects");
   revalidatePath("/admin/subjects/[subjectId]", "page");
   revalidatePath("/teacher/subjects");
@@ -437,7 +438,7 @@ export async function saveTopicInstructionsAction(formData: FormData): Promise<v
   if (!topic) throw new Error("Topic not found.");
   await requireOwnerOrAdmin(topic.subject.id);
 
-  await updateTopicInstructions(topicId, instructions);
+  await updateTopicInstructions(topicId, instructions.slice(0, 4000));
   revalidatePath("/admin/subjects");
   revalidatePath("/admin/subjects/[subjectId]", "page");
   revalidatePath("/teacher/subjects");
@@ -554,10 +555,13 @@ export async function regenerateTopicLessonAction(formData: FormData): Promise<v
     throw new Error("Please wait a few minutes before regenerating again.");
   }
 
-  const config = await resolveProviderConfig(profile.id);
-  const instructions = await withReferenceContext(topicId, topic.name, topic.custom_instructions);
-  const lesson = await generateLesson(topic.name, topic.subject.name, false, instructions, config);
-  await createLesson(topicId, await finalizeLessonContent(lesson, topicId, topic.subject.name));
+  await withInFlight(`regen-topic:${topicId}`, async () => {
+    const config = await resolveProviderConfig(profile.id);
+    const instructions = await withReferenceContext(topicId, topic.name, topic.custom_instructions);
+    const lesson = await generateLesson(topic.name, topic.subject.name, false, instructions, config);
+    // Insert-only and last: a failure above leaves the previous lesson current.
+    await createLesson(topicId, await finalizeLessonContent(lesson, topicId, topic.subject.name));
+  });
   revalidateSubjectPages();
   revalidatePath(`/learn/${topicId}`);
 }
@@ -572,18 +576,20 @@ export async function regenerateSubtopicLessonAction(formData: FormData): Promis
     throw new Error("Please wait a few minutes before regenerating again.");
   }
 
-  const config = await resolveProviderConfig(profile.id);
-  const instructions = await withReferenceContext(
-    subtopic.topic.id,
-    subtopic.name,
-    subtopic.topic.custom_instructions
-  );
-  const lesson = await generateLesson(subtopic.name, subtopic.topic.subject.name, false, instructions, config);
-  await createLessonForSubtopic(
-    subtopic.topic.id,
-    subtopic.id,
-    await finalizeLessonContent(lesson, subtopic.id, subtopic.topic.subject.name)
-  );
+  await withInFlight(`regen-subtopic:${subtopicId}`, async () => {
+    const config = await resolveProviderConfig(profile.id);
+    const instructions = await withReferenceContext(
+      subtopic.topic.id,
+      subtopic.name,
+      subtopic.topic.custom_instructions
+    );
+    const lesson = await generateLesson(subtopic.name, subtopic.topic.subject.name, false, instructions, config);
+    await createLessonForSubtopic(
+      subtopic.topic.id,
+      subtopic.id,
+      await finalizeLessonContent(lesson, subtopic.id, subtopic.topic.subject.name)
+    );
+  });
   revalidateSubjectPages();
   revalidatePath(`/learn/subtopic/${subtopicId}`);
 }
