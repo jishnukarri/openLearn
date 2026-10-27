@@ -56,3 +56,20 @@ describe("name", () => {
     expect(isBlocked("name", "The Spam   Bot!", l)).toBe(l[0]);
   });
 });
+
+describe("evasion", () => {
+  it("folds Cyrillic and Greek lookalikes", () => {
+    const list = [e("name", "admin")];
+    expect(isBlocked("name", "аdmin", list)).toBe(list[0]); // Cyrillic a
+    expect(isBlocked("name", "admіn", list)).toBe(list[0]); // Cyrillic i
+    const em = [e("email", "bad@example.com")];
+    expect(isBlocked("email", "bаd@example.com", em)).toBe(em[0]);
+  });
+  it("ignores trailing dots on the domain and trailing spaces", () => {
+    const em = [e("email", "example.com")];
+    expect(isBlocked("email", "kid@example.com. ", em)).toBe(em[0]);
+  });
+  it("still allows unrelated Cyrillic names", () => {
+    expect(isBlocked("name", "Сергей Иванов", [e("name", "admin")])).toBeNull();
+  });
+});

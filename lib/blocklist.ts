@@ -13,6 +13,15 @@ const INVISIBLE = /[​-‍⁠﻿­]/g;
 const MARKS = /\p{M}/gu;
 const GMAIL_DOMAINS = new Set(["gmail.com", "googlemail.com"]);
 
+// Lookalike Cyrillic/Greek letters folded to the Latin letter they imitate
+// (applied after lowercasing). Applied to entries and input alike, so a
+// blocked word typed with homoglyphs still matches.
+const CONFUSABLES: Record<string, string> = {
+  "а": "a", "в": "b", "е": "e", "к": "k", "м": "m", "н": "h", "о": "o", "р": "p", "с": "c", "т": "t", "у": "y", "х": "x", "і": "i", "ј": "j", "ѕ": "s", "ԁ": "d", "ɡ": "g", "ӏ": "l",
+  "α": "a", "β": "b", "ε": "e", "ι": "i", "κ": "k", "ν": "v", "ο": "o", "ρ": "p", "τ": "t", "υ": "u", "χ": "x", "ϲ": "c",
+};
+const CONFUSABLE_RE = new RegExp(`[${Object.keys(CONFUSABLES).join("")}]`, "g");
+
 function base(value: string): string {
   return value
     .normalize("NFKC")
@@ -21,6 +30,7 @@ function base(value: string): string {
     .replace(MARKS, "")
     .normalize("NFKC")
     .toLowerCase()
+    .replace(CONFUSABLE_RE, (c) => CONFUSABLES[c])
     .trim();
 }
 
@@ -30,7 +40,7 @@ export function normalizeEmail(value: string): string {
   const at = v.lastIndexOf("@");
   if (at < 0) return v;
   let local = v.slice(0, at);
-  let domain = v.slice(at + 1);
+  let domain = v.slice(at + 1).replace(/\.+$/, "");
   const plus = local.indexOf("+");
   if (plus >= 0) local = local.slice(0, plus);
   if (GMAIL_DOMAINS.has(domain)) {
@@ -106,7 +116,7 @@ function matchesEmail(value: string, pattern: string): boolean {
   const p = base(pattern).replace(/\s+/g, "");
   if (!p) return false;
   if (p.startsWith("@") || !p.includes("@")) {
-    const blockedDomain = p.replace(/^@/, "");
+    const blockedDomain = p.replace(/^@/, "").replace(/\.+$/, "");
     if (!blockedDomain) return false;
     const d = GMAIL_DOMAINS.has(blockedDomain) ? "gmail.com" : blockedDomain;
     // The domain itself or any subdomain of it.
