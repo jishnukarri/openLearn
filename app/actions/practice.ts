@@ -176,6 +176,8 @@ export async function submitAnswerAction(
     }
   }
 
+  result = { ...result, marksAwarded: Math.max(0, Math.min(result.marksAwarded, question.max_marks)) };
+
   const priorBest = profile.role === "student" ? await getBestMarksLast24h(profile.id, question.id) : 0;
 
   await recordAnswer({
@@ -311,6 +313,8 @@ export async function submitBankAnswerAction(
   }
 
   const correct = result.marksAwarded === question.max_marks;
+
+  result = { ...result, marksAwarded: Math.max(0, Math.min(result.marksAwarded, question.max_marks)) };
 
   const priorBest = profile.role === "student" ? await getBestMarksLast24h(profile.id, question.id) : 0;
 

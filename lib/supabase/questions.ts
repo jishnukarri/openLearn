@@ -357,7 +357,25 @@ export function readFormatCache(format: unknown): { hints: unknown; remediation:
 // written elsewhere (numeric answer, options...) are never clobbered. A null
 // format becomes { type: "extended", ...patch }, matching how the app already
 // treats a missing format.
-export async function mergeQuestionFormat(
+// Serialises merges per question within this process so a hints write and a
+// remediation write racing each other cannot lose one another's key.
+const mergeQueue = new Map<string, Promise<unknown>>();
+
+export function mergeQuestionFormat(
+  questionId: string,
+  patch: Record<string, unknown>
+): Promise<void> {
+  const prev = mergeQueue.get(questionId) ?? Promise.resolve();
+  const run = prev.then(() => mergeQuestionFormatNow(questionId, patch));
+  const tail = run.catch(() => {});
+  mergeQueue.set(questionId, tail);
+  void tail.then(() => {
+    if (mergeQueue.get(questionId) === tail) mergeQueue.delete(questionId);
+  });
+  return run;
+}
+
+async function mergeQuestionFormatNow(
   questionId: string,
   patch: Record<string, unknown>
 ): Promise<void> {
