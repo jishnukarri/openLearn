@@ -133,6 +133,7 @@ export function LessonPlayer({
   const [adaptedSections, setAdaptedSections] = useState<Set<number>>(new Set());
   const [showQuitModal, setShowQuitModal] = useState(false);
   const adaptRequested = useRef<Set<number>>(new Set());
+  const finishing = useRef(false);
   const [helpOpen, setHelpOpen] = useState(false); // coach panel open
   const [hasDraft, setHasDraft] = useState(false);
   const [misses, setMisses] = useState(0);
@@ -264,14 +265,21 @@ export function LessonPlayer({
   }
 
   async function finish() {
+    // A double click on the last button must not award twice.
+    if (finishing.current) return;
+    finishing.current = true;
     setIsDone(true);
     celebrate();
-    const result = await completeLessonAction(topicId, mode, {
-      firstTryCorrect: correctCount,
-      checksTotal: sections.length,
-      hintsUsed: coachSession.hints,
-    });
-    setCompletion(result);
+    try {
+      const result = await completeLessonAction(topicId, mode, {
+        firstTryCorrect: correctCount,
+        checksTotal: sections.length,
+        hintsUsed: coachSession.hints,
+      });
+      setCompletion(result);
+    } catch {
+      // The lesson is still finished on screen; just no XP card.
+    }
   }
 
   function next() {
