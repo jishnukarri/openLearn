@@ -7,6 +7,7 @@ import { BrandMark } from "@/components/brand-mark";
 import { askLessonTutorAction } from "@/app/actions/lessons";
 import type { CoachTurn } from "@/lib/ai/lesson-tutor";
 import type { CoachSession } from "@/lib/lesson-coach-context";
+import { announcementFor } from "@/lib/coach-announcement";
 import { threadWithDividers } from "@/lib/lesson-coach-thread";
 import type { Step } from "./lesson-plan";
 
@@ -31,6 +32,14 @@ const subscribeSheet = (cb: () => void) => {
   return () => mq.removeEventListener("change", cb);
 };
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function latestCoachTurn(thread: Msg[]): CoachTurn | null {
+  for (let i = thread.length - 1; i >= 0; i--) {
+    const m = thread[i];
+    if (m.role !== "student") return m.turn;
+  }
+  return null;
+}
 
 export function LessonTutor({
   topicId,
@@ -213,7 +222,7 @@ export function LessonTutor({
         ))}
       </div>
 
-      <div className="mt-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto text-sm leading-6" aria-live="polite">
+      <div className="mt-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto text-sm leading-6">
         {thread.length === 0 && !pendingQ && (
           lastMiss ? (
             <button
@@ -290,6 +299,9 @@ export function LessonTutor({
           <div className="self-start rounded-2xl rounded-bl-md bg-background px-3 py-2"><StatusLine text="Your coach is thinking…" /></div>
         )}
         {error && <p className="text-error-ink">{error}</p>}
+      </div>
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {announcementFor(latestCoachTurn(thread))}
       </div>
 
       <form
