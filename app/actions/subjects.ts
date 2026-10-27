@@ -63,8 +63,8 @@ export async function addExamBoardAction(
 
   try {
     await createExamBoard(name.trim());
-  } catch (error: any) {
-    if (error?.code === "23505") {
+  } catch (error: unknown) {
+    if ((error as { code?: string } | null)?.code === "23505") {
       return { error: `"${name.trim()}" already exists.` };
     }
     return { error: "Something went wrong — please try again." };

@@ -34,18 +34,28 @@ async function main() {
     .limit(2000);
   if (error) throw error;
 
-  const todo: { id: string; row: any; content: any; subject: string; idx: number[] }[] = [];
+  type Section = { heading: string; explanation: string; example: string; exampleScene?: unknown };
+  type LessonContent = { sections?: Section[] } & Record<string, unknown>;
+  type LessonRow = {
+    id: string;
+    topic_id: string;
+    subtopic_id: string | null;
+    class_id: string | null;
+    content: LessonContent | null;
+    topic?: { subject?: { name?: string } | null } | null;
+  };
+  const todo: { id: string; row: LessonRow; content: LessonContent; subject: string; idx: number[] }[] = [];
   const seen = new Set<string>(); // rows are newest-first; only the latest version per lesson matters
-  for (const row of (data ?? []) as any[]) {
+  for (const row of (data ?? []) as unknown as LessonRow[]) {
     const key = `${row.topic_id}|${row.subtopic_id}|${row.class_id}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const sections: any[] = row.content?.sections ?? [];
+    const sections: Section[] = row.content?.sections ?? [];
     const idx = sections
       .map((s, i) => (s && s.example?.trim() && !parseScene(s.exampleScene) ? i : -1))
       .filter((i) => i >= 0)
       .slice(0, 8);
-    if (idx.length) todo.push({ id: row.id, row, content: row.content, subject: row.topic?.subject?.name ?? "General", idx });
+    if (idx.length) todo.push({ id: row.id, row, content: row.content as LessonContent, subject: row.topic?.subject?.name ?? "General", idx });
     if (todo.length >= limit) break;
   }
   const total = todo.reduce((n, t) => n + t.idx.length, 0);
@@ -56,7 +66,7 @@ async function main() {
   }
   let done = 0;
   for (const t of todo) {
-    const sections = [...t.content.sections];
+    const sections = [...(t.content.sections ?? [])];
     let changed = false;
     for (const i of t.idx) {
       const s = sections[i];

@@ -115,8 +115,8 @@ export async function startRecapDiagnosticAction(formData: FormData): Promise<vo
       "id",
       selections.map((s) => s.subjectId)
     );
-  const idToName = new Map((rows ?? []).map((r: any) => [r.id, r.name]));
-  const subjectNameToId = new Map((rows ?? []).map((r: any) => [r.name, r.id]));
+  const idToName = new Map((rows ?? []).map((r: { id: string; name: string }) => [r.id, r.name]));
+  const subjectNameToId = new Map((rows ?? []).map((r: { id: string; name: string }) => [r.name, r.id]));
 
   const presetSessionId = await buildStudentRecapPoolDiagnostic({ studentId: profile.id, selections });
   if (presetSessionId) redirect(`/onboarding/diagnostic/${presetSessionId}/level/0`);

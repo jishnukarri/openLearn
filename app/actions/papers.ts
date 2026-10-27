@@ -79,7 +79,7 @@ function isValidReviewedQuestion(q: unknown): q is ReviewedQuestion {
     typeof r.prompt === "string" && r.prompt.trim().length > 0 &&
     typeof r.maxMarks === "number" && r.maxMarks > 0 &&
     Array.isArray(r.markscheme) && r.markscheme.length > 0 &&
-    r.markscheme.every((m) => typeof m === "object" && m !== null && typeof (m as any).point === "string")
+    r.markscheme.every((m) => typeof m === "object" && m !== null && typeof (m as Record<string, unknown>).point === "string")
   );
 }
 
