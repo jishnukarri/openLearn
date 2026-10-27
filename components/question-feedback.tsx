@@ -1,10 +1,10 @@
 "use client";
 
-import { AnimatePresence, MotionConfig, motion } from "framer-motion";
+import { AnimatePresence, MotionConfig } from "framer-motion";
 import { Check, X, Lightbulb } from "lucide-react";
 import { Button } from "@/components/button";
 import { RichText } from "@/components/rich-text";
-import { EASE_OUT } from "@/components/motion";
+import { Callout } from "@/components/callout";
 
 export type FeedbackKind = "numeric" | "free-text";
 
@@ -22,22 +22,10 @@ export function Banner({
   children: React.ReactNode;
   id?: string;
 }) {
-  const toneClass =
-    tone === "error"
-      ? "border-error/40 bg-error/10 text-error-ink"
-      : tone === "success"
-        ? "border-success/40 bg-success/10 text-success-ink"
-        : "border-border bg-surface text-foreground";
   return (
-    <motion.div
-      id={id}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: EASE_OUT }}
-      className={`rounded-xl border px-4 py-3 text-base font-medium ${toneClass}`}
-    >
+    <Callout tone={tone} role="none" id={id}>
       {children}
-    </motion.div>
+    </Callout>
   );
 }
 
