@@ -79,6 +79,7 @@ export async function withReferenceContext(
     .select("subjects(custom_instructions)")
     .eq("id", topicId)
     .maybeSingle();
-  const subjectNote = (data as any)?.subjects?.custom_instructions as string | null | undefined;
+  const subjectNote = (data as { subjects?: { custom_instructions?: string | null } | null } | null)?.subjects
+    ?.custom_instructions;
   return composeInstructions(subjectNote, baseInstructions, reference);
 }

@@ -2,8 +2,11 @@ import "server-only";
 
 // pdfjs-dist (bundled in unpdf) calls Math.sumPrecise which landed in V8 ≥13.
 // Polyfill it for older Node runtimes so PDF extraction doesn't crash.
-if (typeof (Math as any).sumPrecise !== "function") {
-  (Math as any).sumPrecise = (values: Iterable<number>): number => {
+const mathWithSumPrecise = Math as unknown as {
+  sumPrecise?: (values: Iterable<number>) => number;
+};
+if (typeof mathWithSumPrecise.sumPrecise !== "function") {
+  mathWithSumPrecise.sumPrecise = (values: Iterable<number>): number => {
     let sum = 0;
     for (const v of values) sum += v;
     return sum;

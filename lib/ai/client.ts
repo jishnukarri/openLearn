@@ -27,7 +27,7 @@ export async function hackClubFetch(
       return (await undiciFetch(input, {
         ...init,
         dispatcher: hackClubAgent,
-      } as any)) as unknown as Response;
+      } as Parameters<typeof undiciFetch>[1])) as unknown as Response;
     } catch (err) {
       if (attempt >= retries) throw err;
       await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
@@ -261,7 +261,18 @@ async function chatJsonGemini<T>(
   return JSON.parse(response.text ?? "{}") as T;
 }
 
-function toGeminiSchema(schema: any, Type: any): any {
+type JsonSchemaNode = {
+  type?: string;
+  properties?: Record<string, JsonSchemaNode>;
+  required?: string[];
+  items?: JsonSchemaNode;
+  enum?: string[];
+};
+
+function toGeminiSchema(
+  schema: JsonSchemaNode,
+  Type: Record<string, string>
+): Record<string, unknown> {
   switch (schema.type) {
     case "object":
       return {
@@ -269,13 +280,13 @@ function toGeminiSchema(schema: any, Type: any): any {
         properties: Object.fromEntries(
           Object.entries(schema.properties ?? {}).map(([key, value]) => [
             key,
-            toGeminiSchema(value, Type),
+            toGeminiSchema(value as JsonSchemaNode, Type),
           ])
         ),
         required: schema.required,
       };
     case "array":
-      return { type: Type.ARRAY, items: toGeminiSchema(schema.items, Type) };
+      return { type: Type.ARRAY, items: toGeminiSchema(schema.items as JsonSchemaNode, Type) };
     case "integer":
       return { type: Type.INTEGER };
     case "boolean":

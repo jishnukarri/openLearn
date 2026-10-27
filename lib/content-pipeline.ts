@@ -35,7 +35,7 @@ export async function pregenerateTopicContent(
   }
 
   if (existingBank.length === 0 && lesson) {
-    const sections = (lesson.sections || []).map((s: any) => ({
+    const sections = (lesson.sections || []).map((s: { heading: string; explanation: string }) => ({
       heading: s.heading,
       explanation: s.explanation,
     }));
