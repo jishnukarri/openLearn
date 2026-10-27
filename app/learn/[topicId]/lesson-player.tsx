@@ -927,7 +927,7 @@ export function LessonPlayer({
           {/* ── AI coach: slim collapsible side panel (bottom sheet on phones) ── */}
           {!isDone && (
             <div className="lg:sticky lg:top-[var(--lesson-bar,3.5rem)] lg:flex lg:h-[calc(100dvh-var(--lesson-bar,3.5rem))] lg:flex-col lg:overflow-hidden lg:border-l lg:border-border lg:bg-surface/40">
-              <LessonTutor key={stepKey} topicId={coachTopicId ?? topicId} mode={mode} lessonId={topicId} plan={plan} stepIndex={planIdx} session={coachSession} onHint={() => setCoachSession((c) => ({ ...c, hints: c.hints + 1 }))} open={helpOpen} onOpenChange={setCoachOpen} />
+              <LessonTutor topicId={coachTopicId ?? topicId} mode={mode} lessonId={topicId} plan={plan} stepIndex={planIdx} session={coachSession} onHint={() => setCoachSession((c) => ({ ...c, hints: c.hints + 1 }))} open={helpOpen} onOpenChange={setCoachOpen} />
             </div>
           )}
         </div>

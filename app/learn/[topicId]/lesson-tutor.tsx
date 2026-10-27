@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { Check, MessageCircleQuestion, X } from "lucide-react";
 import { StatusLine } from "@/components/pending-status";
 import { BrandMark } from "@/components/brand-mark";
 import { askLessonTutorAction } from "@/app/actions/lessons";
 import type { CoachTurn } from "@/lib/ai/lesson-tutor";
 import type { CoachSession } from "@/lib/lesson-coach-context";
+import { threadWithDividers } from "@/lib/lesson-coach-thread";
 import type { Step } from "./lesson-plan";
 
 const SUGGESTIONS = [
@@ -17,9 +18,19 @@ const SUGGESTIONS = [
   { label: "Give me a hint", message: "Give me a hint for this step." },
 ];
 
+// `step` is the lesson step the message was sent on; the thread persists
+// across steps and shows a divider where it changes.
 type Msg =
-  | { role: "student"; text: string }
-  | { role: "coach"; turn: CoachTurn; picked?: number };
+  | { role: "student"; text: string; step: number }
+  | { role: "coach"; turn: CoachTurn; picked?: number; step: number };
+
+const SHEET_QUERY = "(max-width: 1023.98px)";
+const subscribeSheet = (cb: () => void) => {
+  const mq = window.matchMedia(SHEET_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+};
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function LessonTutor({
   topicId,
@@ -49,10 +60,58 @@ export function LessonTutor({
   const [pendingQ, setPendingQ] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  // Below lg the panel is a modal bottom sheet.
+  const isSheet = useSyncExternalStore(subscribeSheet, () => window.matchMedia(SHEET_QUERY).matches, () => false);
+  const panelRef = useRef<HTMLElement>(null);
+  const modal = open && isSheet;
+  const closeRef = useRef(onOpenChange);
+  useEffect(() => {
+    closeRef.current = onOpenChange;
+  });
+
+  // Modal sheet: lock page scroll, move focus in, trap Tab, close on Escape,
+  // and hand focus back to whatever opened it.
+  useEffect(() => {
+    if (!modal) return;
+    const opener = document.activeElement as HTMLElement | null;
+    const panel = panelRef.current;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    panel?.querySelector<HTMLElement>("input")?.focus({ preventScroll: true });
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        closeRef.current(false);
+        return;
+      }
+      if (e.key !== "Tab" || !panel) return;
+      const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.offsetParent !== null);
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || !panel.contains(active))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (active === last || !panel.contains(active))) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      document.body.style.overflow = prevOverflow;
+      // Only reclaim focus if nothing else (e.g. the new step) took it.
+      const a = document.activeElement;
+      if (opener?.isConnected && (!a || a === document.body || panel?.contains(a))) opener.focus({ preventScroll: true });
+    };
+  }, [modal]);
 
   function ask(prompt = question) {
     const trimmed = prompt.trim();
     if (!trimmed || isPending) return;
+    const at = stepIndex;
 
     const history = thread.map((m) =>
       m.role === "student"
@@ -69,11 +128,11 @@ export function LessonTutor({
     setQuestion("");
     setError(null);
     setPendingQ(trimmed);
-    setThread((t) => [...t, { role: "student", text: trimmed }]);
+    setThread((t) => [...t, { role: "student", text: trimmed, step: at }]);
     startTransition(async () => {
       try {
         const turn = await askLessonTutorAction({ topicId, mode, lessonId, question: trimmed, history, stepIndex, plan, session });
-        setThread((t) => [...t, { role: "coach", turn }]);
+        setThread((t) => [...t, { role: "coach", turn, step: at }]);
       } catch {
         setError("I couldn't reach your study coach. Please try again.");
       } finally {
@@ -111,11 +170,14 @@ export function LessonTutor({
         />
       )}
       <aside
+        ref={panelRef}
         id="lesson-coach-panel"
         aria-label="Your AI study coach"
+        role={modal ? "dialog" : undefined}
+        aria-modal={modal ? true : undefined}
         className={`${
           open
-            ? "fixed inset-x-0 bottom-0 z-30 flex max-h-[80dvh] flex-col rounded-t-2xl border-t border-border bg-background p-4 shadow-lg lg:static lg:z-auto lg:max-h-none lg:h-full lg:rounded-none lg:border-t-0 lg:bg-transparent lg:p-4 lg:shadow-none"
+            ? "fixed inset-x-0 bottom-0 z-30 flex max-h-[80dvh] flex-col rounded-t-2xl border-t border-border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg lg:static lg:z-auto lg:max-h-none lg:h-full lg:rounded-none lg:border-t-0 lg:bg-transparent lg:p-4 lg:pb-4 lg:shadow-none"
             : "hidden"
         }`}
       >
@@ -167,8 +229,18 @@ export function LessonTutor({
             <p className="text-muted">Stuck, or want to test yourself? Tap Quiz me for a quick quiz on what you have covered.</p>
           )
         )}
-        {thread.map((m, i) =>
-          m.role === "student" ? (
+        {threadWithDividers(thread, stepIndex).map((item) => {
+          if (item.kind === "divider") {
+            return (
+              <p key={item.key} className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted" role="separator" aria-label={`Now on step ${item.step + 1}`}>
+                <span className="h-px flex-1 bg-border" />
+                Now on step {item.step + 1}
+                <span className="h-px flex-1 bg-border" />
+              </p>
+            );
+          }
+          const { msg: m, index: i } = item;
+          return m.role === "student" ? (
             <p key={i} className="self-end rounded-2xl rounded-br-md bg-primary/15 px-3 py-2 text-foreground">{m.text}</p>
           ) : m.turn.kind === "mcq" ? (
             <div key={i} className="flex flex-col gap-2 rounded-2xl rounded-bl-md bg-background p-3">
@@ -213,8 +285,8 @@ export function LessonTutor({
             </div>
           ) : (
             <p key={i} className="rounded-2xl rounded-bl-md bg-background px-3 py-2 text-foreground">{m.turn.reply}</p>
-          )
-        )}
+          );
+        })}
         {pendingQ && (
           <div className="self-start rounded-2xl rounded-bl-md bg-background px-3 py-2"><StatusLine text="Your coach is thinking…" /></div>
         )}
