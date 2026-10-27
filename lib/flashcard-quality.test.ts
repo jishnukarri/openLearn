@@ -73,3 +73,24 @@ describe("lessonVocabCard", () => {
     expect(lessonVocabCard("Why it matters in the real world today for everyone who lives here", "Volcanoes erupt.")).toBeNull();
   });
 });
+
+describe("validateCard: legitimate notation and short terms", () => {
+  const ok = (front: string, back: string) => expect(validateCard({ front, back }).ok).toBe(true);
+  it("accepts acronym fronts", () => {
+    ok("ATP", "Adenosine triphosphate, the cell's energy currency");
+    ok("DNA", "Deoxyribonucleic acid, the molecule carrying genetic information");
+  });
+  it("accepts single-character and numeric answers", () => {
+    ok("How many electrons does helium have?", "2");
+    ok("pH of a neutral solution", "7");
+  });
+  it("accepts maths and chemistry notation", () => {
+    ok("Speed formula", "v = d / t");
+    ok("Area of a circle?", "πr²");
+    ok("Equation for photosynthesis?", "6CO2 + 6H2O → C6H12O6 + 6O2");
+    ok("Product of photosynthesis", "Glucose and oxygen released by the plant");
+  });
+  it("still rejects punctuation-only answers", () => {
+    expect(validateCard({ front: "Term", back: "?!" }).ok).toBe(false);
+  });
+});

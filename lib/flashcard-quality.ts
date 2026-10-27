@@ -50,14 +50,14 @@ export function validateCard(card: CardLike): CardVerdict {
 
   const backWords = words(back);
   if (backWords.length > MAX_BACK_WORDS + 5) return { ok: false, reason: "answer too long" };
-  if (back.length < 2) return { ok: false, reason: "answer too short" };
+  if (!/[\p{L}\p{N}]/u.test(back)) return { ok: false, reason: "answer too short" };
 
   const nf = normaliseWord(front);
   const nb = normaliseWord(back);
   if (nf === nb) return { ok: false, reason: "back repeats front" };
   const ft = contentTokens(front);
   const bt = contentTokens(back);
-  if (ft.length > 0 && bt.every((t) => ft.some((f) => tokensMatch(f, t)))) {
+  if (ft.length > 0 && bt.length > 0 && bt.every((t) => ft.some((f) => tokensMatch(f, t)))) {
     return { ok: false, reason: "back repeats front" };
   }
 
@@ -89,8 +89,12 @@ export function validateCard(card: CardLike): CardVerdict {
     const backTokens = contentTokens(back);
     const overlap = termTokens.some((t) => backTokens.some((b) => tokensMatch(t, b)));
     const isDefinition = DEFINITION_PATTERN.test(back);
+    // An acronym/symbol front ("ATP", "DNA") is never a word the answer repeats.
+    const isAcronym = /^[A-Z][A-Za-z0-9]{1,6}$/.test(front) && front === front.toUpperCase();
     const answerStartsOwnSentence = /^[A-Z][^.]*\b(is|are|was|were|has|have)\b/.test(back) && overlap === false;
-    if (!overlap && !isDefinition && backWords.length > 5) return { ok: false, reason: "answer does not define the term" };
+    // "Product of photosynthesis" asks for a fact about the term, not its definition.
+    const isRelationPrompt = frontWords.length >= 3 && /\b(of|for|between|in)\b/i.test(front);
+    if (!overlap && !isDefinition && !isAcronym && !isRelationPrompt && backWords.length > 5) return { ok: false, reason: "answer does not define the term" };
     if (answerStartsOwnSentence && termTokens.length > 0 && backWords.length > 12) {
       return { ok: false, reason: "answer is about a different topic" };
     }
