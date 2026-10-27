@@ -359,7 +359,7 @@ export function AnswerForm({
 
       {helpOpen && !result && (
         <div className="flex flex-1 flex-col gap-3 lg:sticky lg:top-6">
-          <RemediationPanel questionId={questionId} source="hint" onComplete={() => setHelpDone(true)} />
+          <RemediationPanel questionId={questionId} source="hint" onComplete={() => setHelpDone(true)} onClose={() => setHelpOpen(false)} />
           {helpDone && (
             <form action={mode === "subtopic" ? newSimilarSubtopicQuestionAction : newSimilarQuestionAction}>
               <input type="hidden" name={mode === "subtopic" ? "subtopicId" : "topicId"} value={topicId} />

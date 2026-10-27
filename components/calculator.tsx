@@ -170,6 +170,7 @@ export function Calculator({
                   }
                 }}
                 aria-label="Calculator expression"
+                maxLength={200}
                 aria-invalid={error}
                 autoComplete="off"
                 spellCheck={false}
