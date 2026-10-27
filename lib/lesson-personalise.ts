@@ -23,6 +23,15 @@ export type LessonPractice = { items: PracticeItem[]; reason: string };
 export const PRACTICE_LIMIT = 3;
 const WEAK_MASTERY = 0.6;
 
+/** Split ids into URL-safe batches for PostgREST `in (...)` filters. */
+export function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += Math.max(1, size)) out.push(items.slice(i, i + Math.max(1, size)));
+  return out;
+}
+
+const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+
 function hash(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
@@ -70,8 +79,16 @@ export function rankPractice(input: {
     missId: m.id,
   }));
   const misses = missCounts(input.answers, input.attempts);
+  // A bank question that is the same prompt as a carried miss would show twice.
+  const carriedPrompts = new Set(carried.map((c) => norm(c.prompt)));
+  const seen = new Set<string>();
+  const candidates = input.candidates.filter((c) => {
+    if (seen.has(c.id) || carriedPrompts.has(norm(c.prompt))) return false;
+    seen.add(c.id);
+    return true;
+  });
   const weak = input.mastery != null && input.mastery < WEAK_MASTERY;
-  const scored = input.candidates
+  const scored = candidates
     .map((c) => {
       const m = misses.get(c.id) ?? 0;
       const inSub = !!input.subtopicId && c.subtopicId === input.subtopicId;

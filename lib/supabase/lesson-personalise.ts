@@ -3,7 +3,13 @@ import { db } from "./database-client";
 import { listQuestionBankForTopic } from "./questions";
 import { getTopicMastery } from "./mastery";
 import { getRankedLessonMisses } from "./lesson-misses";
-import { rankPractice, type LessonPractice, type PracticeCandidate } from "@/lib/lesson-personalise";
+import { chunk, rankPractice, type LessonPractice, type PracticeCandidate } from "@/lib/lesson-personalise";
+
+type Res = { data: unknown[] | null; error: { message?: string } | null };
+function mergeRes(rs: Res[]): Res {
+  const bad = rs.find((r) => r.error);
+  return bad ? { data: null, error: bad.error } : { data: rs.flatMap((r) => r.data ?? []), error: null };
+}
 
 // Existing questions only, ranked from the student's own history. Any failure
 // or empty history returns null and the lesson keeps its default activity.
@@ -18,12 +24,15 @@ export async function getLessonPractice(input: {
     const bank = await listQuestionBankForTopic(topic.id);
     const ids = bank.map((q) => q.id);
 
+    // `.in()` with hundreds of uuids overflows the request URL, so history is
+    // fetched in batches; subtopics come from one topic-scoped query.
+    const batches = chunk(ids, 100);
     const [subRes, ansRes, attRes, mastery] = ids.length === 0
       ? [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }, null]
       : await Promise.all([
-          db.from("questions").select("id, subtopic_id").in("id", ids),
-          db.from("student_answers").select("question_id, marks_awarded, max_marks").eq("student_id", studentId).in("question_id", ids),
-          db.from("question_session_attempts").select("question_id, correct").eq("student_id", studentId).in("question_id", ids),
+          db.from("questions").select("id, subtopic_id").eq("topic_id", topic.id).limit(1000),
+          Promise.all(batches.map((b) => db.from("student_answers").select("question_id, marks_awarded, max_marks").eq("student_id", studentId).in("question_id", b))).then(mergeRes),
+          Promise.all(batches.map((b) => db.from("question_session_attempts").select("question_id, correct").eq("student_id", studentId).in("question_id", b))).then(mergeRes),
           getTopicMastery(studentId).catch(() => null),
         ]);
     const subOf = new Map<string, string | null>();

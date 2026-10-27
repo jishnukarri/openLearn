@@ -75,3 +75,23 @@ describe("rankPractice with lesson misses", () => {
     expect(rankPractice({ studentId: "s1", candidates: [], answers: [], attempts: [], topicLabel: "Forces" })).toBeNull();
   });
 });
+
+import { chunk } from "./lesson-personalise";
+describe("chunk and duplicate handling", () => {
+  it("splits into batches", () => {
+    expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+    expect(chunk([], 3)).toEqual([]);
+  });
+  it("does not pick a bank question twice or one equal to a carried miss", () => {
+    const c = (id: string, prompt: string) => ({ id, prompt, modelAnswer: "", points: [], maxMarks: 1, subtopicId: null });
+    const r = rankPractice({
+      studentId: "s",
+      candidates: [c("a", "What is 2+2?"), c("a", "What is 2+2?"), c("b", "Name the  capital")],
+      answers: [],
+      attempts: [{ questionId: "a", correct: false }, { questionId: "b", correct: false }],
+      topicLabel: "T",
+      lessonMisses: [{ id: "m", topicId: "t", subtopicId: null, prompt: "name the capital", correctAnswer: "x", missedCount: 1, lastMissedAt: "2026-01-01", resolved: false, lessonLabel: "L" }],
+    });
+    expect(r!.items.map((i) => i.id)).toEqual(["miss:m", "a"]);
+  });
+});
