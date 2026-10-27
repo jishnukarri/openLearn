@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 type State = "idle" | "loading" | "complete";
@@ -8,16 +8,19 @@ type State = "idle" | "loading" | "complete";
 export function NavigationProgress() {
   const pathname = usePathname();
   const [state, setState] = useState<State>("idle");
-  const completeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // When pathname changes the navigation finished, show the completion flash.
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
+    if (state !== "idle") setState("complete");
+  }
+
   useEffect(() => {
-    if (state === "idle") return; // first render, don't flash
-    setState("complete");
-    if (completeTimer.current) clearTimeout(completeTimer.current);
-    completeTimer.current = setTimeout(() => setState("idle"), 400);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+    if (state !== "complete") return;
+    const t = setTimeout(() => setState("idle"), 400);
+    return () => clearTimeout(t);
+  }, [state]);
 
   // Intercept clicks on internal <a> tags to start the bar.
   useEffect(() => {
@@ -36,7 +39,6 @@ export function NavigationProgress() {
       if (anchor.getAttribute("target") === "_blank") return;
       // Only start if we're navigating away from the current path
       if (href !== pathname) {
-        if (completeTimer.current) clearTimeout(completeTimer.current);
         setState("loading");
       }
     }
