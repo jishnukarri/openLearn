@@ -2,7 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { requireAnyRole } from "@/lib/appwrite/session";
+import { requireAnyRole, requireOwnerOrAdmin } from "@/lib/appwrite/session";
+import { withInFlight } from "@/lib/in-flight";
+import { validateImageUpload } from "@/lib/image-upload";
 import { checkKeyRateLimit } from "@/lib/rate-limit";
 import { getTopic, getSubtopic } from "@/lib/supabase/topics";
 import {
@@ -301,17 +303,25 @@ export async function requestExtraHelpAction(formData: FormData): Promise<void> 
 
   const topic = await getTopic(topicId);
   if (!topic) throw new Error("Topic not found.");
-
-  const config = await resolveProviderConfig(profile.id);
-  const instructions = await withReferenceContext(topicId, topic.name, topic.custom_instructions);
-  const lesson = await generateLesson(topic.name, topic.subject.name, true, instructions, config);
-  const finalized = await finalizeLessonContent(lesson, topicId, topic.subject.name);
   if (profile.role === "student") {
-    // Students only get a simpler version for themselves; the shared lesson is untouched.
-    setSimplifiedLesson(profile.id, topicId, finalized);
+    if (topic.status !== "published") throw new Error("Topic not found.");
   } else {
-    await createLesson(topicId, finalized);
+    // This replaces the shared lesson, so only the subject's owner (or an admin) may.
+    await requireOwnerOrAdmin(topic.subject.id);
   }
+
+  await withInFlight(`extra-help:${profile.id}:${topicId}`, async () => {
+    const config = await resolveProviderConfig(profile.id);
+    const instructions = await withReferenceContext(topicId, topic.name, topic.custom_instructions);
+    const lesson = await generateLesson(topic.name, topic.subject.name, true, instructions, config);
+    const finalized = await finalizeLessonContent(lesson, topicId, topic.subject.name);
+    if (profile.role === "student") {
+      // Students only get a simpler version for themselves; the shared lesson is untouched.
+      setSimplifiedLesson(profile.id, topicId, finalized);
+    } else {
+      await createLesson(topicId, finalized);
+    }
+  });
 
   redirect(`/learn/${topicId}`);
 }
@@ -331,20 +341,23 @@ export async function tweakLessonAction(formData: FormData): Promise<void> {
 
   const topic = await getTopic(topicId);
   if (!topic) throw new Error("Topic not found.");
+  await requireOwnerOrAdmin(topic.subject.id);
 
   const current = await getLessonByTopic(topicId);
   if (!current) throw new Error("No lesson exists for this topic yet.");
 
-  const config = await resolveProviderConfig(profile.id);
-  const revised = await tweakLesson(
-    current,
-    instruction,
-    topic.name,
-    topic.subject.name,
-    config,
-    topic.custom_instructions
-  );
-  await createLesson(topicId, await finalizeLessonContent(revised, topicId, topic.subject.name));
+  await withInFlight(`tweak:${topicId}`, async () => {
+    const config = await resolveProviderConfig(profile.id);
+    const revised = await tweakLesson(
+      current,
+      instruction.trim().slice(0, 2000),
+      topic.name,
+      topic.subject.name,
+      config,
+      topic.custom_instructions
+    );
+    await createLesson(topicId, await finalizeLessonContent(revised, topicId, topic.subject.name));
+  });
 
   redirect(`/learn/${topicId}`);
 }
@@ -363,32 +376,39 @@ export async function tweakSubtopicLessonAction(formData: FormData): Promise<voi
     getLessonBySubtopic(subtopicId),
   ]);
   if (!subtopic) throw new Error("Subtopic not found.");
+  await requireOwnerOrAdmin(subtopic.topic.subject.id);
   if (!current) throw new Error("No lesson exists for this subtopic yet.");
 
-  const config = await resolveProviderConfig(profile.id);
-  const revised = await tweakLesson(
-    current,
-    instruction.trim(),
-    subtopic.name,
-    subtopic.topic.subject.name,
-    config,
-    subtopic.topic.custom_instructions
-  );
-  await createLessonForSubtopic(
-    subtopic.topic.id,
-    subtopic.id,
-    await finalizeLessonContent(revised, subtopic.id, subtopic.topic.subject.name)
-  );
+  await withInFlight(`tweak-sub:${subtopicId}`, async () => {
+    const config = await resolveProviderConfig(profile.id);
+    const revised = await tweakLesson(
+      current,
+      instruction.trim().slice(0, 2000),
+      subtopic.name,
+      subtopic.topic.subject.name,
+      config,
+      subtopic.topic.custom_instructions
+    );
+    await createLessonForSubtopic(
+      subtopic.topic.id,
+      subtopic.id,
+      await finalizeLessonContent(revised, subtopic.id, subtopic.topic.subject.name)
+    );
+  });
 
   redirect(`/learn/subtopic/${subtopicId}`);
 }
 
 export async function uploadLessonImageAction(formData: FormData): Promise<string> {
-  await requireAnyRole(["teacher", "admin"]);
+  const { profile } = await requireAnyRole(["teacher", "admin"]);
   const file = formData.get("image");
-  if (!(file instanceof File) || file.size === 0) throw new Error("No image provided.");
-  if (!file.type.startsWith("image/")) throw new Error("File must be an image.");
-  if (file.size > 10 * 1024 * 1024) throw new Error("Image must be under 10 MB.");
+  if (!(file instanceof File)) throw new Error("No image provided.");
+  if (!(await checkKeyRateLimit("lesson-image-upload", profile.id, 30, 10 * 60_000))) {
+    throw new Error("Too many uploads. Please wait a few minutes.");
+  }
+  const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  const problem = validateImageUpload(file.type, file.size, head);
+  if (problem) throw new Error(problem);
   const fileId = await uploadFile(file);
   return getFileUrl(fileId);
 }
@@ -405,6 +425,8 @@ export async function saveSubtopicLessonAction(formData: FormData): Promise<Save
 
   const [subtopic, stored] = await Promise.all([getSubtopic(subtopicId), getLessonBySubtopic(subtopicId)]);
   if (!subtopic) throw new Error("Subtopic not found.");
+  await requireOwnerOrAdmin(subtopic.topic.subject.id);
+  if (rawContent.length > 2_000_000) throw new Error("The lesson is too large to save.");
 
   let content: LessonContent;
   try {
