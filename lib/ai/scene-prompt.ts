@@ -8,7 +8,7 @@ export const WORKED_EXAMPLE_GUIDE =
   `short sentences, one per step, last one gives the answer],"elements":[...]}. ` +
   `Each element has "type" (circle{cx,cy,r,fill,stroke} | rect{x,y,w,h,rx,fill,stroke} | ` +
   `line/arrow{x1,y1,x2,y2,stroke,dashed} | path{d,fill,stroke} (curves: M L C Q only) | ` +
-  `text{x,y,text,size 12-20,anchor,fill} | group{children:[...]}), ` +
+  `text{x,y,text,size 16-20,anchor,fill} | group{children:[...]}), ` +
   `"step" (0-based index of the caption at which it appears), optional ` +
   `"enter" (fade | draw for line/arrow/path | scale | slide) and optional ` +
   `looping "motion": {"type":"pulse"} | {"type":"flow","dots":3} on a ` +
@@ -24,7 +24,7 @@ export const WORKED_EXAMPLE_GUIDE =
   `arrows and other labels. Title at the top (y 24). Object labels sit directly beside, ` +
   `above or below their object (short leader line if needed). Dimension or measurement ` +
   `labels go outside the shape, centred on their dimension line but 14px away from it, ` +
-  `never ON the line. Max 6 texts per step, each under 28 characters, size 14-18. Keep ` +
+  `never ON the line. Max 6 texts per step, each under 24 characters, size 16-20 (the scene is shown small on phones, so never smaller than 16). Keep ` +
   `16px margin to the canvas edge. One idea per step; a label that persists keeps the same coordinates.\n` +
   `Example A (field lines, 3 steps): {"w":400,"h":260,"captions":["A positive charge sits in space.","Field lines point away from it.","A positive test charge is pushed along a line."],"elements":[` +
   `{"type":"circle","cx":200,"cy":130,"r":16,"fill":"error","step":0,"enter":"scale"},` +

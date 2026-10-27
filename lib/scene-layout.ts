@@ -16,7 +16,7 @@ const PAD = 6; // keep text this far inside the canvas
 const LINE_HALF = 3; // lines/arrows are treated as ~6px thick
 const RING_STEP = 12;
 const RING_MAX = 60;
-const MIN_SIZE = 12;
+const MIN_SIZE = 16;
 
 const textBox = (t: TextEl, size = t.size, x = t.x, y = t.y): Box => {
   const w = estimateTextWidth(t.text, size);

@@ -13,7 +13,7 @@ function fieldLines(): Scene | null {
   for (let i = 0; i < 8; i++) {
     const a = (i * Math.PI) / 4;
     const x1 = cx + Math.cos(a) * 20, y1 = cy + Math.sin(a) * 20;
-    const x2 = cx + Math.cos(a) * 105, y2 = cy + Math.sin(a) * 105;
+    const x2 = cx + Math.cos(a) * 92, y2 = cy + Math.sin(a) * 92;
     els.push({
       type: "arrow", x1: Math.round(x1), y1: Math.round(y1), x2: Math.round(x2), y2: Math.round(y2),
       stroke: "primary", step: 1, enter: "draw",
@@ -23,7 +23,7 @@ function fieldLines(): Scene | null {
   els.push(
     { type: "circle", cx: 0, cy: 0, r: 7, fill: "success", step: 2, enter: "scale",
       motion: { type: "orbit", cx, cy, radius: 80, duration: 6 } },
-    { type: "text", x: 200, y: 252, text: "Field lines point away from +", size: 14, anchor: "middle", step: 3 }
+    { type: "text", x: 200, y: 252, text: "Field lines point away from +", size: 16, anchor: "middle", step: 3 }
   );
   return parseScene({
     w: 400, h: 260,

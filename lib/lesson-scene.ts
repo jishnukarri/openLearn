@@ -143,7 +143,7 @@ function parseElement(raw: unknown, steps: number, inGroup: boolean): SceneEleme
       if (!text) return null;
       const anchor = raw.anchor === "middle" || raw.anchor === "end" ? raw.anchor : "start";
       return {
-        ...base, type: "text", x: coord(raw.x), y: coord(raw.y), text, size: n(raw.size, 12, 32, 14),
+        ...base, type: "text", x: coord(raw.x), y: coord(raw.y), text, size: n(raw.size, 16, 32, 16),
         anchor, fill: color(raw.fill, "ink"),
       };
     }
