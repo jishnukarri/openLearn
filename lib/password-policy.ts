@@ -6,7 +6,10 @@ export const MUST_CHANGE_PASSWORD_PREF = "mustChangePassword";
 export const FORCED_PASSWORD_PATH = "/account/password?required=1";
 
 // Shared by signup and the change-password form.
-export const PasswordSchema = z.string().min(8, "Password must be at least 8 characters long.");
+export const PasswordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters long.")
+  .max(256, "Password must be at most 256 characters long.");
 
 export function readMustChangePassword(prefs: unknown): boolean {
   if (!prefs || typeof prefs !== "object") return false;
