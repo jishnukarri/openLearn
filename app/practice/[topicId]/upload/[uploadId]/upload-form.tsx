@@ -17,8 +17,8 @@ export function UploadForm({ uploadId }: { uploadId: string }) {
   if (state?.success) {
     return (
       <div className="animate-pop-in rounded-2xl border border-success/40 bg-success/10 p-6 text-center">
-        <CheckCircle2 className="mx-auto mb-2 size-8 text-success" strokeWidth={1.75} />
-        <p className="text-lg font-semibold text-success">Uploaded</p>
+        <CheckCircle2 className="mx-auto mb-2 size-8 text-success-ink" strokeWidth={1.75} />
+        <p className="text-lg font-semibold text-success-ink">Uploaded</p>
         <p className="mt-2 text-sm text-muted">
           If you scanned this from your computer, head back there now, your
           photo is already waiting on the practice page.
@@ -39,7 +39,7 @@ export function UploadForm({ uploadId }: { uploadId: string }) {
         required
         className="rounded-lg border border-border bg-surface p-3 text-sm text-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
       />
-      {state?.message && <p className="text-sm text-error">{state.message}</p>}
+      {state?.message && <p className="text-sm text-error-ink">{state.message}</p>}
       <Button type="submit" disabled={pending}>
         {pending ? "Uploading…" : "Upload"}
       </Button>

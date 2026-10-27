@@ -179,7 +179,7 @@ export function Calculator({
               />
               <p
                 aria-live="polite"
-                className={`min-h-6 text-right font-mono text-base ${error ? "text-error" : "text-muted"}`}
+                className={`min-h-6 text-right font-mono text-base ${error ? "text-error-ink" : "text-muted"}`}
               >
                 {error ? "Check the expression" : result !== null ? `= ${result}` : " "}
               </p>
@@ -191,7 +191,7 @@ export function Calculator({
                     aria-label={key.aria}
                     onClick={() => press(key)}
                     className={`${KEY} ${key.span === 2 ? "col-span-2" : ""} ${
-                      key.action === "equals" ? "border-primary text-primary" : ""
+                      key.action === "equals" ? "border-primary text-primary-ink" : ""
                     }`}
                   >
                     {key.label}

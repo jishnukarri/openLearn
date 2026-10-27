@@ -23,7 +23,7 @@ export function ThemeToggle() {
         onClick={() => applyTheme(next)}
         aria-label={resolved ? `Switch to ${next} mode` : "Switch colour mode"}
         title={resolved ? `Switch to ${next} mode` : "Switch colour mode"}
-        className="relative flex size-10 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="relative flex size-11 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <AnimatePresence mode="wait" initial={false}>
           {resolved && (

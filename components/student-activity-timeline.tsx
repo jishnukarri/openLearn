@@ -5,7 +5,6 @@ import {
   ClipboardCheck,
   Dumbbell,
   FileText,
-  GraduationCap,
   MessageSquareText,
   ShieldCheck,
   Sparkles,
@@ -128,7 +127,7 @@ export function StudentActivityTimeline({
                                       {e.answer.feedback.map((f, i) => (
                                         <li key={i} className="whitespace-pre-wrap break-words text-foreground">
                                           {f.met !== null ? (
-                                            <span className={f.met ? "font-medium text-success" : "font-medium text-error"}>
+                                            <span className={f.met ? "font-medium text-success-ink" : "font-medium text-error-ink"}>
                                               {f.met ? "Got it" : "Missed"}
                                               {f.point ? ": " : ""}
                                             </span>

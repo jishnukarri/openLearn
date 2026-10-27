@@ -24,7 +24,7 @@ function ZoomableScene({ scene }: { scene: Scene }) {
       <button
         type="button"
         onClick={() => dialogRef.current?.showModal()}
-        className="inline-flex min-h-11 items-center gap-2 self-start rounded-xl px-3 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className="inline-flex min-h-11 items-center gap-2 self-start rounded-xl px-3 text-sm font-medium text-primary-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         <Maximize2 className="size-4" strokeWidth={2} aria-hidden /> Enlarge diagram
       </button>
@@ -223,7 +223,7 @@ export function ExplainRemediation({
                 />
               )}
 
-              {error && <p className="text-base text-error">{error}</p>}
+              {error && <p className="text-base text-error-ink">{error}</p>}
               <Button
                 type="button"
                 className="min-h-11 self-start"

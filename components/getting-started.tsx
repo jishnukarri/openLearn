@@ -64,7 +64,7 @@ export function GettingStarted({ items, nextKey }: { items: Item[]; nextKey: str
                     <ButtonLink href={item.href} size="compact">Start</ButtonLink>
                   ) : (
                     !item.done && (
-                      <Link href={item.href} className="shrink-0 text-sm font-medium text-primary hover:underline">
+                      <Link href={item.href} className="shrink-0 text-sm font-medium text-primary-ink hover:underline">
                         Start
                       </Link>
                     )

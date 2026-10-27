@@ -166,7 +166,7 @@ export function ScaffoldSteps({
               transition={{ duration: 0.35, ease: EASE_OUT }}
               className="flex flex-col gap-3"
             >
-              <p className="font-[family-name:var(--font-mono)] text-sm text-highlight">
+              <p className="font-[family-name:var(--font-mono)] text-sm text-highlight-ink">
                 Step {index + 1} of {steps.length}
               </p>
               <p className="text-base text-foreground">
@@ -216,7 +216,7 @@ export function ScaffoldSteps({
                     )}
                   </Banner>
                 )}
-                {error && <p className="text-base text-error">{error}</p>}
+                {error && <p className="text-base text-error-ink">{error}</p>}
               </div>
 
               {wrong ? (

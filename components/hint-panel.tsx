@@ -72,7 +72,7 @@ export function HintButton({ state, disabled }: { state: HintState; disabled?: b
       disabled={disabled || loading || (!scaffold && (exhausted || unavailable))}
       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-5 text-sm font-semibold text-foreground transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60"
     >
-      <Lightbulb className="size-4 text-highlight" strokeWidth={2} aria-hidden />
+      <Lightbulb className="size-4 text-highlight-ink" strokeWidth={2} aria-hidden />
       {label}
     </button>
   );
@@ -92,7 +92,7 @@ export function HintPanel({ state }: { state: HintState }) {
               transition={{ duration: 0.35, ease: EASE_OUT }}
               className="rounded-xl bg-highlight/5 px-4 py-2"
             >
-              <p className="font-[family-name:var(--font-mono)] text-sm text-highlight">
+              <p className="font-[family-name:var(--font-mono)] text-sm text-highlight-ink">
                 Hint {i + 1} of {maxLevel}
               </p>
               <p className="mt-1 whitespace-pre-line text-sm text-foreground">{hint}</p>
@@ -101,7 +101,7 @@ export function HintPanel({ state }: { state: HintState }) {
         </AnimatePresence>
         {unavailable && <p className="text-sm text-muted">No hint available for this question.</p>}
         {exhausted && <p className="text-sm text-muted">No more hints. Have a go in your own words.</p>}
-        {error && <p className="text-sm text-error">{error}</p>}
+        {error && <p className="text-sm text-error-ink">{error}</p>}
       </div>
     </MotionConfig>
   );

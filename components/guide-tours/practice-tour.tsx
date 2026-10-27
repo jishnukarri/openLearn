@@ -16,7 +16,7 @@ function Marks() {
             key={i}
             initial={{ scale: 0.6, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 400, damping: 30, delay: 0.2 + i * 0.15 }}
+            transition={{ duration: 0.4, ease: EASE_OUT, delay: 0.2 + i * 0.15 }}
             className="size-3 rounded-full bg-success"
           />
         ))}

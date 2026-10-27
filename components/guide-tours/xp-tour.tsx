@@ -8,7 +8,7 @@ import { CountUp, type CompleteAction } from "./parts";
 
 function Overview() {
   const rows = [
-    { icon: Zap, tone: "text-highlight", label: "XP", text: "Points you earn for finishing lessons and practice." },
+    { icon: Zap, tone: "text-highlight-ink", label: "XP", text: "Points you earn for finishing lessons and practice." },
     { icon: Flame, tone: "text-secondary", label: "Streak", text: "Days in a row you study. Miss a day and it restarts." },
   ];
   return (
@@ -25,7 +25,7 @@ function Overview() {
           <div>
             <p className="text-base font-semibold text-foreground">
               {r.label}
-              {r.label === "XP" && <span className="ml-2 font-[family-name:var(--font-mono)] text-highlight">+<CountUp to={20} /></span>}
+              {r.label === "XP" && <span className="ml-2 font-[family-name:var(--font-mono)] text-highlight-ink">+<CountUp to={20} /></span>}
             </p>
             <p className="text-sm text-muted">{r.text}</p>
           </div>

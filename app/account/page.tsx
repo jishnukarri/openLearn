@@ -56,7 +56,7 @@ export default async function AccountPage() {
         className="animate-fade-slide-up flex max-w-md flex-col gap-3 border-t border-error/30 pt-6"
         style={{ animationDelay: "160ms" }}
       >
-        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-error">Danger zone</h2>
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-error-ink">Danger zone</h2>
         <DeleteAccountForm />
       </section>
     </PageShell>

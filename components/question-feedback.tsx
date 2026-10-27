@@ -24,9 +24,9 @@ export function Banner({
 }) {
   const toneClass =
     tone === "error"
-      ? "border-error/40 bg-error/10 text-error"
+      ? "border-error/40 bg-error/10 text-error-ink"
       : tone === "success"
-        ? "border-success/40 bg-success/10 text-success"
+        ? "border-success/40 bg-success/10 text-success-ink"
         : "border-border bg-surface text-foreground";
   return (
     <motion.div
@@ -99,7 +99,7 @@ export function QuestionFeedback({
 
         {wrong && kind === "free-text" && (
           <div className="flex flex-col gap-3">
-            <p className="font-[family-name:var(--font-mono)] text-sm text-highlight">
+            <p className="font-[family-name:var(--font-mono)] text-sm text-highlight-ink">
               {marksAwarded} out of {maxMarks} {maxMarks === 1 ? "mark" : "marks"}
             </p>
             {points.length > 0 && (
@@ -107,9 +107,9 @@ export function QuestionFeedback({
                 {points.map((p, i) => (
                   <li key={i} className="flex gap-2 text-base text-foreground">
                     {p.met ? (
-                      <Check className="mt-1 size-4 shrink-0 text-success" strokeWidth={2.5} aria-label="Earned" />
+                      <Check className="mt-1 size-4 shrink-0 text-success-ink" strokeWidth={2.5} aria-label="Earned" />
                     ) : (
-                      <X className="mt-1 size-4 shrink-0 text-error" strokeWidth={2.5} aria-label="Not earned" />
+                      <X className="mt-1 size-4 shrink-0 text-error-ink" strokeWidth={2.5} aria-label="Not earned" />
                     )}
                     <span>
                       <RichText text={p.point} />
@@ -130,7 +130,7 @@ export function QuestionFeedback({
             ) : (
               <div className="rounded-xl bg-highlight/5 px-4 py-3">
                 <h3 className="flex items-center gap-2 font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">
-                  <Lightbulb className="size-4 text-highlight" strokeWidth={2} aria-hidden />
+                  <Lightbulb className="size-4 text-highlight-ink" strokeWidth={2} aria-hidden />
                   How to improve
                 </h3>
                 <p className="mt-1 text-base text-foreground">

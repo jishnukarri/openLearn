@@ -27,6 +27,7 @@ import { MathAnswerComposer } from "@/components/math-answer-composer";
 import { HintButton, HintPanel, useHints } from "@/components/hint-panel";
 import { QuestionFeedback } from "@/components/question-feedback";
 import { Banner } from "@/components/question-feedback";
+import { answerSignature, submitLocked } from "@/lib/answer-signature";
 import { RemediationPanel } from "@/components/remediation-panel";
 import {
   attemptReducer,
@@ -257,6 +258,11 @@ function QuestionForm({
       ? (result.correct ?? result.marksAwarded === result.maxMarks)
       : null;
   const inputString = [text, ...Object.values(parts)].join(" ").trim();
+  // Submit stays off with no real answer (spaces don't count) and, after
+  // feedback, until the answer actually changes.
+  const currentAnswer = { selected, text, workingSteps, matches, parts, imagePaths };
+  const [lastSubmittedSig, setLastSubmittedSig] = useState<string | null>(null);
+  const answerLocked = submitLocked(currentAnswer, lastSubmittedSig);
   const resubmitBlocked =
     escalates && attempt.lastWrongInput !== null && !imagePaths.length && !canSubmit(attempt.lastWrongInput, inputString);
 
@@ -362,7 +368,11 @@ function QuestionForm({
 
   return (
     <div className="grid gap-x-12 gap-y-8 lg:grid-cols-[minmax(0,1fr)_26rem] lg:items-start">
-      <form action={action} className="flex min-w-0 flex-col gap-6">
+      <form
+        action={action}
+        onSubmit={() => setLastSubmittedSig(answerSignature(currentAnswer))}
+        className="flex min-w-0 flex-col gap-6"
+      >
         <input type="hidden" name="topicId" value={topicId} />
         <input type="hidden" name="questionId" value={question.id} />
         <input type="hidden" name="answerPayload" value={JSON.stringify(payload)} />
@@ -375,14 +385,14 @@ function QuestionForm({
             <p className="font-[family-name:var(--font-display)] text-2xl leading-snug text-foreground lg:text-3xl">
               <RichText text={question.prompt} />
             </p>
-            <p className="font-[family-name:var(--font-mono)] text-sm text-highlight">
+            <p className="font-[family-name:var(--font-mono)] text-sm text-highlight-ink">
               {question.max_marks} {question.max_marks === 1 ? "mark" : "marks"}
               {escalates && attempt.attempts > 0 && (
                 <span className="ml-3 inline-flex items-center gap-1 align-middle">
                   {complete ? (
-                    <Check className="size-4 text-success" strokeWidth={3} aria-label="Question complete" />
+                    <Check className="size-4 text-success-ink" strokeWidth={3} aria-label="Question complete" />
                   ) : (
-                    <X className="size-4 text-error" strokeWidth={3} aria-label="Not yet correct" />
+                    <X className="size-4 text-error-ink" strokeWidth={3} aria-label="Not yet correct" />
                   )}
                 </span>
               )}
@@ -487,7 +497,7 @@ function QuestionForm({
               <p className="text-sm text-foreground">
                 <span className="font-semibold">({part.label})</span>{" "}
                 <RichText text={part.prompt} />{" "}
-                <span className="font-mono text-xs text-highlight">
+                <span className="font-mono text-xs text-highlight-ink">
                   [{part.marks} {part.marks === 1 ? "mark" : "marks"}]
                 </span>
               </p>
@@ -520,13 +530,13 @@ function QuestionForm({
             <button
               type="button"
               onClick={attachPhoto}
-              className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-primary hover:underline"
+              className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-primary-ink hover:underline"
             >
               <Camera className="size-4" strokeWidth={2} /> Attach a photo of your handwritten answer instead
             </button>
           ) : imagePaths.length > 0 ? (
             <div className="flex flex-col gap-2">
-              <p className="flex items-center gap-1.5 text-sm text-success">
+              <p className="flex items-center gap-1.5 text-sm text-success-ink">
                 <Check className="size-4 shrink-0" strokeWidth={2.5} />
                 {imagePaths.length} photo{imagePaths.length === 1 ? "" : "s"} attached
               </p>
@@ -545,16 +555,16 @@ function QuestionForm({
           ) : (
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
               <label className="flex-1 text-sm text-foreground">
-                <span className="mb-1 block text-xs text-muted">Upload from this device</span>
+                <span className="mb-1 block text-sm text-muted">Upload from this device</span>
                 <input
                   type="file"
                   accept="image/*,application/pdf"
                   multiple
                   disabled={uploading}
                   onChange={(e) => uploadFromThisDevice(e.target.files)}
-                  className="w-full rounded-lg border border-border bg-background p-2 text-xs text-foreground file:mr-2 file:rounded-md file:border-0 file:bg-primary file:px-2 file:py-1 file:text-xs file:font-semibold file:text-white"
+                  className="w-full rounded-lg border border-border bg-background p-2 text-sm text-foreground file:mr-2 file:rounded-md file:border-0 file:bg-primary file:px-2 file:py-1 file:text-xs file:font-semibold file:text-white"
                 />
-                {uploading && <span className="mt-1 block text-xs text-muted">Uploading…</span>}
+                {uploading && <span className="mt-1 block text-sm text-muted">Uploading…</span>}
               </label>
               {qrDataUrl && (
                 <div className="hidden shrink-0 flex-col items-center gap-1 sm:flex">
@@ -564,7 +574,7 @@ function QuestionForm({
                     alt="QR code to upload from your phone"
                     className="h-28 w-28 rounded-lg border border-border bg-white p-1"
                   />
-                  <p className="text-center text-xs text-muted">Or scan with your phone</p>
+                  <p className="text-center text-sm text-muted">Or scan with your phone</p>
                 </div>
               )}
             </div>
@@ -573,13 +583,14 @@ function QuestionForm({
         )}
 
         {state && "message" in state && (
-          <p className="text-sm text-error">{state.message}</p>
+          <p className="text-sm text-error-ink">{state.message}</p>
         )}
 
         {pending && <StatusLine text="Marking your answer…" />}
         {showFormSubmit && (
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" className="min-h-11" disabled={pending || resubmitBlocked}>
+            <Button type="submit" className="min-h-11" disabled={pending || resubmitBlocked || answerLocked}
+              title={answerLocked && !pending ? "Change your answer to submit again" : undefined}>
               {pending ? "Marking..." : "Submit answer"}
             </Button>
             <HintButton state={hintState} disabled={pending} />
@@ -644,13 +655,13 @@ function QuestionForm({
         <div className="animate-fade-slide-up flex min-w-0 flex-col gap-4 border-t border-border pt-4 lg:sticky lg:top-24">
           <div className="flex items-baseline justify-between gap-3">
             <h3 className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">Feedback</h3>
-            <span className="font-[family-name:var(--font-mono)] text-2xl font-semibold text-highlight">
+            <span className="font-[family-name:var(--font-mono)] text-2xl font-semibold text-highlight-ink">
               {oldResult.marksAwarded} / {oldResult.maxMarks}
             </span>
           </div>
 
           {isRetry && (
-            <p className="rounded-lg bg-highlight/10 px-3 py-1.5 text-sm text-highlight">
+            <p className="rounded-lg bg-highlight/10 px-3 py-1.5 text-sm text-highlight-ink">
               Retry question
             </p>
           )}
@@ -665,7 +676,7 @@ function QuestionForm({
                     : "border-error/40 bg-error/10"
                 }`}
               >
-                <p className={`flex items-center gap-1.5 ${point.met ? "text-success" : "text-error"}`}>
+                <p className={`flex items-center gap-1.5 ${point.met ? "text-success-ink" : "text-error-ink"}`}>
                   {point.met ? (
                     <Check className="size-3.5 shrink-0" strokeWidth={2.5} />
                   ) : (
@@ -686,7 +697,7 @@ function QuestionForm({
 
           {oldResult.modelAnswer && (
             <details className="rounded-lg border border-primary/30 bg-primary/5 p-3">
-              <summary className="cursor-pointer text-sm font-medium text-primary">
+              <summary className="cursor-pointer text-sm font-medium text-primary-ink">
                 Show model answer
               </summary>
               <p className="mt-2 text-sm text-foreground">
@@ -719,7 +730,7 @@ function MasteryScreen({
 }) {
   return (
     <div className="flex flex-col items-center gap-4 py-16 text-center">
-      <Trophy className="size-12 text-highlight" strokeWidth={1.5} />
+      <Trophy className="size-12 text-highlight-ink" strokeWidth={1.5} />
       <h2 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
         Mastery achieved!
       </h2>
@@ -745,7 +756,7 @@ function DoneScreen({
 }) {
   return (
     <div className="flex flex-col items-center gap-4 py-16 text-center">
-      <CheckCircle2 className="size-12 text-success" strokeWidth={1.5} />
+      <CheckCircle2 className="size-12 text-success-ink" strokeWidth={1.5} />
       <h2 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">
         Practice complete
       </h2>

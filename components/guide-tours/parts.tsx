@@ -54,8 +54,8 @@ export function MockQuestion({
           const state =
             result && selected
               ? result === "ok"
-                ? "border-success bg-success/10 text-success"
-                : "border-error bg-error/10 text-error"
+                ? "border-success bg-success/10 text-success-ink"
+                : "border-error bg-error/10 text-error-ink"
               : selected
                 ? "border-primary bg-primary/10 text-foreground"
                 : "border-border text-foreground hover:border-primary";
@@ -66,7 +66,7 @@ export function MockQuestion({
               role="radio"
               aria-checked={selected}
               whileTap={{ scale: 0.96 }}
-              transition={{ type: "spring", stiffness: 500, damping: 35 }}
+              transition={{ duration: 0.15, ease: EASE_OUT }}
               onClick={() => {
                 setPicked(i);
                 setResult(null);
@@ -86,7 +86,7 @@ export function MockQuestion({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: EASE_OUT }}
           role="status"
-          className={`text-sm ${result === "ok" ? "text-success" : result === "bad" ? "text-error" : "text-muted"}`}
+          className={`text-sm ${result === "ok" ? "text-success-ink" : result === "bad" ? "text-error-ink" : "text-muted"}`}
         >
           {result === "ok" ? "Correct. Nicely done." : result === "bad" ? `Not quite. Hint: ${hint}` : "Pick an answer, then press Check."}
         </motion.p>

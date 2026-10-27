@@ -31,7 +31,7 @@ export default async function PracticePage({
   return (
     <PageShell size="wide">
       {profile.role !== "student" && (
-        <div className="rounded-xl border border-highlight/40 bg-highlight/10 px-4 py-2 text-sm text-highlight">
+        <div className="rounded-xl border border-highlight/40 bg-highlight/10 px-4 py-2 text-sm text-highlight-ink">
           Previewing as {profile.role}, answers here won&apos;t earn XP.
         </div>
       )}
@@ -44,7 +44,7 @@ export default async function PracticePage({
         <>
           <div>
             <h2 className="max-w-[65ch] text-xl text-foreground"><RichText text={fallbackQuestion.prompt} /></h2>
-            <p className="mt-1 font-[family-name:var(--font-mono)] text-sm text-highlight">
+            <p className="mt-1 font-[family-name:var(--font-mono)] text-sm text-highlight-ink">
               {fallbackQuestion.max_marks} marks
             </p>
           </div>

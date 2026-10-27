@@ -25,6 +25,7 @@ import {
 } from "@/app/actions/practice-uploads";
 import { HintButton, HintPanel, useHints } from "@/components/hint-panel";
 import { RemediationPanel } from "@/components/remediation-panel";
+import { answerSignature, submitLocked } from "@/lib/answer-signature";
 import type { ClientFormat } from "@/lib/question-client";
 import type { AnswerPayload } from "@/lib/question-marking";
 
@@ -78,6 +79,11 @@ export function AnswerForm({
     onScaffold: () => setHelpOpen(true),
   });
   const result = state && "feedback" in state ? state : null;
+  // Submit stays off with no real answer (spaces don't count) and, after
+  // feedback, until the answer actually changes.
+  const currentAnswer = { selected, text, workingSteps, matches, parts, imagePaths };
+  const [lastSubmittedSig, setLastSubmittedSig] = useState<string | null>(null);
+  const answerLocked = submitLocked(currentAnswer, lastSubmittedSig);
 
   useEffect(() => {
     if (result && result.marksAwarded === result.maxMarks) celebrate();
@@ -152,7 +158,11 @@ export function AnswerForm({
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-      <form action={action} className="flex flex-1 flex-col gap-4 rounded-2xl border border-border bg-surface p-6">
+      <form
+        action={action}
+        onSubmit={() => setLastSubmittedSig(answerSignature(currentAnswer))}
+        className="flex flex-1 flex-col gap-4 rounded-2xl border border-border bg-surface p-6"
+      >
         <input type="hidden" name="topicId" value={topicId} />
         <input type="hidden" name="questionId" value={questionId} />
         <input
@@ -190,7 +200,7 @@ export function AnswerForm({
         {format.type === "multiple-choice" && (
           <div className="flex flex-col gap-2">
             {format.multi && (
-              <p className="text-xs text-muted">Select all that apply.</p>
+              <p className="text-sm text-muted">Select all that apply.</p>
             )}
             {format.options.map((option, idx) => (
               <button
@@ -252,7 +262,7 @@ export function AnswerForm({
               <p className="text-sm text-foreground">
                 <span className="font-semibold">({part.label})</span>{" "}
                 <RichText text={part.prompt} />{" "}
-                <span className="font-mono text-xs text-highlight">
+                <span className="font-mono text-xs text-highlight-ink">
                   [{part.marks} {part.marks === 1 ? "mark" : "marks"}]
                 </span>
               </p>
@@ -284,13 +294,13 @@ export function AnswerForm({
               <button
                 type="button"
                 onClick={attachPhoto}
-                className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-primary hover:underline"
+                className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-primary-ink hover:underline"
               >
                 <Camera className="size-4" strokeWidth={2} /> Attach a photo of your handwritten answer instead
               </button>
             ) : imagePaths.length > 0 ? (
               <div className="flex flex-col gap-2">
-                <p className="flex items-center gap-1.5 text-sm text-success">
+                <p className="flex items-center gap-1.5 text-sm text-success-ink">
                   <Check className="size-4 shrink-0" strokeWidth={2.5} />
                   {imagePaths.length} photo{imagePaths.length === 1 ? "" : "s"} attached, this
                   will be marked instead of anything typed above.
@@ -310,7 +320,7 @@ export function AnswerForm({
             ) : (
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                 <label className="flex-1 text-sm text-foreground">
-                  <span className="mb-1 block text-xs text-muted">
+                  <span className="mb-1 block text-sm text-muted">
                     Upload from this device
                   </span>
                   <input
@@ -319,9 +329,9 @@ export function AnswerForm({
                     multiple
                     disabled={uploading}
                     onChange={(e) => uploadFromThisDevice(e.target.files)}
-                    className="w-full rounded-lg border border-border bg-background p-2 text-xs text-foreground file:mr-2 file:rounded-md file:border-0 file:bg-primary file:px-2 file:py-1 file:text-xs file:font-semibold file:text-white"
+                    className="w-full rounded-lg border border-border bg-background p-2 text-sm text-foreground file:mr-2 file:rounded-md file:border-0 file:bg-primary file:px-2 file:py-1 file:text-xs file:font-semibold file:text-white"
                   />
-                  {uploading && <span className="mt-1 block text-xs text-muted">Uploading…</span>}
+                  {uploading && <span className="mt-1 block text-sm text-muted">Uploading…</span>}
                 </label>
                 {qrDataUrl && (
                   // Hidden below sm, scanning a QR code on the same phone
@@ -335,7 +345,7 @@ export function AnswerForm({
                       alt="QR code to upload from your phone"
                       className="h-28 w-28 rounded-lg border border-border bg-white p-1"
                     />
-                    <p className="text-center text-xs text-muted">
+                    <p className="text-center text-sm text-muted">
                       Or scan with your phone
                     </p>
                   </div>
@@ -346,11 +356,15 @@ export function AnswerForm({
         )}
 
         {state && "message" in state && (
-          <p className="text-sm text-error">{state.message}</p>
+          <p className="text-sm text-error-ink">{state.message}</p>
         )}
         {pending && <StatusLine text="Marking your answer…" />}
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" disabled={pending}>
+          <Button
+            type="submit"
+            disabled={pending || answerLocked}
+            title={answerLocked && !pending ? "Change your answer to submit again" : undefined}
+          >
             {pending ? "Marking..." : "Submit answer"}
           </Button>
           {!result && <HintButton state={hintState} disabled={pending} />}
@@ -373,7 +387,7 @@ export function AnswerForm({
         <div className="animate-pop-in flex flex-1 flex-col gap-3 rounded-2xl border border-border bg-surface p-5 lg:sticky lg:top-6">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-foreground">Feedback</p>
-            <span className="animate-pop-in inline-block font-[family-name:var(--font-mono)] text-lg text-highlight">
+            <span className="animate-pop-in inline-block font-[family-name:var(--font-mono)] text-lg text-highlight-ink">
               {result.marksAwarded} / {result.maxMarks}
             </span>
           </div>
@@ -388,7 +402,7 @@ export function AnswerForm({
                 }`}
               >
                 <p
-                  className={`${point.met ? "text-success" : "text-error"} ${
+                  className={`${point.met ? "text-success-ink" : "text-error-ink"} ${
                     point.met ? "animate-settle" : ""
                   }`}
                 >
@@ -401,7 +415,7 @@ export function AnswerForm({
                     <RichText text={point.point} />
                   </span>
                 </p>
-                <p className="mt-1 text-xs text-muted">
+                <p className="mt-1 text-sm text-muted">
                   <RichText text={point.comment} />
                 </p>
               </div>
@@ -414,7 +428,7 @@ export function AnswerForm({
 
           {result.modelAnswer && (
             <details className="rounded-lg border border-primary/30 bg-primary/5 p-3">
-              <summary className="cursor-pointer text-sm font-medium text-primary">
+              <summary className="cursor-pointer text-sm font-medium text-primary-ink">
                 Show model answer
               </summary>
               <p className="mt-2 text-sm text-foreground">

@@ -27,7 +27,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5">
       <dt className="text-sm text-muted">{label}</dt>
-      <dd className="font-[family-name:var(--font-display)] text-2xl font-semibold text-foreground">{value}</dd>
+      <dd className="font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-foreground">{value}</dd>
     </div>
   );
 }
@@ -176,10 +176,10 @@ export function StudentProgress({
           {hasNeeds ? (
             <ul className="flex flex-col gap-1.5 text-base text-foreground">
               {overview.attention.map((r) => (
-                <li key={r} className="border-l-2 border-error pl-3">{ATTENTION_LABEL[r]}</li>
+                <li key={r} className="ml-5 list-disc marker:text-error">{ATTENTION_LABEL[r]}</li>
               ))}
               {weakest3.map((m) => (
-                <li key={`${m.subjectId}-${m.topicName}`} className="border-l-2 border-highlight pl-3">
+                <li key={`${m.subjectId}-${m.topicName}`} className="ml-5 list-disc marker:text-highlight">
                   Weak topic: {m.topicName}{" "}
                   <span className="text-muted">
                     ({m.subjectName}, {Math.round(m.score * 100)}%)
@@ -197,7 +197,7 @@ export function StudentProgress({
             <Heading>Tricky ideas</Heading>
             <ul className="flex flex-col gap-1.5 text-base text-foreground">
               {overview.trickyIdeas.map((t) => (
-                <li key={t.id} className="border-l-2 border-highlight pl-3">
+                <li key={t.id} className="ml-5 list-disc marker:text-highlight">
                   {t.prompt}{" "}
                   <span className="text-muted">
                     ({t.topicName}, missed {t.missedCount} {t.missedCount === 1 ? "time" : "times"})
@@ -226,7 +226,7 @@ export function StudentProgress({
                         <span className="block text-sm text-muted">Diagnostic 30% + practice</span>
                       </span>
                       <ScoreBar score={t.score} tone={toneFor(t.score)} delay={i * 0.05} />
-                      <span className="text-sm text-muted sm:text-right">{Math.round(t.score * 100)}%</span>
+                      <span className="text-sm tabular-nums text-muted sm:text-right">{Math.round(t.score * 100)}%</span>
                     </li>
                   ))}
                 </ul>

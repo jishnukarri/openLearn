@@ -35,7 +35,7 @@ function Timeline() {
               className="absolute left-[15px] top-8 h-[calc(100%-1.5rem)] w-px bg-border"
             />
           )}
-          <span className="relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border border-primary bg-background font-[family-name:var(--font-mono)] text-sm font-semibold text-primary">
+          <span className="relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border border-primary bg-background font-[family-name:var(--font-mono)] text-sm font-semibold text-primary-ink">
             {i + 1}
           </span>
           <div>
@@ -83,7 +83,7 @@ function Help() {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: EASE_OUT }}
-          className="mt-3 border-l-2 border-primary pl-3 text-sm text-foreground"
+          className="mt-3 rounded-lg bg-primary/10 px-3 py-2 text-sm text-foreground"
         >
           <p>You asked for help. Here is a nudge: split 12 into 4 equal groups and count one group.</p>
           <p className="mt-1 text-muted">Help explains in a different way and never just hands you the answer.</p>
@@ -96,7 +96,7 @@ function Help() {
 function Xp() {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
-      <p className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-3xl font-semibold text-highlight">
+      <p className="flex items-center gap-2 font-[family-name:var(--font-mono)] text-3xl font-semibold text-highlight-ink">
         <Zap className="size-6" strokeWidth={2} aria-hidden /> +<CountUp to={20} /> XP
       </p>
       <ul className="text-sm text-muted">
