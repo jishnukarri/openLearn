@@ -24,6 +24,7 @@ import {
   uploadPracticeImagesAction,
 } from "@/app/actions/practice-uploads";
 import { HintButton, HintPanel, useHints } from "@/components/hint-panel";
+import { RemediationPanel } from "@/components/remediation-panel";
 import type { ClientFormat } from "@/lib/question-client";
 import type { AnswerPayload } from "@/lib/question-marking";
 
@@ -70,7 +71,12 @@ export function AnswerForm({
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  const hintState = useHints(questionId);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [helpDone, setHelpDone] = useState(false);
+  const hintState = useHints(questionId, {
+    scaffold: format.type === "numeric" || format.type === "calculation",
+    onScaffold: () => setHelpOpen(true),
+  });
   const result = state && "feedback" in state ? state : null;
 
   useEffect(() => {
@@ -350,6 +356,18 @@ export function AnswerForm({
           {!result && <HintButton state={hintState} disabled={pending} />}
         </div>
       </form>
+
+      {helpOpen && !result && (
+        <div className="flex flex-1 flex-col gap-3 lg:sticky lg:top-6">
+          <RemediationPanel questionId={questionId} source="hint" onComplete={() => setHelpDone(true)} />
+          {helpDone && (
+            <form action={mode === "subtopic" ? newSimilarSubtopicQuestionAction : newSimilarQuestionAction}>
+              <input type="hidden" name={mode === "subtopic" ? "subtopicId" : "topicId"} value={topicId} />
+              <Button type="submit" className="min-h-11">Try a similar question</Button>
+            </form>
+          )}
+        </div>
+      )}
 
       {result && (
         <div className="animate-pop-in flex flex-1 flex-col gap-3 rounded-2xl border border-border bg-surface p-5 lg:sticky lg:top-6">

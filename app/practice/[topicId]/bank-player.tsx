@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useReducer } from "react";
 import { useActionState } from "react";
 import { Check, X, Trophy, Camera, CheckCircle2, LoaderCircle } from "lucide-react";
 import {
@@ -25,6 +25,14 @@ import { AnswerEditor } from "@/components/answer-editor";
 import { NumericAnswer } from "@/components/numeric-answer";
 import { MathAnswerComposer } from "@/components/math-answer-composer";
 import { HintButton, HintPanel, useHints } from "@/components/hint-panel";
+import { QuestionFeedback } from "@/components/question-feedback";
+import { Banner } from "@/components/question-feedback";
+import { RemediationPanel } from "@/components/remediation-panel";
+import {
+  attemptReducer,
+  canSubmit,
+  initialAttemptState,
+} from "@/lib/question-attempt-machine";
 import { toClientFormat } from "@/lib/question-client";
 import type { AnswerPayload } from "@/lib/question-marking";
 import type { Question } from "@/lib/supabase/questions";
@@ -67,18 +75,18 @@ export function BankPracticePlayer({
   const currentQuestion = current !== undefined ? bank[current.idx] : null;
 
   const handleAnswered = useCallback(
-    (correct: boolean) => {
+    (correct: boolean, assisted = false) => {
       if (!current) return;
       setPhase("feedback");
 
-      const newFAC = !current.isRetry && correct ? firstAttemptCorrect + 1 : firstAttemptCorrect;
+      const newFAC = !current.isRetry && !assisted && correct ? firstAttemptCorrect + 1 : firstAttemptCorrect;
       if (newFAC >= MASTERY_THRESHOLD) {
         setFirstAttemptCorrect(newFAC);
         if (sessionId) completeBankSessionAction(sessionId, true).catch(() => {});
         setPhase("mastery");
         return;
       }
-      if (!current.isRetry && correct) {
+      if (!current.isRetry && !assisted && correct) {
         setFirstAttemptCorrect(newFAC);
       }
     },
@@ -175,8 +183,8 @@ export function BankPracticePlayer({
         topicId={topicId}
         sessionId={sessionId}
         isRetry={current.isRetry}
-        onAnswered={(correct) => {
-          handleAnswered(correct);
+        onAnswered={(correct, assisted) => {
+          handleAnswered(correct, assisted);
           return correct;
         }}
         onNext={(correct) => advanceQueue(correct)}
@@ -201,7 +209,7 @@ function QuestionForm({
   topicId: string;
   sessionId: string | null;
   isRetry: boolean;
-  onAnswered: (correct: boolean) => boolean;
+  onAnswered: (correct: boolean, assisted?: boolean) => boolean;
   onNext: (correct: boolean) => void;
   phase: string;
 }) {
@@ -222,19 +230,69 @@ function QuestionForm({
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
-  const hintState = useHints(question.id);
+  // Escalating attempt flow (numeric + written answers). MCQ and matching keep
+  // the old single-shot result and requeue.
+  const escalates = format.type !== "multiple-choice" && format.type !== "matching";
+  const isNumeric = format.type === "numeric" || format.type === "calculation";
+  const [attempt, dispatch] = useReducer(attemptReducer, undefined, initialAttemptState);
+  const [dismissed, setDismissed] = useState(false); // feedback hidden after "Try again"
+  const [helpOpen, setHelpOpen] = useState(false); // remediation panel shown
+  const [helpSource, setHelpSource] = useState<"hint" | "escalation">("hint");
+  const hintState = useHints(question.id, {
+    scaffold: isNumeric,
+    onScaffold: () => {
+      setHelpSource("hint");
+      setHelpOpen(true);
+    },
+  });
 
   const result = state && "feedback" in state ? state : null;
+  const inputString = [text, ...Object.values(parts)].join(" ").trim();
+  const resubmitBlocked =
+    escalates && attempt.lastWrongInput !== null && !imagePaths.length && !canSubmit(attempt.lastWrongInput, inputString);
 
   useEffect(() => {
-    if (result) {
-      const correct = result.correct ?? result.marksAwarded === result.maxMarks;
+    if (!result) return;
+    const correct = result.correct ?? result.marksAwarded === result.maxMarks;
+    if (!escalates) {
       if (correct) celebrate();
       setLastCorrect(correct);
       onAnswered(correct);
+      return;
+    }
+    setDismissed(false);
+    if (correct) {
+      celebrate();
+      setLastCorrect(true);
+      dispatch({ type: "submitRight" });
+      onAnswered(true, attempt.attempts > 0 || helpOpen);
+    } else if (attempt.phase === "second-chance") {
+      dispatch({ type: "startRemediation", scaffold: isNumeric });
+    } else {
+      dispatch({ type: "submitWrong", input: inputString });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
+
+  function openEscalation() {
+    dispatch({ type: "startRemediation", scaffold: isNumeric });
+    setHelpSource("escalation");
+    setHelpOpen(true);
+  }
+
+  function helpComplete() {
+    setLastCorrect(true);
+    if (attempt.phase === "remediation") dispatch({ type: "remediationPassed" });
+    else dispatch({ type: "submitRight" });
+    celebrate();
+    onAnswered(true, true);
+  }
+
+  const complete = attempt.phase === "complete";
+  const escalated = escalates && !complete && attempt.attempts > 0;
+  const showEscalatedFeedback = escalated && !!result && !dismissed && !helpOpen;
+  const showFormSubmit = escalates ? !complete && !helpOpen && !(showEscalatedFeedback && attempt.phase === "remediation") : !result;
+  const oldResult = escalates ? (complete && result && !helpOpen ? result : null) : result;
 
   useEffect(() => {
     if (!uploadId || imagePaths.length > 0) return;
@@ -312,11 +370,20 @@ function QuestionForm({
             </p>
             <p className="font-[family-name:var(--font-mono)] text-sm text-highlight">
               {question.max_marks} {question.max_marks === 1 ? "mark" : "marks"}
+              {escalates && attempt.attempts > 0 && (
+                <span className="ml-3 inline-flex items-center gap-1 align-middle">
+                  {complete ? (
+                    <Check className="size-4 text-success" strokeWidth={3} aria-label="Question complete" />
+                  ) : (
+                    <X className="size-4 text-error" strokeWidth={3} aria-label="Not yet correct" />
+                  )}
+                </span>
+              )}
             </p>
           </div>
         )}
 
-        {!result && <HintPanel state={hintState} />}
+        {showFormSubmit && <HintPanel state={hintState} />}
 
         {format.type === "data-analysis" && (
           <div className="lesson-embed overflow-x-auto">
@@ -503,9 +570,9 @@ function QuestionForm({
         )}
 
         {pending && <StatusLine text="Marking your answer…" />}
-        {!result && (
+        {showFormSubmit && (
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" className="min-h-11" disabled={pending || resubmitBlocked}>
               {pending ? "Marking..." : "Submit answer"}
             </Button>
             <HintButton state={hintState} disabled={pending} />
@@ -513,7 +580,7 @@ function QuestionForm({
         )}
       </form>
 
-      {!result && (
+      {!result && !helpOpen && (
         <aside className="hidden flex-col gap-3 border-t border-border pt-4 lg:sticky lg:top-24 lg:flex">
           <h3 className="font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">How this works</h3>
           <p className="max-w-[40ch] text-sm text-muted">
@@ -526,12 +593,51 @@ function QuestionForm({
         </aside>
       )}
 
-      {result && (
+      {(showEscalatedFeedback || helpOpen) && (
+        <div className="flex min-w-0 flex-col gap-4 border-t border-border pt-4 lg:sticky lg:top-24">
+          {showEscalatedFeedback && result && (
+            <QuestionFeedback
+              phase={attempt.phase}
+              kind={isNumeric ? "numeric" : "free-text"}
+              marksAwarded={result.marksAwarded}
+              maxMarks={result.maxMarks}
+              points={result.feedback.map((f) => ({ point: f.point, comment: f.comment, met: f.met }))}
+              improveHint={result.feedback.find((f) => !f.met)?.comment}
+              modelAnswer={result.modelAnswer}
+              attempt={attempt.attempts >= 2 ? 2 : 1}
+              canSkip={attempt.phase === "second-chance"}
+              onTryAgain={() => {
+                dispatch({ type: "tryAgain" });
+                setDismissed(true);
+              }}
+              onSkip={() => dispatch({ type: "skip" })}
+              onLearn={openEscalation}
+            />
+          )}
+          {helpOpen && (
+            <RemediationPanel
+              questionId={question.id}
+              source={helpSource}
+              onComplete={helpComplete}
+            />
+          )}
+          {complete && (
+            <>
+              {helpOpen && <Banner tone="success">You worked it out</Banner>}
+              <Button type="button" className="min-h-11 w-full" onClick={() => onNext(true)}>
+                Next question →
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
+      {oldResult && (
         <div className="animate-fade-slide-up flex min-w-0 flex-col gap-4 border-t border-border pt-4 lg:sticky lg:top-24">
           <div className="flex items-baseline justify-between gap-3">
             <h3 className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">Feedback</h3>
             <span className="font-[family-name:var(--font-mono)] text-2xl font-semibold text-highlight">
-              {result.marksAwarded} / {result.maxMarks}
+              {oldResult.marksAwarded} / {oldResult.maxMarks}
             </span>
           </div>
 
@@ -542,7 +648,7 @@ function QuestionForm({
           )}
 
           <div className="flex flex-col gap-2">
-            {result.feedback.map((point, i) => (
+            {oldResult.feedback.map((point, i) => (
               <div
                 key={i}
                 className={`rounded-lg border p-3 text-sm ${
@@ -566,17 +672,17 @@ function QuestionForm({
             ))}
           </div>
 
-          {result.marksAwarded < result.maxMarks && (
+          {oldResult.marksAwarded < oldResult.maxMarks && (
             <ExplainBox fetchExplanation={() => explainPracticeAnswerAction(question.id)} />
           )}
 
-          {result.modelAnswer && (
+          {oldResult.modelAnswer && (
             <details className="rounded-lg border border-primary/30 bg-primary/5 p-3">
               <summary className="cursor-pointer text-sm font-medium text-primary">
                 Show model answer
               </summary>
               <p className="mt-2 text-sm text-foreground">
-                <RichText text={result.modelAnswer} />
+                <RichText text={oldResult.modelAnswer} />
               </p>
             </details>
           )}
