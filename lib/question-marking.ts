@@ -13,6 +13,51 @@ export type AnswerPayload = {
   imagePaths?: string[]; // photographed/scanned handwritten answer, marked via vision
 };
 
+const MAX_PAYLOAD_JSON = 40_000;
+const MAX_TEXT = 6_000;
+
+function strArray(v: unknown, maxItems: number): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v.slice(0, maxItems).map((x) => (typeof x === "string" ? x.slice(0, MAX_TEXT) : ""));
+}
+function intArray(v: unknown, maxItems: number): number[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v.slice(0, maxItems).map((x) => (Number.isInteger(x) ? (x as number) : -1));
+}
+
+/**
+ * Parses and sanitises the untrusted `answerPayload` JSON posted by the
+ * practice form: bounded size, correct types, bounded arrays. Returns null
+ * when it is unusable.
+ */
+export function parseAnswerPayload(raw: unknown): AnswerPayload | null {
+  if (typeof raw !== "string" || raw.length > MAX_PAYLOAD_JSON) return null;
+  let v: unknown;
+  try {
+    v = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const o = v as Record<string, unknown>;
+  const out: AnswerPayload = {};
+  const selected = intArray(o.selected, 20);
+  if (selected) out.selected = selected;
+  if (typeof o.text === "string") out.text = o.text.slice(0, MAX_TEXT);
+  if (typeof o.working === "string") out.working = o.working.slice(0, MAX_TEXT);
+  const ws = strArray(o.workingSteps, 30);
+  if (ws) out.workingSteps = ws;
+  const matches = intArray(o.matches, 50);
+  if (matches) out.matches = matches;
+  const parts = strArray(o.parts, 20);
+  if (parts) out.parts = parts;
+  const ip = Array.isArray(o.imagePaths)
+    ? o.imagePaths.filter((x): x is string => typeof x === "string" && x.length > 0 && x.length <= 64).slice(0, 20)
+    : undefined;
+  if (ip) out.imagePaths = ip;
+  return out;
+}
+
 // Levenshtein distance — used for fuzzy short-answer tolerance.
 function levenshtein(a: string, b: string): number {
   const m = a.length;

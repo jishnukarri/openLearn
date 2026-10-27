@@ -20,6 +20,12 @@ export async function createPracticeUploadSessionAction(input: {
   questionId: string;
 }): Promise<{ uploadId: string; qrDataUrl: string; url: string }> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
+  if (typeof input?.topicId !== "string" || typeof input?.questionId !== "string") {
+    throw new Error("Missing topic or question.");
+  }
+  if (!(await checkKeyRateLimit("practice-upload-session", profile.id, 20, 10 * 60_000))) {
+    throw new Error("Too many upload links. Wait a few minutes and try again.");
+  }
 
   const uploadId = await createUploadSession({
     studentId: profile.id,
@@ -30,7 +36,7 @@ export async function createPracticeUploadSessionAction(input: {
   const h = await headers();
   const host = h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
-  const url = `${proto}://${host}/practice/${input.topicId}/upload/${uploadId}`;
+  const url = `${proto}://${host}/practice/${encodeURIComponent(input.topicId)}/upload/${uploadId}`;
 
   const qrDataUrl = await QRCode.toDataURL(url, { margin: 1, width: 240 });
   return { uploadId, qrDataUrl, url };

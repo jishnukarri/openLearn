@@ -75,3 +75,26 @@ export async function downloadImageBytes(
 ): Promise<{ bytes: Buffer; contentType: string }> {
   return downloadFileBytes(fileId);
 }
+
+/** Pure: true when every claimed file id appears in the owned list. */
+export function allFilesOwned(claimed: string[], owned: string[]): boolean {
+  const set = new Set(owned);
+  return claimed.every((id) => set.has(id));
+}
+
+// A student may only mark files uploaded through their own upload sessions
+// for this question; the ids in a posted payload are otherwise untrusted.
+export async function ownsUploadedFiles(
+  studentId: string,
+  questionId: string,
+  fileIds: string[]
+): Promise<boolean> {
+  const { data, error } = await db
+    .from("practice_uploads")
+    .select("image_paths")
+    .eq("student_id", studentId)
+    .eq("question_id", questionId);
+  if (error) throw error;
+  const owned = (data ?? []).flatMap((r) => (r.image_paths as string[] | null) ?? []);
+  return allFilesOwned(fileIds, owned);
+}

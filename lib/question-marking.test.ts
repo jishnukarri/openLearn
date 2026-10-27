@@ -195,3 +195,20 @@ describe("marking edge cases (review pass)", () => {
     expect(Date.now() - t).toBeLessThan(300);
   });
 });
+
+describe("parseAnswerPayload", () => {
+  it("sanitises untrusted payloads", async () => {
+    const { parseAnswerPayload } = await import("./question-marking");
+    expect(parseAnswerPayload("nope")).toBeNull();
+    expect(parseAnswerPayload("[]")).toBeNull();
+    expect(parseAnswerPayload(undefined)).toBeNull();
+    expect(parseAnswerPayload("x".repeat(50000))).toBeNull();
+    const p = parseAnswerPayload(
+      JSON.stringify({ text: "a".repeat(9000), selected: ["x", 1.5, 2], parts: "no", imagePaths: ["ok", 5, ""] })
+    )!;
+    expect(p.text!.length).toBe(6000);
+    expect(p.selected).toEqual([-1, -1, 2]);
+    expect(p.parts).toBeUndefined();
+    expect(p.imagePaths).toEqual(["ok"]);
+  });
+});

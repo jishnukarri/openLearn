@@ -12,6 +12,7 @@ import {
   recordQuestionSessionAttempt,
   isQuestionSessionOwner,
   getBestMarksLast24h,
+  hasAnsweredQuestion,
 } from "@/lib/supabase/questions";
 import { downloadImageBytes } from "@/lib/supabase/practice-uploads";
 import { markAnswer, markAnswerFromImages } from "@/lib/ai/marking";
@@ -19,7 +20,7 @@ import { explainAnswer } from "@/lib/ai/explain";
 import {
   autoMark,
   payloadToText,
-  type AnswerPayload,
+  parseAnswerPayload,
 } from "@/lib/question-marking";
 import { resolveProviderConfig } from "@/lib/ai/client";
 import { resolveQuestionContent } from "@/lib/class-content";
@@ -39,6 +40,7 @@ import { checkScaffoldAnswer, checkTransferAnswer } from "@/lib/ai/remediation-h
 import type { Remediation } from "@/lib/question-remediation";
 import type { PointFeedback } from "@/lib/ai/marking";
 import type { Question } from "@/lib/supabase/questions";
+import { ownsUploadedFiles } from "@/lib/supabase/practice-uploads";
 
 // Hints are always re-derived here from the stored question, never taken
 // from client text, so the anti-copy check cannot be spoofed or skipped.
@@ -57,7 +59,7 @@ async function hintsFor(question: Question): Promise<string[]> {
 async function hintCopyMessage(
   question: Question,
   formData: FormData,
-  payload: AnswerPayload,
+  payload: NonNullable<ReturnType<typeof parseAnswerPayload>>,
   answerText: string
 ): Promise<string | null> {
   const shown = clampHintLevel(formData.get("hintsShown"));
@@ -115,12 +117,8 @@ export async function submitAnswerAction(
     return { message: "Missing answer." };
   }
 
-  let payload: AnswerPayload;
-  try {
-    payload = JSON.parse(rawPayload) as AnswerPayload;
-  } catch {
-    return { message: "Missing answer." };
-  }
+  const payload = parseAnswerPayload(rawPayload);
+  if (!payload) return { message: "Missing answer." };
 
   const question = await getQuestionById(questionId);
   if (!question) return { message: "No question found for this topic." };
@@ -132,6 +130,9 @@ export async function submitAnswerAction(
     : payloadToText(format, payload);
   if (!hasImages && answerText.trim().length === 0) {
     return { message: "Write an answer, or attach a photo, before submitting." };
+  }
+  if (hasImages && !(await ownsUploadedFiles(profile.id, question.id, payload.imagePaths!))) {
+    return { message: "Those photos don't belong to this question. Upload them again." };
   }
   if (!hasImages) {
     const copied = await hintCopyMessage(question, formData, payload, answerText);
@@ -206,6 +207,10 @@ export async function explainPracticeAnswerAction(questionId: string): Promise<s
   }
   const question = await getQuestionById(questionId);
   if (!question) throw new Error("Question not found.");
+  // The explanation reveals the model answer, so only after an attempt.
+  if (!(await hasAnsweredQuestion(profile.id, question.id))) {
+    throw new Error("Answer the question first.");
+  }
 
   const config = await resolveProviderConfig(profile.id);
   return explainAnswer(question.prompt, question.model_answer, config);
@@ -233,8 +238,9 @@ export async function completeBankSessionAction(
   sessionId: string,
   masteryExit: boolean
 ): Promise<void> {
-  await requireAnyRole(["student", "teacher", "admin"]);
-  await completeSession(sessionId, masteryExit);
+  const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
+  if (typeof sessionId !== "string" || !(await isQuestionSessionOwner(sessionId, profile.id))) return;
+  await completeSession(sessionId, masteryExit === true);
 }
 
 export async function submitBankAnswerAction(
@@ -255,12 +261,8 @@ export async function submitBankAnswerAction(
     return { message: "Missing answer." };
   }
 
-  let payload: AnswerPayload;
-  try {
-    payload = JSON.parse(rawPayload) as AnswerPayload;
-  } catch {
-    return { message: "Missing answer." };
-  }
+  const payload = parseAnswerPayload(rawPayload);
+  if (!payload) return { message: "Missing answer." };
 
   const question = await getQuestionById(questionId);
   if (!question) return { message: "No question found for this topic." };
@@ -272,6 +274,9 @@ export async function submitBankAnswerAction(
     : payloadToText(format, payload);
   if (!hasImages && answerText.trim().length === 0) {
     return { message: "Write an answer, or attach a photo, before submitting." };
+  }
+  if (hasImages && !(await ownsUploadedFiles(profile.id, question.id, payload.imagePaths!))) {
+    return { message: "Those photos don't belong to this question. Upload them again." };
   }
   if (!hasImages) {
     const copied = await hintCopyMessage(question, formData, payload, answerText);
@@ -406,6 +411,8 @@ export async function getRemediationAction(input: {
   if (typeof input?.questionId !== "string") return { unavailable: true };
   const question = await getQuestionById(input.questionId);
   if (!question) return { unavailable: true };
+  // Remediation explains the answer, so it only follows an attempt.
+  if (!(await hasAnsweredQuestion(profile.id, question.id))) return { unavailable: true };
   const rem = await getOrCreateRemediation(question, await topicTitleFor(question));
   return rem ? redact(rem) : { unavailable: true };
 }
