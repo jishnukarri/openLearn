@@ -626,6 +626,7 @@ function QuestionForm({
               questionId={question.id}
               source={helpSource}
               onComplete={helpComplete}
+              onClose={() => (helpSource === "hint" ? setHelpOpen(false) : onNext(false))}
             />
           )}
           {complete && (

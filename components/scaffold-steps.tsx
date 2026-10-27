@@ -88,8 +88,8 @@ export function ScaffoldSteps({
 
   // Focus the first field of each newly revealed step, and after "Try again".
   useEffect(() => {
-    if (!wrong) inputRef.current?.focus();
-  }, [index, wrong]);
+    if (!wrong && !checking) inputRef.current?.focus();
+  }, [index, wrong, checking]);
 
   if (!step && !done) return null;
 

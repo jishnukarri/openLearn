@@ -32,8 +32,11 @@ export function useHints(questionId: string, opts?: { scaffold?: boolean; onScaf
     try {
       const level = Math.min(3, hints.length + 1) as 1 | 2 | 3;
       const res = await getHintAction({ questionId, level });
-      if ("unavailable" in res) setUnavailable(true);
-      else {
+      if ("unavailable" in res) {
+        // A rate-limit message is temporary; only a genuine miss is permanent.
+        if (res.message) setError(res.message);
+        else setUnavailable(true);
+      } else {
         setHints((h) => [...h, res.hint]);
         setMaxLevel(res.maxLevel);
       }

@@ -14,13 +14,17 @@ export function RemediationPanel({
   source,
   onLoaded,
   onComplete,
+  onClose,
 }: {
   questionId: string;
   source: "hint" | "escalation";
   onLoaded?: (type: Remediation["type"] | "unavailable") => void;
   onComplete: () => void;
+  /** Lets the student leave when support can't load, so they are never stuck. */
+  onClose?: () => void;
 }) {
   const [rem, setRem] = useState<Remediation | "unavailable" | "error" | null>(null);
+  const [tries, setTries] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -36,18 +40,41 @@ export function RemediationPanel({
       live = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questionId]);
+  }, [questionId, tries]);
 
   if (rem === null) return <StatusLine text="Getting support ready…" />;
   if (rem === "unavailable" || rem === "error") {
     return (
-      <p aria-live="polite" className="text-base text-muted">
-        {rem === "error"
-          ? "Couldn't load support. Please try again."
-          : source === "hint"
-            ? "No hint available for this question."
-            : "No support available for this question."}
-      </p>
+      <div className="flex flex-col items-start gap-3">
+        <p aria-live="polite" className="text-base text-muted">
+          {rem === "error"
+            ? "Couldn't load support. Please try again."
+            : source === "hint"
+              ? "No hint available for this question."
+              : "No support available for this question right now."}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setRem(null);
+              setTries((t) => t + 1);
+            }}
+            className="min-h-11 rounded-2xl border border-border bg-surface px-5 text-sm font-semibold text-foreground hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Try again
+          </button>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-h-11 rounded-2xl border border-border bg-surface px-5 text-sm font-semibold text-foreground hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {source === "hint" ? "Close" : "Move on, come back to it later"}
+            </button>
+          )}
+        </div>
+      </div>
     );
   }
   if (rem.type === "scaffold") {
