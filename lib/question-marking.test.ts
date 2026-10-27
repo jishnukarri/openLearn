@@ -166,3 +166,32 @@ describe("numeric answers", () => {
     expect(autoMark(fmt, { text: "0.5 mol" }, 1)?.marksAwarded).toBe(0);
   });
 });
+
+describe("marking edge cases (review pass)", () => {
+  it("blank answer never matches a zero answer", async () => {
+    const { answersMatch } = await import("./question-marking");
+    expect(answersMatch("", "0")).toBe(false);
+    expect(answersMatch("  ", "0")).toBe(false);
+    expect(answersMatch("Infinity", "Infinity")).toBe(true); // identical text
+    expect(answersMatch("0x10", "16")).toBe(false);
+    expect(answersMatch("0.50", "0.5")).toBe(true);
+  });
+  it("rejects trailing junk when no unit expected", async () => {
+    const { markNumeric } = await import("./question-marking");
+    expect(markNumeric("0.3+5", { value: 0.3 }).valueOk).toBe(false);
+    expect(markNumeric("1,5", { value: 1 }).valueOk).toBe(false);
+    expect(markNumeric("0.3", { value: 0.3 }).fraction).toBe(1);
+    expect(markNumeric("1/0", { value: 1 }).parsed).toBe(false);
+    expect(markNumeric("1e999", { value: 1 }).parsed).toBe(false);
+    expect(markNumeric("0", { value: 0, tolerancePercent: 0 }).fraction).toBe(1);
+    expect(markNumeric("0.1", { value: 0, tolerancePercent: 0 }).fraction).toBe(0);
+    expect(markNumeric("2×10^3", { value: 2000 }).fraction).toBe(1);
+    expect(markNumeric("−5", { value: -5 }).fraction).toBe(1);
+  });
+  it("long input is rejected fast", async () => {
+    const { answersMatch } = await import("./question-marking");
+    const t = Date.now();
+    expect(answersMatch("a".repeat(200000), "b".repeat(200000))).toBe(false);
+    expect(Date.now() - t).toBeLessThan(300);
+  });
+});

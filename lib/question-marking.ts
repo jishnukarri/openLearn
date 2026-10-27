@@ -121,9 +121,16 @@ function rationalValue(input: string): number | null {
   const fraction = parseFraction(input);
   if (fraction) return fraction.numerator / fraction.denominator;
 
-  const numeric = Number(norm(input).replace(/,/g, ""));
-  return Number.isNaN(numeric) ? null : numeric;
+  // Strict decimal only: Number("") is 0, Number("0x10") is 16 and
+  // Number("Infinity") is Infinity, none of which are answers.
+  const cleaned = norm(input).replace(/,/g, "");
+  if (!/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(cleaned)) return null;
+  const numeric = Number(cleaned);
+  return Number.isFinite(numeric) ? numeric : null;
 }
+
+// Longer than any real short answer; stops quadratic fuzzy work on junk input.
+const MAX_ANSWER_CHARS = 1000;
 
 // Numeric-aware comparison: "0.50" matches "0.5", "3/10" matches "0.3",
 // otherwise normalized text.
@@ -137,6 +144,9 @@ export function answersMatchDetailed(
   given: string,
   accepted: string
 ): { matched: boolean; note?: string } {
+  if (given.length > MAX_ANSWER_CHARS || accepted.length > MAX_ANSWER_CHARS) {
+    return { matched: false };
+  }
   const g = norm(given);
   const a = norm(accepted);
   if (g === a) return { matched: true };
@@ -267,6 +277,12 @@ export function markNumeric(given: string, spec: NumericSpec): NumericMark {
   }
   tol = Math.max(tol, 1e-9);
   const valueOk = Math.abs(parsed.value - spec.value) <= tol * (1 + 1e-9);
+
+  // With no unit expected, trailing text like "+0.2", ",5" or "x 10^999" means
+  // the student wrote something other than a single number.
+  if (!spec.unit && /^(?:[-+*/^=×÷,.]|\d|x\s*10)/i.test(parsed.unit)) {
+    return { fraction: 0, valueOk: false, unitOk: null, parsed: true };
+  }
 
   let unitOk: boolean | null = null;
   if (spec.unit) {
