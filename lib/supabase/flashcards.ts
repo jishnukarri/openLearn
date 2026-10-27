@@ -8,6 +8,7 @@ export async function getFlashcardsByTopic(topicId: string): Promise<FlashcardSe
     .from("flashcard_sets")
     .select("cards")
     .eq("topic_id", topicId)
+    .is("subtopic_id", null)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

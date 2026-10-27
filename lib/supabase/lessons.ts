@@ -13,6 +13,7 @@ export async function getLessonByTopic(
     .from("lessons")
     .select("content")
     .eq("topic_id", topicId)
+    .is("subtopic_id", null)
     .order("created_at", { ascending: false })
     .limit(1);
   query = classId ? query.eq("class_id", classId) : query.is("class_id", null);
