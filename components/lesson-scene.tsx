@@ -268,7 +268,7 @@ export function LessonScene({ scene, label = "Worked example animation" }: { sce
                 onClick={() => go(i)}
                 aria-label={`Step ${i + 1}`}
                 aria-current={i === shownStep ? "step" : undefined}
-                className="flex min-h-11 min-w-8 items-center justify-center focus-visible:outline-2 focus-visible:outline-primary"
+                className="flex min-h-11 min-w-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-primary"
               >
                 <span className={`block size-2.5 rounded-full ${i === shownStep ? "bg-primary" : "bg-border"}`} />
               </button>

@@ -81,7 +81,7 @@ export function GuideTour({
               </li>
             ))}
           </ol>
-          <Link href="/dashboard" className="text-sm text-muted underline-offset-4 hover:text-foreground hover:underline">
+          <Link href="/dashboard" className="inline-flex min-h-11 items-center px-2 text-sm text-muted underline-offset-4 hover:text-foreground hover:underline">
             Skip for now
           </Link>
         </div>
@@ -114,7 +114,7 @@ export function GuideTour({
             type="button"
             onClick={() => go(-1)}
             disabled={index === 0}
-            className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-0"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-0"
           >
             <ArrowLeft className="size-4" strokeWidth={2} aria-hidden /> Back
           </button>
