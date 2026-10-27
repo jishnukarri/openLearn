@@ -22,7 +22,7 @@ export function sanitizeVisual(
       const alt = (visual.alt ?? "").trim() || fallbackAlt.trim();
       const url = typeof visual.url === "string" ? visual.url.trim() : "";
       if (url) {
-        if (!/^(https?:\/\/|\/)/i.test(url) || !alt) return null;
+        if (!/^(https?:\/\/|\/(?![\/\\]))/i.test(url) || !alt) return null;
         return { ...visual, url, alt, prompt: visual.prompt ?? "" };
       }
       return visual.prompt && alt ? { ...visual, alt } : null;

@@ -22,3 +22,12 @@ describe("sanitizeVisual images", () => {
     expect(sanitizeVisual({ kind: "svg", svg: "" })).toBeNull();
   });
 });
+
+describe("sanitizeVisual protocol-relative urls", () => {
+  it("drops //host and /\\host urls that escape to another origin", () => {
+    for (const url of ["//evil.test/a.png", "/\\evil.test/a.png", "javascript:alert(1)"]) {
+      expect(sanitizeVisual({ kind: "image", prompt: "", alt: "x", url }, "")).toBeNull();
+    }
+    expect(sanitizeVisual({ kind: "image", prompt: "", alt: "x", url: "/uploads/a.png" }, "")?.kind).toBe("image");
+  });
+});
