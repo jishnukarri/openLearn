@@ -22,3 +22,19 @@ describe("shortReason", () => {
     expect(shortReason("Version 3.5 is fast. Next.", 140)).toBe("Version 3.5 is fast. Next.");
   });
 });
+
+describe("shortReason with maths and underscores", () => {
+  it("flattens inline math instead of showing raw $ and commands", () => {
+    expect(shortReason("Use $\\frac{a}{b}$ and $3 \\times 4$ here.")).toBe("Use a/b and 3 × 4 here.");
+  });
+  it("keeps underscores inside identifiers and subscripts", () => {
+    expect(shortReason("Set max_value to $x_1$.")).toBe("Set max_value to x_1.");
+  });
+  it("strips emphasis underscores", () => {
+    expect(shortReason("This is _really_ key.")).toBe("This is really key.");
+  });
+  it("does not cut inside a math span", () => {
+    const r = shortReason("Because $\\frac{1}{2}$ " + "word ".repeat(60), 40);
+    expect(r).not.toMatch(/[$\\]/);
+  });
+});
