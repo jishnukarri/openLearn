@@ -20,7 +20,7 @@ export default async function AdminBlocklistPage() {
       size="fluid"
       aside={
         <AsideBlock title="How it works">
-          <p>People matching the blocklist can't create an account or change their name to a blocked one.</p>
+          <p>People matching the blocklist can&apos;t create an account or change their name to a blocked one.</p>
           <p>Existing accounts can still sign in. Blocking is checked only when someone signs up or edits their name.</p>
           <p>Matching ignores capital letters, accents, and Gmail dots or +tags. Block a whole school domain: @example.com</p>
         </AsideBlock>
@@ -44,7 +44,7 @@ export default async function AdminBlocklistPage() {
         </h2>
         {unavailable ? (
           <p className="text-base text-muted">
-            The blocklist can't be loaded right now. Ask your developer to check that it has been set up.
+            The blocklist can&apos;t be loaded right now. Ask your developer to check that it has been set up.
           </p>
         ) : entries.length === 0 ? (
           <p className="text-base text-muted">Nothing is blocked yet.</p>
