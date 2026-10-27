@@ -3,6 +3,8 @@
 // untrusted input into a clamped, safe Scene or null. Rendering lives in
 // components/lesson-scene.tsx. Pure module: safe on server and client.
 
+import { layoutElements } from "./scene-layout";
+
 export const PALETTE = {
   ink: "#1a1512",
   muted: "#5f564b",
@@ -210,6 +212,9 @@ export function parseScene(raw: unknown): Scene | null {
     .filter((e): e is SceneElement => !!e);
   const elements = clampCount(parsed, MAX_ELEMENTS);
   if (!elements.length) return null;
+
+  // Nudge overlapping labels apart (deterministic; leaves clear text alone).
+  layoutElements(w, h, elements);
 
   // Grow the viewBox to contain text that would run past the canvas.
   let lo = 0, top = 0, hi = w, bottom = h;
