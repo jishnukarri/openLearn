@@ -97,7 +97,7 @@ export function QuitModal({ onKeepGoing, onQuit }: { onKeepGoing: () => void; on
         className="mx-4 flex w-full max-w-sm flex-col gap-5 rounded-2xl border border-border bg-surface p-6 text-center shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <AlertTriangle className="mx-auto size-8 text-highlight" strokeWidth={1.75} />
+        <AlertTriangle className="mx-auto size-8 text-highlight-ink" strokeWidth={1.75} />
         <div>
           <p className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">
             Quit this lesson?
@@ -109,7 +109,7 @@ export function QuitModal({ onKeepGoing, onQuit }: { onKeepGoing: () => void; on
           <button
             type="button"
             onClick={onQuit}
-            className="w-full rounded-xl border border-border px-4 py-3 text-sm font-medium text-error transition-colors hover:border-error hover:bg-error/10"
+            className="w-full rounded-xl border border-border px-4 py-3 text-sm font-medium text-error-ink transition-colors hover:border-error hover:bg-error/10"
           >
             Quit lesson
           </button>
@@ -133,7 +133,7 @@ export function YourTurnBanner({ instruction, status, next }: { instruction: str
   return (
     <div className="mb-6 rounded-xl border-2 border-primary/40 bg-primary/10 px-4 py-3" role="group" aria-label="Your turn: try it">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="inline-flex items-center gap-2 font-[family-name:var(--font-display)] text-lg font-semibold text-primary">
+        <p className="inline-flex items-center gap-2 font-[family-name:var(--font-display)] text-lg font-semibold text-primary-ink">
           <PencilLine className="size-5" strokeWidth={2} aria-hidden="true" /> Your turn: try it
         </p>
         <p className="rounded-full border border-primary/40 bg-background px-3 py-0.5 text-sm font-medium text-foreground" aria-live="polite">

@@ -45,7 +45,7 @@ export function AnswerFeedback({
             {correct ? <Check className="size-4" strokeWidth={2.5} aria-hidden="true" /> : <X className="size-4" strokeWidth={2.5} aria-hidden="true" />}
           </span>
           <div className="min-w-0">
-            <p className={`text-lg font-semibold ${correct ? "text-success" : "text-error"}`}>
+            <p className={`text-lg font-semibold ${correct ? "text-success-ink" : "text-error-ink"}`}>
               {correct ? "Correct" : "Not quite"}
             </p>
             {!correct && answerLabel && (

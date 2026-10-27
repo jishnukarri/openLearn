@@ -12,8 +12,6 @@ const STEP_MS = 4200;
 const controlClass =
   "inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-40";
 
-type El<T extends SceneElement["type"]> = Extract<SceneElement, { type: T }>;
-
 const colour = (name: keyof typeof PALETTE) => PALETTE[name];
 
 // Entrance props shared by every element. `animated` is false under

@@ -23,6 +23,12 @@
   --highlight: #926006;
   --success: #1a8048;
   --error: #cc3333;
+  /* Text-safe variants for copy on tinted (10-20%) fills: >=4.5:1 on both
+     surface and background in each theme. Fills/borders keep the base hues. */
+  --primary-ink: #534fe0;
+  --success-ink: #146a3a;
+  --error-ink: #a82020;
+  --highlight-ink: #7a4d04;
 
   /* Fonts: loaded via next/font/google in app/layout.tsx as CSS variables
      (--font-sans, --font-geist-mono, --font-display); these are just the
@@ -71,6 +77,10 @@
   --color-muted: var(--muted);
 
   --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-success-ink: var(--success-ink);
+  --color-error-ink: var(--error-ink);
+  --color-highlight-ink: var(--highlight-ink);
   --color-secondary: var(--secondary);
   --color-highlight: var(--highlight);
   --color-success: var(--success);
@@ -360,6 +370,10 @@ body {
     --highlight: #ffc24d;
     --success: #3ddc84;
     --error: #ff5c5c;
+    --primary-ink: #a9a7ff;
+    --success-ink: #3ddc84;
+    --error-ink: #ff7a7a;
+    --highlight-ink: #ffc24d;
 
     /* shadcn standard tokens — dark */
     --background: #17130f;
@@ -400,6 +414,10 @@ body {
   --highlight: #ffc24d;
   --success: #3ddc84;
   --error: #ff5c5c;
+  --primary-ink: #a9a7ff;
+  --success-ink: #3ddc84;
+  --error-ink: #ff7a7a;
+  --highlight-ink: #ffc24d;
 
   --background: #17130f;
   --foreground: #f5f1eb;

@@ -51,7 +51,7 @@ export default async function LessonPage({
     <div className="flex flex-col">
       <div className="border-b border-border bg-surface">
         <div className="mx-auto flex max-w-5xl flex-col gap-4 px-6 py-4">
-          <div className="rounded-xl border border-highlight/40 bg-highlight/10 px-4 py-2 text-xs text-highlight">
+          <div className="rounded-xl border border-highlight/40 bg-highlight/10 px-4 py-2 text-sm text-highlight-ink">
             Previewing as {profile.role}, completing this won&apos;t earn XP.
           </div>
           <div className="flex flex-wrap items-start gap-3">

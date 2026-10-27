@@ -34,7 +34,7 @@ export function SimplifyForm({ topicId }: { topicId: string }) {
       <PendingOverlay title="Making it simpler" />
       <button
         type="submit"
-        className="shrink-0 whitespace-nowrap rounded-full border border-border px-3 py-1.5 text-xs text-muted transition-colors hover:border-primary hover:text-foreground"
+        className="inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-full border border-border px-3 text-sm text-muted transition-colors hover:border-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         Need help?
       </button>
@@ -51,7 +51,7 @@ export function TweakForm({ topicId }: { topicId: string }) {
     >
       <input type="hidden" name="topicId" value={topicId} />
       <PendingOverlay title="Tweaking the lesson" />
-      <label className="text-xs font-medium text-muted">
+      <label className="text-sm font-medium text-muted">
         Ask AI to tweak this lesson
       </label>
       <div className="flex items-center gap-2">
@@ -79,7 +79,7 @@ export function SubtopicTweakForm({ subtopicId }: { subtopicId: string }) {
     >
       <input type="hidden" name="subtopicId" value={subtopicId} />
       <PendingOverlay title="Tweaking the subtopic lesson" />
-      <label className="text-xs font-medium text-muted">Ask AI to tweak this lesson</label>
+      <label className="text-sm font-medium text-muted">Ask AI to tweak this lesson</label>
       <div className="flex items-center gap-2">
         <input
           name="instruction"

@@ -156,7 +156,7 @@ export function LessonTutor({
           onClick={() => onOpenChange(true)}
           aria-expanded={false}
           aria-controls="lesson-coach-panel"
-          className="hidden min-h-11 w-full flex-col items-center gap-3 px-1 py-4 text-sm font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none lg:flex"
+          className="hidden min-h-11 w-full flex-col items-center gap-3 px-1 py-4 text-sm font-medium text-primary-ink transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none lg:flex"
         >
           <MessageCircleQuestion className="size-5" strokeWidth={2} />
           <span className="[writing-mode:vertical-rl]">Ask your coach</span>
@@ -207,8 +207,7 @@ export function LessonTutor({
               if (suggestion.label === "Give me a hint") onHint?.();
               ask(suggestion.message);
             }}
-            className="min-h-11 rounded-full border border-border px-3 py-1.5 text-sm text-muted transition-colors hover:border-primary hover:text-foreground disabled:opacity-50"
-          >
+            className="min-h-11 rounded-full border border-border px-3 py-1.5 text-sm text-muted transition-colors hover:border-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"          >
             {suggestion.label}
           </button>
         ))}
@@ -221,7 +220,7 @@ export function LessonTutor({
               type="button"
               disabled={isPending}
               onClick={() => ask(lastMiss.picked ? `I picked "${lastMiss.picked}" on the last question. Can you go through why that was not right?` : "I got the last question wrong. Can you go through why?")}
-              className="min-h-11 self-start rounded-2xl rounded-bl-md bg-background px-3 py-2 text-left text-foreground transition-colors hover:text-primary disabled:opacity-50"
+              className="min-h-11 self-start rounded-2xl rounded-bl-md bg-background px-3 py-2 text-left text-foreground transition-colors hover:text-primary-ink disabled:opacity-50"
             >
               {lastMiss.picked ? `You picked "${lastMiss.picked}" on the last question. Want to go through why?` : "That last question was tricky. Want to go through why?"}
             </button>
@@ -232,7 +231,7 @@ export function LessonTutor({
         {threadWithDividers(thread, stepIndex).map((item) => {
           if (item.kind === "divider") {
             return (
-              <p key={item.key} className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted" role="separator" aria-label={`Now on step ${item.step + 1}`}>
+              <p key={item.key} className="flex items-center gap-2 text-sm font-medium text-muted" role="separator" aria-label={`Now on step ${item.step + 1}`}>
                 <span className="h-px flex-1 bg-border" />
                 Now on step {item.step + 1}
                 <span className="h-px flex-1 bg-border" />
@@ -256,7 +255,7 @@ export function LessonTutor({
                       type="button"
                       disabled={answered}
                       onClick={() => pick(i, oi)}
-                      className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${
+                      className={`flex min-h-11 items-start gap-2 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                         !answered
                           ? "border-border hover:border-primary"
                           : right
@@ -276,7 +275,7 @@ export function LessonTutor({
               </div>
               {m.picked !== undefined && (
                 <p className="text-muted">
-                  <span className={m.picked === m.turn.correctIndex ? "font-semibold text-success" : "font-semibold text-error"}>
+                  <span className={m.picked === m.turn.correctIndex ? "font-semibold text-success-ink" : "font-semibold text-error-ink"}>
                     {m.picked === m.turn.correctIndex ? "Correct. " : "Not quite. "}
                   </span>
                   {m.turn.explanation}
@@ -290,7 +289,7 @@ export function LessonTutor({
         {pendingQ && (
           <div className="self-start rounded-2xl rounded-bl-md bg-background px-3 py-2"><StatusLine text="Your coach is thinking…" /></div>
         )}
-        {error && <p className="text-error">{error}</p>}
+        {error && <p className="text-error-ink">{error}</p>}
       </div>
 
       <form
@@ -308,12 +307,12 @@ export function LessonTutor({
           disabled={isPending}
           onChange={(event) => setQuestion(event.target.value)}
           placeholder="Ask, or type your answer…"
-          className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+          className="min-h-11 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
         />
         <button
           type="submit"
           disabled={!question.trim() || isPending}
-          className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="min-h-11 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50"
         >
           Ask
         </button>

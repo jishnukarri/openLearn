@@ -160,15 +160,6 @@ export function LessonPlayer({
   const showHint = isFirstOfPhase(plan, planIdx);
 
   // ── Handlers ─────────────────────────────────────────────────────────
-  // ── Derived context for the AI tutor sidebar ─────────────────────────
-  const activeSectionIndex: number | null = (() => {
-    if (!step || isDone) return null;
-    if (step.phase === "teach" || step.phase === "check" || step.phase === "tutor") return step.sectionIndex;
-    if (step.phase === "flashcard") return step.cardIndices[flashcardIdx] ?? step.cardIndices[0] ?? null;
-    return null;
-  })();
-  const currentSection = activeSectionIndex !== null ? displayedSections[activeSectionIndex] : null;
-
   // ── Keyboard shortcuts (1/2/3 = Hard/Good/Easy on flashcard rating) ───
   useEffect(() => {
     if (!step || step.phase !== "flashcard" || !flashcardFlipped || flashcardRatings[flashcardIdx] !== undefined) return;
@@ -381,7 +372,7 @@ export function LessonPlayer({
             {!isDone && step?.phase === "hook" && (
               <div className="w-full px-4 py-16 sm:px-6">
                 <div className="mx-auto flex max-w-xl flex-col items-center gap-6 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary-ink">
                     <Puzzle className="size-8" strokeWidth={1.75} />
                   </div>
                   {title && (
@@ -411,11 +402,11 @@ export function LessonPlayer({
               return (
                 <div className="w-full px-4 py-8 sm:px-6">
                   <div className="mb-6 flex items-center gap-3">
-                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary-ink">
                       {sec.heading}
                     </span>
                     {adaptedSections.has(step.sectionIndex) && (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                      <span className="inline-flex items-center gap-1 text-sm font-medium text-primary-ink">
                         <Sparkles className="size-3.5" strokeWidth={2} /> Adapted to your progress
                       </span>
                     )}
@@ -490,11 +481,11 @@ export function LessonPlayer({
                         next={afterCheckText(state, sec.check.kind === undefined || sec.check.kind === "mcq")}
                       />
                       <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-sm font-semibold text-primary-ink">
                           {sec.heading}
                         </span>
                         {adaptedSections.has(step.sectionIndex) && (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                          <span className="inline-flex items-center gap-1 text-sm font-medium text-primary-ink">
                             <Sparkles className="size-3.5" strokeWidth={2} /> Adapted
                           </span>
                         )}
@@ -539,7 +530,7 @@ export function LessonPlayer({
 
                     {retryOffered && (
                       <div className="animate-fade-slide-up border-t-2 border-error/40 bg-error/10 p-5" role="group" aria-label="Not yet">
-                        <p className="mb-1 inline-flex items-center gap-2 text-base font-semibold text-error">
+                        <p className="mb-1 inline-flex items-center gap-2 text-base font-semibold text-error-ink">
                           <X className="size-4" strokeWidth={2.5} /> Not yet. You can try again.
                         </p>
                         <p className="mb-4 text-base text-foreground"><RichText text={missHint(sec)} /></p>
@@ -646,7 +637,7 @@ export function LessonPlayer({
                         </>
                       ) : (
                         <>
-                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">{card.term}</p>
+                          <p className="mb-2 text-sm font-semibold text-primary-ink">{card.term}</p>
                           <p className="text-base leading-relaxed text-foreground">
                             <RichText text={card.def} />
                           </p>
@@ -666,9 +657,9 @@ export function LessonPlayer({
                           aria-label="Hard, see again soon"
                           className="flex-1 rounded-xl border-2 border-error/30 bg-error/10 px-3 py-3 text-center transition-colors hover:bg-error/20"
                         >
-                          <p className="text-sm font-semibold text-error">Hard</p>
-                          <p className="mt-0.5 text-xs text-muted">see again soon</p>
-                          <p className="mt-1 font-[family-name:var(--font-mono)] text-xs text-muted">1</p>
+                          <span className="block text-sm font-semibold text-error-ink">Hard</span>
+                          <span className="block mt-0.5 text-xs text-muted">see again soon</span>
+                          <span className="block mt-1 font-[family-name:var(--font-mono)] text-xs text-muted">1</span>
                         </button>
                         <button
                           type="button"
@@ -676,9 +667,9 @@ export function LessonPlayer({
                           aria-label="Good, see again in about a day"
                           className="flex-1 rounded-xl border-2 border-primary/30 bg-primary/10 px-3 py-3 text-center transition-colors hover:bg-primary/20"
                         >
-                          <p className="text-sm font-semibold text-primary">Good</p>
-                          <p className="mt-0.5 text-xs text-muted">~1 day</p>
-                          <p className="mt-1 font-[family-name:var(--font-mono)] text-xs text-muted">2</p>
+                          <span className="block text-sm font-semibold text-primary-ink">Good</span>
+                          <span className="block mt-0.5 text-xs text-muted">~1 day</span>
+                          <span className="block mt-1 font-[family-name:var(--font-mono)] text-xs text-muted">2</span>
                         </button>
                         <button
                           type="button"
@@ -686,9 +677,9 @@ export function LessonPlayer({
                           aria-label="Easy, learned"
                           className="flex-1 rounded-xl border-2 border-success/30 bg-success/10 px-3 py-3 text-center transition-colors hover:bg-success/20"
                         >
-                          <p className="text-sm font-semibold text-success">Easy</p>
-                          <p className="mt-0.5 text-xs text-muted">learned</p>
-                          <p className="mt-1 font-[family-name:var(--font-mono)] text-xs text-muted">3</p>
+                          <span className="block text-sm font-semibold text-success-ink">Easy</span>
+                          <span className="block mt-0.5 text-xs text-muted">learned</span>
+                          <span className="block mt-1 font-[family-name:var(--font-mono)] text-xs text-muted">3</span>
                         </button>
                       </div>
                     </div>
@@ -731,10 +722,10 @@ export function LessonPlayer({
               if (!sec) return null;
               const marksColor = tutorFeedback
                 ? tutorFeedback.marks === tutorFeedback.total
-                  ? "text-success"
+                  ? "text-success-ink"
                   : tutorFeedback.marks >= Math.ceil(tutorFeedback.total / 2)
-                    ? "text-highlight"
-                    : "text-error"
+                    ? "text-highlight-ink"
+                    : "text-error-ink"
                 : "";
               return (
                 <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
@@ -844,7 +835,7 @@ export function LessonPlayer({
                           key={sec.heading}
                           className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3"
                         >
-                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/20 text-success">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/20 text-success-ink">
                             <Check className="size-3" strokeWidth={2.5} />
                           </span>
                           <div>
@@ -879,13 +870,13 @@ export function LessonPlayer({
                           href={practiceHref ?? `/practice/${topicId}`}
                           className="flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 text-sm font-medium text-foreground transition-colors hover:border-primary"
                         >
-                          Practice exam questions <span className="text-primary">→</span>
+                          Practice exam questions <span className="text-primary-ink">→</span>
                         </Link>
                         <Link
                           href={flashcardsHref ?? `/flashcards/${topicId}`}
                           className="flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 text-sm font-medium text-foreground transition-colors hover:border-primary"
                         >
-                          Flashcards <span className="text-primary">→</span>
+                          Flashcards <span className="text-primary-ink">→</span>
                         </Link>
                       </div>
                     </div>
@@ -966,7 +957,7 @@ function DoneCard({
       <animated.div
         style={trail[0]}
         className={`flex size-16 items-center justify-center rounded-full ${
-          perfect ? "bg-highlight/15 text-highlight" : "bg-success/15 text-success"
+          perfect ? "bg-highlight/15 text-highlight-ink" : "bg-success/15 text-success-ink"
         }`}
       >
         {perfect ? (
@@ -992,7 +983,7 @@ function DoneCard({
         </div>
         {completion !== null && completion.earned > 0 && (
           <div className="rounded-xl border border-highlight/40 bg-highlight/10 px-4 py-2 text-center">
-            <p className="font-[family-name:var(--font-mono)] text-2xl font-bold text-highlight">
+            <p className="font-[family-name:var(--font-mono)] text-2xl font-bold text-highlight-ink">
               +<CountUp value={completion.earned} unit="" label={`${completion.earned} XP earned`} />
             </p>
             <p className="text-sm text-muted">XP earned</p>

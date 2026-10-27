@@ -128,9 +128,9 @@ function MultiCheck({
           ? "border-primary bg-primary/10 text-foreground"
           : "border-border bg-background text-foreground";
         if (revealed && isCorrect) {
-          style = "border-success bg-success/10 text-success";
+          style = "border-success bg-success/10 text-success-ink";
         } else if (revealed && isSelected && !isCorrect) {
-          style = "border-error bg-error/10 text-error";
+          style = "border-error bg-error/10 text-error-ink";
         }
         return (
           <button
@@ -148,7 +148,7 @@ function MultiCheck({
             className={`flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${style}`}
           >
             <span
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border text-3xs font-bold ${
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs font-bold ${
                 isSelected || (revealed && isCorrect)
                   ? "border-current"
                   : "border-muted/40 text-muted"

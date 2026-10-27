@@ -41,7 +41,7 @@ export function LessonHeader({
           type="button"
           aria-label="Quit lesson"
           onClick={onQuit}
-          className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-muted transition-colors hover:border-error hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-muted transition-colors hover:border-error hover:text-error-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <X className="size-4" strokeWidth={2} />
         </button>
@@ -54,7 +54,7 @@ export function LessonHeader({
           aria-expanded={recapOpen}
           disabled={recapCount === 0}
           title={recapCount === 0 ? "Nothing to recap yet" : undefined}
-          className={`${pill} ${recapOpen ? "border-primary bg-primary/10 text-primary" : "border-border text-muted hover:border-primary hover:text-foreground"} disabled:pointer-events-none disabled:opacity-40`}
+          className={`${pill} ${recapOpen ? "border-primary bg-primary/10 text-primary-ink" : "border-border text-muted hover:border-primary hover:text-foreground"} disabled:pointer-events-none disabled:opacity-40`}
         >
           <BookMarked className="size-4" strokeWidth={2} />
           <span className="hidden sm:inline">Recap so far</span>
@@ -64,7 +64,7 @@ export function LessonHeader({
           type="button"
           onClick={onToggleHelp}
           aria-expanded={helpOpen}
-          className={`${pill} ${helpOpen ? "border-primary bg-primary text-white" : "border-primary/40 text-primary hover:bg-primary/10"}`}
+          className={`${pill} ${helpOpen ? "border-primary bg-primary text-white" : "border-primary/40 text-primary-ink hover:bg-primary/10"}`}
         >
           <HelpCircle className="size-4" strokeWidth={2} />
           Stuck? Help

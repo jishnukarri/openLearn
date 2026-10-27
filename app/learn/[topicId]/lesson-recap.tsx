@@ -10,7 +10,7 @@ export function RecapPanel({ items }: { items: { heading: string; line: string }
       <ul className="mt-3 flex flex-col gap-2">
         {items.map((it) => (
           <li key={it.heading} className="flex items-start gap-2.5">
-            <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-success/20 text-success">
+            <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-success/20 text-success-ink">
               <Check className="size-3" strokeWidth={2.5} />
             </span>
             <p className="text-sm leading-relaxed text-foreground">
@@ -27,7 +27,7 @@ export function RecapPanel({ items }: { items: { heading: string; line: string }
 export function TakeawayChip({ line }: { line: string }) {
   return (
     <p className="inline-flex max-w-[65ch] items-start gap-2 rounded-xl bg-primary/10 px-3 py-2 text-sm text-foreground">
-      <span className="font-semibold text-primary">Remember:</span> {line}
+      <span className="font-semibold text-primary-ink">Remember:</span> {line}
     </p>
   );
 }
