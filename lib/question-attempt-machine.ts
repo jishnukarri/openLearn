@@ -26,6 +26,7 @@ export function normaliseInput(input: string): string {
   return input
     .toLowerCase()
     .replace(/[\s ]+/g, " ")
+    .trim()
     .replace(/[.,;:!?]+$/g, "")
     .trim();
 }
