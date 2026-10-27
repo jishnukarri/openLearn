@@ -15,8 +15,14 @@ import { KEY_TERM_SET } from "./key-terms";
  *    caller can show "Check the spelling of ...".
  */
 
+/** Hard caps so pathological input can never make matching quadratic-slow. */
+export const MAX_WORD_LENGTH = 48;
+export const MAX_INPUT_LENGTH = 400;
+export const MAX_TOKENS = 12;
+
 export function normaliseWord(s: string): string {
   return s
+    .slice(0, MAX_INPUT_LENGTH)
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
@@ -40,6 +46,7 @@ export function stem(w: string): string {
 export function damerauLevenshtein(a: string, b: string): number {
   const m = a.length;
   const n = b.length;
+  if (m > MAX_WORD_LENGTH || n > MAX_WORD_LENGTH) return Math.max(m, n);
   if (!m) return n;
   if (!n) return m;
   const d: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
@@ -126,7 +133,7 @@ export function matchesExpected(
 ): SpellingMatch & { misspelledKeyTerm?: string } {
   const st = normaliseWord(studentWord).split(" ").filter(Boolean);
   const ex = normaliseWord(expected).split(" ").filter(Boolean);
-  if (!st.length || st.length !== ex.length) return { matched: false, exact: false };
+  if (!st.length || st.length !== ex.length || st.length > MAX_TOKENS) return { matched: false, exact: false };
   let exact = true;
   let misspelledKeyTerm: string | undefined;
   for (let i = 0; i < ex.length; i++) {

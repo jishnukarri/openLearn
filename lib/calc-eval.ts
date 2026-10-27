@@ -32,9 +32,17 @@ function tokenize(src: string): Tok[] | null {
   return out;
 }
 
+export const MAX_EXPR_LENGTH = 200;
+const MAX_TOKENS = 120;
+const MAX_DEPTH = 40;
+
 export function evaluateExpression(src: string, ans = 0): number | null {
+  if (typeof src !== "string" || src.length > MAX_EXPR_LENGTH) return null;
   const tokens = tokenize(src);
-  if (!tokens || tokens.length === 0) return null;
+  if (!tokens || tokens.length === 0 || tokens.length > MAX_TOKENS) return null;
+  let depth = 0;
+  const enter = () => { if (++depth > MAX_DEPTH) throw new Error("depth"); };
+  const leave = () => { depth--; };
   const toks: Tok[] = tokens;
   let p = 0;
   const peek = () => toks[p];
@@ -66,9 +74,12 @@ export function evaluateExpression(src: string, ans = 0): number | null {
     }
   }
   function unary(): number {
-    if (isOp("-")) { p++; return -unary(); }
-    if (isOp("+")) { p++; return unary(); }
-    return power();
+    enter();
+    try {
+      if (isOp("-")) { p++; return -unary(); }
+      if (isOp("+")) { p++; return unary(); }
+      return power();
+    } finally { leave(); }
   }
   function power(): number {
     const base = primary();
@@ -84,14 +95,18 @@ export function evaluateExpression(src: string, ans = 0): number | null {
       if (t.v === "pi") return Math.PI;
       if (!isOp("(")) throw new Error("sqrt(");
       p++;
+      enter();
       const v = expr();
+      leave();
       if (!isOp(")")) throw new Error(")");
       p++;
       if (v < 0) throw new Error("sqrt<0");
       return Math.sqrt(v);
     }
     if (t.v === "(") {
+      enter();
       const v = expr();
+      leave();
       if (!isOp(")")) throw new Error(")");
       p++;
       return v;
