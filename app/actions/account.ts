@@ -108,10 +108,23 @@ export async function changePasswordAction(
   const secret = cookieStore.get(SESSION_COOKIE)?.value;
   if (!secret) redirect("/login");
 
+  const sessionClient = createSessionClient(secret);
   try {
-    await createSessionClient(secret).updatePassword(next, current);
+    await sessionClient.updatePassword(next, current);
   } catch {
     return { errors: { currentPassword: "That isn't your current password." } };
+  }
+
+  // A changed password must end every other login (a stolen session, a
+  // forgotten library computer). Best effort: the password is already
+  // changed, and this device keeps its session.
+  try {
+    const { sessions } = await sessionClient.listSessions();
+    await Promise.all(
+      sessions.filter((s) => !s.current).map((s) => sessionClient.deleteSession(s.$id).catch(() => undefined))
+    );
+  } catch {
+    // ignore
   }
 
   try {
@@ -131,5 +144,5 @@ export async function changePasswordAction(
     const profile = await getProfileByAppwriteId(session.userId);
     redirect(roleHome(profile?.role));
   }
-  return { success: true, message: "Password changed. You stay signed in on this device." };
+  return { success: true, message: "Password changed. Other devices were signed out; you stay signed in here." };
 }
