@@ -35,21 +35,22 @@ export function StepNarration({ steps, index }: { steps: string[]; index: number
           exit={reduce ? undefined : { opacity: 0, x: -16 }}
           transition={{ duration: 0.4, ease: EASE_OUT }}
           aria-current="step"
-          className="relative overflow-hidden rounded-xl bg-primary/10 px-4 py-4 ring-1 ring-primary/30 sm:px-5"
+          className="relative rounded-xl bg-primary/10 text-left px-4 py-4 ring-1 ring-primary/30 sm:px-5"
         >
           {!reduce && (
-            <motion.span
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-primary/15"
-              initial={{ x: "-100%", opacity: 1 }}
-              animate={{ x: "400%", opacity: 0 }}
-              transition={{ duration: 1.1, ease: EASE_OUT, delay: 0.15 }}
-            />
+            <span aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl">
+              <motion.span
+                className="absolute inset-y-0 left-0 block w-1/3 bg-primary/15"
+                initial={{ x: "-100%", opacity: 1 }}
+                animate={{ x: "400%", opacity: 0 }}
+                transition={{ duration: 1.1, ease: EASE_OUT, delay: 0.15 }}
+              />
+            </span>
           )}
           <p className="relative mb-2 inline-flex items-center rounded-full bg-primary px-3 py-1 text-sm font-semibold text-white">
             Step {current + 1} of {total}
           </p>
-          <p className="relative max-w-[60ch] text-lg leading-normal text-foreground sm:text-xl">
+          <p className="relative max-w-[60ch] break-words text-lg leading-normal text-foreground sm:text-xl">
             <RichText text={steps[current] ?? ""} />
           </p>
         </motion.div>
