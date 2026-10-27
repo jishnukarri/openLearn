@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { describeCollisions } from "./scene-helpers";
 import { buildRetryPrompt, buildScenePrompt, estimateSceneCostUsd, extractJson, SCENE_SYSTEM_PROMPT } from "./scene-helpers";
 
 describe("scene helpers", () => {
@@ -23,5 +24,13 @@ describe("scene helpers", () => {
   it("estimates cost", () => {
     expect(estimateSceneCostUsd(10)).toBeGreaterThan(0);
     expect(estimateSceneCostUsd(0)).toBe(0);
+  });
+});
+
+describe("describeCollisions", () => {
+  it("names both overlapping labels", () => {
+    expect(describeCollisions([{ kind: "hard", a: "converging lens", b: "focal length = 10 cm" }])).toBe(
+      'the labels "converging lens" and "focal length = 10 cm" overlap; move them apart or shorten them'
+    );
   });
 });

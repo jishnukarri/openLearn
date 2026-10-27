@@ -11,11 +11,13 @@ import "server-only";
 // Never throws: any failure (402 insufficient credits, timeout, bad JSON)
 // yields null so lesson generation is never affected.
 import { parseScene, type Scene } from "@/lib/lesson-scene";
+import { findTextCollisions } from "@/lib/scene-layout";
 import { hackClubFetch } from "./client";
 import type { LessonContent } from "@/lib/ai/lessons";
 import {
   buildRetryPrompt,
   buildScenePrompt,
+  describeCollisions,
   extractJson,
   SCENE_SYSTEM_PROMPT,
   type SceneSectionInput,
@@ -102,19 +104,26 @@ export async function generateSceneForSection(
     { role: "user", content: buildScenePrompt(section) },
   ];
   try {
+    let softFallback: Scene | null = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       const reply = await callModel(messages, apiKey, model, fetchImpl);
       let reason: string;
       try {
         const scene = parseScene(extractJson(reply));
-        if (scene) return scene;
-        reason = "the scene did not pass validation (need captions, elements within the canvas, valid types)";
+        if (scene) {
+          // parseScene already nudged labels apart; anything left is a real clash.
+          const left = findTextCollisions(scene);
+          if (!left.length) return scene;
+          if (!left.some((c) => c.kind === "hard")) softFallback = scene;
+          reason = describeCollisions(left);
+        } else reason = "the scene did not pass validation (need captions, elements within the canvas, valid types)";
       } catch (e) {
         reason = `invalid JSON (${e instanceof Error ? e.message : "parse error"})`;
       }
       messages.push({ role: "assistant", content: reply }, { role: "user", content: buildRetryPrompt(reason) });
     }
-    return null;
+    // Out of retries: keep a scene whose only problems are soft (label near a line).
+    return softFallback;
   } catch (e) {
     if (!(e instanceof FatalSceneError)) {
       console.warn("[scenes] generation failed:", e instanceof Error ? e.message : e);

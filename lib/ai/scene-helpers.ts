@@ -1,6 +1,7 @@
 // Pure helpers for scene generation (no network, no server-only) so they can
 // be unit-tested. See lib/ai/scenes.ts for the model call.
 import { WORKED_EXAMPLE_GUIDE } from "./scene-prompt";
+import type { Collision } from "@/lib/scene-layout";
 
 export type SceneSectionInput = {
   heading: string;
@@ -26,6 +27,16 @@ export function buildScenePrompt(s: SceneSectionInput): string {
 
 export function buildRetryPrompt(reason: string): string {
   return `Your previous reply failed validation: ${reason}. Reply again with ONLY the corrected scene JSON object.`;
+}
+
+// Precise retry reason for labels the layout pass could not separate.
+export function describeCollisions(cs: Collision[]): string {
+  const parts = cs.slice(0, 3).map((c) =>
+    c.kind === "hard"
+      ? `the labels "${c.a}" and "${c.b}" overlap; move them apart or shorten them`
+      : `the label "${c.a}" overlaps ${c.b}; move it clear of it`
+  );
+  return parts.join("; ");
 }
 
 // Tolerates code fences, leading/trailing prose, and a {"exampleScene": {...}} wrapper.
