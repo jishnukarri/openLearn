@@ -65,10 +65,20 @@ export function BankPracticePlayer({
   const [questionKey, setQuestionKey] = useState(0);
 
   useEffect(() => {
-    createBankSessionAction(topicId).then((id) => {
-      setSessionId(id);
-      setPhase("active");
-    });
+    let cancelled = false;
+    createBankSessionAction(topicId)
+      .then((id) => {
+        if (cancelled) return;
+        setSessionId(id);
+        setPhase("active");
+      })
+      .catch(() => {
+        // Practice still works without a tracked session; don't strand the student on the spinner.
+        if (!cancelled) setPhase("active");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [topicId]);
 
   const current = queue[0];
@@ -94,18 +104,14 @@ export function BankPracticePlayer({
   );
 
   function advanceQueue(correct: boolean) {
-    setQueue((prev) => {
-      const [head, ...rest] = prev;
-      if (!head) return prev;
-      if (!correct) return [...rest, { idx: head.idx, isRetry: true }];
-      if (rest.length === 0) {
-        if (sessionId) completeBankSessionAction(sessionId, false).catch(() => {});
-        setPhase("done");
-      }
-      return rest;
-    });
+    const head = queue[0];
+    if (!head) return;
+    const rest = queue.slice(1);
+    const finished = correct && rest.length === 0;
+    if (finished && sessionId) completeBankSessionAction(sessionId, false).catch(() => {});
+    setQueue(correct ? rest : [...rest, { idx: head.idx, isRetry: true }]);
     setQuestionKey((k) => k + 1);
-    setPhase("active");
+    setPhase(finished ? "done" : "active");
   }
 
   if (phase === "loading") {
@@ -188,7 +194,6 @@ export function BankPracticePlayer({
           return correct;
         }}
         onNext={(correct) => advanceQueue(correct)}
-        phase={phase}
       />
     </div>
   );
@@ -203,7 +208,6 @@ function QuestionForm({
   isRetry,
   onAnswered,
   onNext,
-  phase,
 }: {
   question: Question;
   topicId: string;
@@ -211,7 +215,6 @@ function QuestionForm({
   isRetry: boolean;
   onAnswered: (correct: boolean, assisted?: boolean) => boolean;
   onNext: (correct: boolean) => void;
-  phase: string;
 }) {
   const format = toClientFormat(question.format);
   const [state, action, pending] = useActionState<PracticeState, FormData>(
@@ -229,13 +232,14 @@ function QuestionForm({
   const [imagePaths, setImagePaths] = useState<string[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [lastCorrect, setLastCorrect] = useState<boolean | null>(null);
+  const [helpDone, setHelpDone] = useState(false);
   // Escalating attempt flow (numeric + written answers). MCQ and matching keep
   // the old single-shot result and requeue.
   const escalates = format.type !== "multiple-choice" && format.type !== "matching";
   const isNumeric = format.type === "numeric" || format.type === "calculation";
   const [attempt, dispatch] = useReducer(attemptReducer, undefined, initialAttemptState);
-  const [dismissed, setDismissed] = useState(false); // feedback hidden after "Try again"
+  // The result object the student dismissed with "Try again"; a new result is never dismissed.
+  const [dismissedResult, setDismissedResult] = useState<unknown>(null);
   const [helpOpen, setHelpOpen] = useState(false); // remediation panel shown
   const [helpSource, setHelpSource] = useState<"hint" | "escalation">("hint");
   const hintState = useHints(question.id, {
@@ -247,6 +251,11 @@ function QuestionForm({
   });
 
   const result = state && "feedback" in state ? state : null;
+  const lastCorrect: boolean | null = helpDone
+    ? true
+    : result
+      ? (result.correct ?? result.marksAwarded === result.maxMarks)
+      : null;
   const inputString = [text, ...Object.values(parts)].join(" ").trim();
   const resubmitBlocked =
     escalates && attempt.lastWrongInput !== null && !imagePaths.length && !canSubmit(attempt.lastWrongInput, inputString);
@@ -256,14 +265,11 @@ function QuestionForm({
     const correct = result.correct ?? result.marksAwarded === result.maxMarks;
     if (!escalates) {
       if (correct) celebrate();
-      setLastCorrect(correct);
       onAnswered(correct);
       return;
     }
-    setDismissed(false);
     if (correct) {
       celebrate();
-      setLastCorrect(true);
       dispatch({ type: "submitRight" });
       onAnswered(true, attempt.attempts > 0 || helpOpen);
     } else if (attempt.phase === "second-chance") {
@@ -281,7 +287,7 @@ function QuestionForm({
   }
 
   function helpComplete() {
-    setLastCorrect(true);
+    setHelpDone(true);
     if (attempt.phase === "remediation") dispatch({ type: "remediationPassed" });
     else dispatch({ type: "submitRight" });
     celebrate();
@@ -290,6 +296,7 @@ function QuestionForm({
 
   const complete = attempt.phase === "complete";
   const escalated = escalates && !complete && attempt.attempts > 0;
+  const dismissed = dismissedResult === result;
   const showEscalatedFeedback = escalated && !!result && !dismissed && !helpOpen;
   const showFormSubmit = escalates ? !complete && !helpOpen && !(showEscalatedFeedback && attempt.phase === "remediation") : !result;
   const oldResult = escalates ? (complete && result && !helpOpen ? result : null) : result;
@@ -608,7 +615,7 @@ function QuestionForm({
               canSkip={attempt.phase === "second-chance"}
               onTryAgain={() => {
                 dispatch({ type: "tryAgain" });
-                setDismissed(true);
+                setDismissedResult(result);
               }}
               onSkip={() => dispatch({ type: "skip" })}
               onLearn={openEscalation}
