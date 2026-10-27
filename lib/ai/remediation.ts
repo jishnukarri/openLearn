@@ -5,6 +5,9 @@ import "server-only";
 // Never throws: any failure yields null.
 import type { Question } from "@/lib/supabase/questions";
 import { mergeQuestionFormat, readFormatCache } from "@/lib/supabase/questions";
+import { checkKeyRateLimit } from "@/lib/rate-limit";
+import { getQuestionById } from "@/lib/supabase/questions";
+import { LEASE_WINDOW_MS, leaseKey, withGenerationLease } from "./generation-lease";
 import type { Remediation } from "@/lib/question-remediation";
 import {
   callCheapModel,
@@ -147,11 +150,18 @@ export function getOrCreateHints(question: Question, topicTitle?: string | null)
   if (hit) return Promise.resolve(hit);
   const pending = inFlightHints.get(question.id);
   if (pending) return pending;
-  const p = (async () => {
+  const p = withGenerationLease<string[]>({
+    acquire: () => checkKeyRateLimit("gen", leaseKey(question.id, "hints"), 1, LEASE_WINDOW_MS),
+    readCached: async () => {
+      const q = await getQuestionById(question.id).catch(() => null);
+      return q ? cachedHints(q) : null;
+    },
+    generate: async () => {
     const hints = await generateHints(question, { topicTitle });
     if (hints) await mergeQuestionFormat(question.id, { hints }).catch((e) => console.warn("[remediation] cache write failed:", e));
     return hints;
-  })().finally(() => inFlightHints.delete(question.id));
+    },
+  }).finally(() => inFlightHints.delete(question.id));
   inFlightHints.set(question.id, p);
   return p;
 }
@@ -161,11 +171,18 @@ export function getOrCreateRemediation(question: Question, topicTitle?: string |
   if (hit) return Promise.resolve(hit);
   const pending = inFlightRemediation.get(question.id);
   if (pending) return pending;
-  const p = (async () => {
+  const p = withGenerationLease<Remediation>({
+    acquire: () => checkKeyRateLimit("gen", leaseKey(question.id, "remediation"), 1, LEASE_WINDOW_MS),
+    readCached: async () => {
+      const q = await getQuestionById(question.id).catch(() => null);
+      return q ? cachedRemediation(q) : null;
+    },
+    generate: async () => {
     const rem = await generateRemediation(question, { topicTitle });
     if (rem) await mergeQuestionFormat(question.id, { remediation: rem }).catch((e) => console.warn("[remediation] cache write failed:", e));
     return rem;
-  })().finally(() => inFlightRemediation.delete(question.id));
+    },
+  }).finally(() => inFlightRemediation.delete(question.id));
   inFlightRemediation.set(question.id, p);
   return p;
 }

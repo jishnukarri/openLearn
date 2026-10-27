@@ -394,10 +394,25 @@ export function mergeQuestionFormat(
   return run;
 }
 
+// Prefers the atomic RPC (20261027_merge_question_format.sql); falls back to
+// the serialised read-modify-write if it is missing.
+let mergeRpcMissing = false;
+
 async function mergeQuestionFormatNow(
   questionId: string,
   patch: Record<string, unknown>
 ): Promise<void> {
+  if (!mergeRpcMissing) {
+    try {
+      const { error } = await db.rpc("merge_question_format", { p_id: questionId, p_patch: patch });
+      if (!error) return;
+      mergeRpcMissing = true;
+      console.warn("[questions] merge_question_format RPC unavailable, using fallback:", error.message);
+    } catch (e) {
+      mergeRpcMissing = true;
+      console.warn("[questions] merge_question_format RPC failed, using fallback:", e instanceof Error ? e.message : e);
+    }
+  }
   const { data, error } = await db.from("questions").select("format").eq("id", questionId).maybeSingle();
   if (error) throw error;
   if (!data) return;
