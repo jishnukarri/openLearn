@@ -189,15 +189,13 @@ export function LessonScene({ scene, label = "Worked example animation" }: { sce
   const [playing, setPlaying] = useState(!reduce && total > 1);
   const [run, setRun] = useState(0); // bumps on replay to remount elements
 
+  // "playing" past the last step is just finished: derive it, don't set state in an effect.
+  const running = playing && index < total - 1;
   useEffect(() => {
-    if (!playing) return;
-    if (index >= total - 1) {
-      setPlaying(false);
-      return;
-    }
+    if (!running) return;
     const t = setTimeout(() => setIndex((i) => Math.min(total - 1, i + 1)), STEP_MS);
     return () => clearTimeout(t);
-  }, [playing, index, total]);
+  }, [running, index, total]);
 
   const go = useCallback(
     (to: number) => {
@@ -254,9 +252,9 @@ export function LessonScene({ scene, label = "Worked example animation" }: { sce
                   <RotateCcw className="size-4" strokeWidth={2} aria-hidden="true" /> Replay
                 </button>
               ) : (
-                <button type="button" className={controlClass} onClick={() => setPlaying((p) => !p)}>
-                  {playing ? <Pause className="size-4" strokeWidth={2} aria-hidden="true" /> : <Play className="size-4" strokeWidth={2} aria-hidden="true" />}
-                  {playing ? "Pause" : "Play"}
+                <button type="button" className={controlClass} onClick={() => (index >= total - 1 ? replay() : setPlaying((p) => !p))}>
+                  {running ? <Pause className="size-4" strokeWidth={2} aria-hidden="true" /> : <Play className="size-4" strokeWidth={2} aria-hidden="true" />}
+                  {running ? "Pause" : "Play"}
                 </button>
               )}
               <button type="button" className={controlClass} onClick={() => go(index + 1)} disabled={atEnd} aria-label="Next step">
