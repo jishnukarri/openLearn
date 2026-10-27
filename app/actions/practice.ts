@@ -13,6 +13,7 @@ import {
   isQuestionSessionOwner,
   getBestMarksLast24h,
   hasAnsweredQuestion,
+  countAnswers,
 } from "@/lib/supabase/questions";
 import { downloadImageBytes } from "@/lib/supabase/practice-uploads";
 import { markAnswer, markAnswerFromImages } from "@/lib/ai/marking";
@@ -21,6 +22,7 @@ import {
   autoMark,
   payloadToText,
   parseAnswerPayload,
+  shouldRevealModelAnswer,
 } from "@/lib/question-marking";
 import { resolveProviderConfig } from "@/lib/ai/client";
 import { resolveQuestionContent } from "@/lib/class-content";
@@ -69,6 +71,8 @@ async function hintCopyMessage(
   const candidates = answerCandidates({ answerText, text: payload.text, parts: payload.parts });
   return candidates.some((c) => isHintCopy(c, hints)) ? HINT_COPY_MESSAGE : null;
 }
+
+const MARKING_UNAVAILABLE = "Marking isn't available right now. Your answer is still here, so try again in a moment.";
 
 export type HintResult =
   | { hint: string; level: number; total: number }
@@ -164,15 +168,20 @@ export async function submitAnswerAction(
               }))
             )
           : question.markscheme;
-      const config = await resolveProviderConfig(profile.id);
-      result = await markAnswer(
-        {
-          question: question.prompt,
-          markscheme,
-          studentAnswer: answerText,
-        },
-        config
-      );
+      try {
+        const config = await resolveProviderConfig(profile.id);
+        result = await markAnswer(
+          {
+            question: question.prompt,
+            markscheme,
+            studentAnswer: answerText,
+          },
+          config
+        );
+      } catch (e) {
+        console.warn("[practice] marking failed:", e instanceof Error ? e.message : e);
+        return { message: MARKING_UNAVAILABLE };
+      }
     }
   }
 
@@ -304,11 +313,16 @@ export async function submitBankAnswerAction(
               }))
             )
           : question.markscheme;
-      const config = await resolveProviderConfig(profile.id);
-      result = await markAnswer(
-        { question: question.prompt, markscheme, studentAnswer: answerText },
-        config
-      );
+      try {
+        const config = await resolveProviderConfig(profile.id);
+        result = await markAnswer(
+          { question: question.prompt, markscheme, studentAnswer: answerText },
+          config
+        );
+      } catch (e) {
+        console.warn("[practice] marking failed:", e instanceof Error ? e.message : e);
+        return { message: MARKING_UNAVAILABLE };
+      }
     }
   }
 
@@ -340,11 +354,18 @@ export async function submitBankAnswerAction(
     await awardXp(profile.id, Math.max(0, result.marksAwarded - priorBest));
   }
 
+  const reveal = shouldRevealModelAnswer({
+    formatType: format.type,
+    marksAwarded: result.marksAwarded,
+    maxMarks: question.max_marks,
+    answersRecorded: await countAnswers(profile.id, question.id),
+  });
+
   return {
     marksAwarded: result.marksAwarded,
     maxMarks: question.max_marks,
     feedback: result.feedback,
-    modelAnswer: question.model_answer,
+    modelAnswer: reveal ? question.model_answer : "",
     correct,
   };
 }
@@ -415,10 +436,14 @@ export async function getRemediationAction(input: {
   if (typeof input?.questionId !== "string") return { unavailable: true };
   const question = await getQuestionById(input.questionId);
   if (!question) return { unavailable: true };
-  // Remediation explains the answer, so it only follows an attempt.
-  if (!(await hasAnsweredQuestion(profile.id, question.id))) return { unavailable: true };
   const rem = await getOrCreateRemediation(question, await topicTitleFor(question));
-  return rem ? redact(rem) : { unavailable: true };
+  if (!rem) return { unavailable: true };
+  // A scaffold is redacted and can open from a hint; an explain card states
+  // the answer, so it only follows an attempt.
+  if (rem.type === "explain" && !(await hasAnsweredQuestion(profile.id, question.id))) {
+    return { unavailable: true };
+  }
+  return redact(rem);
 }
 
 // Marks one scaffold step server-side. Never returns the step's answer; a

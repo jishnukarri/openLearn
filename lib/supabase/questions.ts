@@ -248,14 +248,20 @@ export async function getBestMarksLast24h(studentId: string, questionId: string)
   return Math.max(0, ...(data ?? []).map((r) => (r.marks_awarded as number) ?? 0));
 }
 
-export async function hasAnsweredQuestion(studentId: string, questionId: string): Promise<boolean> {
+export async function countAnswers(studentId: string, questionId: string): Promise<number> {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count, error } = await db
     .from("student_answers")
     .select("id", { count: "exact", head: true })
     .eq("student_id", studentId)
-    .eq("question_id", questionId);
+    .eq("question_id", questionId)
+    .gte("created_at", since);
   if (error) throw error;
-  return (count ?? 0) > 0;
+  return count ?? 0;
+}
+
+export async function hasAnsweredQuestion(studentId: string, questionId: string): Promise<boolean> {
+  return (await countAnswers(studentId, questionId)) > 0;
 }
 
 export async function recordAnswer(input: {

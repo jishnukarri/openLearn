@@ -212,3 +212,13 @@ describe("parseAnswerPayload", () => {
     expect(p.imagePaths).toEqual(["ok"]);
   });
 });
+
+describe("shouldRevealModelAnswer", () => {
+  it("withholds the model answer after a first wrong written attempt", async () => {
+    const { shouldRevealModelAnswer: f } = await import("./question-marking");
+    expect(f({ formatType: "short-answer", marksAwarded: 0, maxMarks: 2, answersRecorded: 1 })).toBe(false);
+    expect(f({ formatType: "short-answer", marksAwarded: 0, maxMarks: 2, answersRecorded: 2 })).toBe(true);
+    expect(f({ formatType: "numeric", marksAwarded: 2, maxMarks: 2, answersRecorded: 1 })).toBe(true);
+    expect(f({ formatType: "multiple-choice", marksAwarded: 0, maxMarks: 1, answersRecorded: 1 })).toBe(true);
+  });
+});

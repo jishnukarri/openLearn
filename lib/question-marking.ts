@@ -509,3 +509,19 @@ export function payloadToText(
       return payload.text ?? "";
   }
 }
+
+/**
+ * Whether the bank player may be sent the model answer with this result.
+ * One-shot formats (multiple-choice, matching) show it straight away; the
+ * escalating formats only reveal it on a full-mark answer or from the second
+ * recorded attempt, so it can't be read out of the response after attempt 1.
+ */
+export function shouldRevealModelAnswer(input: {
+  formatType: string;
+  marksAwarded: number;
+  maxMarks: number;
+  answersRecorded: number; // including the one just recorded
+}): boolean {
+  if (input.formatType === "multiple-choice" || input.formatType === "matching") return true;
+  return input.marksAwarded >= input.maxMarks || input.answersRecorded >= 2;
+}
