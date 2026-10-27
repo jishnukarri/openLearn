@@ -70,6 +70,7 @@ export function sanitizeLessonSvg(svg: string): string {
 // conservative width estimate says would be clipped.
 const AVG_CHAR_EM = 0.58;
 const MAX_VIEWBOX = 4000;
+const MIN_FONT_SIZE = 12;
 
 export function estimateTextWidth(text: string, fontSize: number): number {
   return text.length * fontSize * AVG_CHAR_EM;
@@ -85,8 +86,13 @@ export function normaliseSvg(svg: string): string {
   if (!rootMatch) return svg;
   let rootAttrs = rootMatch[1];
 
+  // Tiny labels are unreadable once the svg scales down, so raise the
+  // font-size attribute itself (a CSS override would flatten every size).
   const body = svg
     .slice(rootMatch[0].length)
+    .replace(/\sfont-size="(-?[0-9.]+)(?:px)?"/g, (full, v: string) =>
+      Number(v) < MIN_FONT_SIZE ? ` font-size="${MIN_FONT_SIZE}"` : full
+    )
     .replace(/<(text|tspan)\b([^>]*)>/g, (full, tag: string, attrs: string) =>
       /\sfill="/.test(` ${attrs}`) ? full : `<${tag} fill="currentColor"${attrs}>`
     );

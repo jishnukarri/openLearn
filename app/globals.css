@@ -286,7 +286,6 @@ body {
 .lesson-figure svg { color: #1a1512; }
 .lesson-figure svg text:not([fill]),
 .lesson-figure svg tspan:not([fill]) { fill: #1a1512; }
-.lesson-figure svg text { font-size: max(12px, 1em); }
 .lesson-embed table {
   width: 100%;
   border-collapse: collapse;

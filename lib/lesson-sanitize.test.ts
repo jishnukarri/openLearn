@@ -113,3 +113,12 @@ describe("svg normalisation", () => {
     expect(normaliseSvg(once)).toBe(once);
   });
 });
+
+describe("normaliseSvg font sizes", () => {
+  it("raises tiny labels to a readable minimum and keeps larger ones", () => {
+    const out = normaliseSvg('<svg viewBox="0 0 400 240"><text x="5" y="20" font-size="8">a</text><text x="5" y="60" font-size="20">b</text></svg>');
+    expect(out).toContain('font-size="12"');
+    expect(out).toContain('font-size="20"');
+    expect(out).not.toContain('font-size="8"');
+  });
+});
