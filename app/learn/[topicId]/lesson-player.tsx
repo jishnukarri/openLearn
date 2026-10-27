@@ -46,7 +46,7 @@ import {
   missHint,
   canRetry,
 } from "./lesson-plan";
-import { QuitModal, WatchLabel, YourTurnBanner } from "./lesson-parts";
+import { QuitModal, YourTurnBanner } from "./lesson-parts";
 import { LessonHeader } from "./lesson-header";
 import { RecapPanel, TakeawayChip } from "./lesson-recap";
 import { ReportButton } from "@/components/report-button";
@@ -127,7 +127,7 @@ export function LessonPlayer({
   // ── Cross-step state ──────────────────────────────────────────────────
   const [correctCount, setCorrectCount] = useState(0);
   const [answered, setAnswered] = useState<Set<number>>(new Set());
-  const [wrongSections, setWrongSections] = useState<Set<number>>(new Set());
+  const [, setWrongSections] = useState<Set<number>>(new Set());
   const [completion, setCompletion] = useState<LessonCompletion | null>(null);
   const [coachEdits, setCoachEdits] = useState<Record<number, { explanation: string; example: string }>>({});
   const [adaptedSections, setAdaptedSections] = useState<Set<number>>(new Set());
@@ -168,9 +168,6 @@ export function LessonPlayer({
     return null;
   })();
   const currentSection = activeSectionIndex !== null ? displayedSections[activeSectionIndex] : null;
-  const tutorContext = currentSection
-    ? `${currentSection.heading}\n\n${currentSection.explanation}\n\nExample: ${currentSection.example}`
-    : "The student has completed the lesson and may be reviewing it.";
 
   // ── Keyboard shortcuts (1/2/3 = Hard/Good/Easy on flashcard rating) ───
   useEffect(() => {
