@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "./database-client";
 import { getProfileById } from "./profiles";
-import { getTopicMastery } from "./mastery";
+import { getTopicMastery, loadMasteryCatalog } from "./mastery";
 import { getCompletedPieces } from "./onboarding-progress";
 import { isUuid } from "@/lib/ids";
 import { ONBOARDING_PIECES } from "@/lib/onboarding-pieces";
@@ -67,6 +67,24 @@ async function latestActivity(studentId: string): Promise<string | null> {
   ]);
 }
 
+// Past PostgREST's 1000-row response cap: page through (bounded) so totals
+// and accuracy don't silently cover only part of a busy student's history.
+async function allMarks(studentId: string) {
+  const out: { marks_awarded: number | null; max_marks: number | null }[] = [];
+  for (let from = 0; from < 20_000; from += 1000) {
+    const r = await db
+      .from("student_answers")
+      .select("marks_awarded, max_marks")
+      .eq("student_id", studentId)
+      .order("created_at", { ascending: false })
+      .range(from, from + 999);
+    if (r.error) return { data: null, error: r.error };
+    out.push(...((r.data ?? []) as typeof out));
+    if ((r.data ?? []).length < 1000) break;
+  }
+  return { data: out, error: null };
+}
+
 export async function getStudentOverview(studentId: string): Promise<StudentOverview | null> {
   const profile = await getProfileById(studentId);
   if (!profile) return null;
@@ -79,7 +97,7 @@ export async function getStudentOverview(studentId: string): Promise<StudentOver
     getCompletedTopicIds(studentId),
     getCompletedSubtopicIds(studentId),
     db.from("student_answers").select("created_at, marks_awarded, max_marks").eq("student_id", studentId).gte("created_at", since),
-    db.from("student_answers").select("marks_awarded, max_marks").eq("student_id", studentId),
+    allMarks(studentId),
     db.from("diagnostic_sessions").select("id, mode, status, created_at").eq("student_id", studentId).order("created_at", { ascending: false }).limit(10),
     db.from("class_members").select("classes(id, name)").eq("student_id", studentId),
   ]);
@@ -133,6 +151,9 @@ export async function teacherCanViewStudent(teacherId: string, studentId: string
   return (data ?? []).length > 0;
 }
 
+const MAX_CLASS_ROSTER = 300;
+const MASTERY_CONCURRENCY = 8;
+
 export type ClassRow = {
   profileId: string;
   fullName: string | null;
@@ -145,28 +166,50 @@ export type ClassRow = {
 };
 
 export async function getClassOverview(classId: string, teacherId: string): Promise<{ name: string; rows: ClassRow[] } | null> {
+  if (!isUuid(classId)) return null;
   const { data: cls } = await db.from("classes").select("id, name").eq("id", classId).eq("teacher_id", teacherId).maybeSingle();
   if (!cls) return null;
   const { data: members, error } = await db
     .from("class_members")
     .select("profiles(id, full_name, email, xp, streak_count, last_active_date)")
-    .eq("class_id", classId);
+    .eq("class_id", classId)
+    .limit(MAX_CLASS_ROSTER);
   if (error) throw error;
   type P = { id: string; full_name: string | null; email: string; xp: number; streak_count: number; last_active_date: string | null };
   const profiles = ((members ?? []) as unknown as { profiles: P | null }[]).flatMap((m) => (m.profiles ? [m.profiles] : []));
   const ids = profiles.map((p) => p.id);
   if (ids.length === 0) return { name: cls.name, rows: [] };
 
-  const [masteryMaps, ans] = await Promise.all([
-    Promise.all(ids.map((id) => getTopicMastery(id))),
-    db.from("student_answers").select("student_id, created_at").in("student_id", ids).order("created_at", { ascending: false }).limit(5000),
-  ]);
-  // Blended mastery (diagnostic + practice), same measure as the student page.
+  // One shared topic catalog, and bounded concurrency, so a large class
+  // doesn't fire hundreds of simultaneous query bursts.
+  const catalog = await loadMasteryCatalog();
   const scores = new Map<string, number[]>();
-  ids.forEach((id, i) => scores.set(id, [...masteryMaps[i].values()].map((m) => m.score)));
+  for (let i = 0; i < ids.length; i += MASTERY_CONCURRENCY) {
+    const chunk = ids.slice(i, i + MASTERY_CONCURRENCY);
+    const maps = await Promise.all(chunk.map((id) => getTopicMastery(id, catalog)));
+    chunk.forEach((id, j) => scores.set(id, [...maps[j].values()].map((m) => m.score)));
+  }
+
+  // Latest answer per student. The combined newest-first scan is capped, so
+  // anyone it doesn't reach is looked up individually instead of being
+  // wrongly shown as inactive.
+  const ans = await db.from("student_answers").select("student_id, created_at").in("student_id", ids).order("created_at", { ascending: false }).limit(5000);
+  if (ans.error) throw ans.error;
   const lastAns = new Map<string, string>();
   for (const r of (ans.data ?? []) as { student_id: string; created_at: string }[]) {
     if (!lastAns.has(r.student_id)) lastAns.set(r.student_id, r.created_at);
+  }
+  const missing = ids.filter((id) => !lastAns.has(id));
+  if ((ans.data ?? []).length >= 5000) {
+    for (let i = 0; i < missing.length; i += MASTERY_CONCURRENCY) {
+      await Promise.all(
+        missing.slice(i, i + MASTERY_CONCURRENCY).map(async (id) => {
+          const r = await db.from("student_answers").select("created_at").eq("student_id", id).order("created_at", { ascending: false }).limit(1);
+          const at = (r.data as { created_at: string }[] | null)?.[0]?.created_at;
+          if (at) lastAns.set(id, at);
+        })
+      );
+    }
   }
 
   const rows = profiles.map((p) => {
