@@ -10,6 +10,7 @@ import {
   createQuestionSession,
   completeSession,
   recordQuestionSessionAttempt,
+  getSessionAttempts,
   isQuestionSessionOwner,
   getBestMarksLast24h,
   hasAnsweredQuestion,
@@ -28,6 +29,7 @@ import { resolveProviderConfig } from "@/lib/ai/client";
 import { resolveQuestionContent } from "@/lib/class-content";
 import { awardXp } from "@/lib/supabase/progress";
 import { checkKeyRateLimit } from "@/lib/rate-limit";
+import { deriveIsRetry, deriveMasteryExit } from "@/lib/session-rules";
 import { claimAnswerSlot, ALREADY_RECORDED_MESSAGE } from "@/lib/answer-lock";
 
 import {
@@ -254,11 +256,12 @@ export async function createBankSessionAction(topicId: string): Promise<string> 
 
 export async function completeBankSessionAction(
   sessionId: string,
-  masteryExit: boolean
+  _clientMasteryExit?: boolean // ignored: derived from recorded attempts
 ): Promise<void> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
   if (typeof sessionId !== "string" || !(await isQuestionSessionOwner(sessionId, profile.id))) return;
-  await completeSession(sessionId, masteryExit === true);
+  const attempts = await getSessionAttempts(sessionId, profile.id).catch(() => []);
+  await completeSession(sessionId, deriveMasteryExit(attempts));
 }
 
 export async function submitBankAnswerAction(
@@ -273,7 +276,7 @@ export async function submitBankAnswerAction(
   const questionId = formData.get("questionId");
   const rawPayload = formData.get("answerPayload");
   const sessionId = formData.get("sessionId");
-  const isRetry = formData.get("isRetry") === "true";
+  // formData "isRetry" is still sent by the client but ignored; derived below.
 
   if (typeof questionId !== "string" || typeof rawPayload !== "string") {
     return { message: "Missing answer." };
@@ -354,12 +357,13 @@ export async function submitBankAnswerAction(
   });
 
   if (typeof sessionId === "string" && (await isQuestionSessionOwner(sessionId, profile.id))) {
+    const prior = await getSessionAttempts(sessionId, profile.id).catch(() => []);
     await recordQuestionSessionAttempt({
       questionId: question.id,
       studentId: profile.id,
       sessionId,
       correct,
-      isRetry,
+      isRetry: deriveIsRetry(prior, question.id),
     });
   }
 

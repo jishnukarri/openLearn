@@ -332,6 +332,19 @@ export async function completeSession(
   if (error) throw error;
 }
 
+export async function getSessionAttempts(
+  sessionId: string,
+  studentId: string
+): Promise<{ question_id: string; correct: boolean; is_retry: boolean }[]> {
+  const { data, error } = await db
+    .from("question_session_attempts")
+    .select("question_id, correct, is_retry")
+    .eq("session_id", sessionId)
+    .eq("student_id", studentId);
+  if (error) throw error;
+  return (data ?? []) as { question_id: string; correct: boolean; is_retry: boolean }[];
+}
+
 export async function recordQuestionSessionAttempt(input: {
   questionId: string;
   studentId: string;
