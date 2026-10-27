@@ -37,10 +37,10 @@ function providerKey(): string | undefined {
   return sceneProvider() === "hackclub" ? process.env.HACKCLUB_API_KEY : process.env.OPENROUTER_API_KEY;
 }
 const DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash";
-const CALL_TIMEOUT_MS = 45_000;
-const LESSON_TIMEOUT_MS = 60_000;
+const CALL_TIMEOUT_MS = 100_000;
+const LESSON_TIMEOUT_MS = 150_000;
 const MAX_SECTIONS = 8;
-const CONCURRENCY = 3;
+const CONCURRENCY = 4;
 
 const warned = new Set<string>();
 function warnOnce(key: string, msg: string) {
@@ -61,7 +61,11 @@ async function callModel(messages: Msg[], apiKey: string, model: string, fetchIm
     body: JSON.stringify({
       model,
       messages,
-      max_tokens: 3000,
+      // DeepSeek V4.1 Flash is a reasoning model: at 3000 tokens its thinking
+      // alone used up the budget and the JSON was cut off. Keep thinking short
+      // and leave plenty of room for the scene itself.
+      max_tokens: 8000,
+      reasoning: { effort: "low" },
       response_format: { type: "json_object" },
     }),
     signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
