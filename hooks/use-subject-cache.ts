@@ -5,14 +5,12 @@ import { subjectStore, SubjectItem, SubjectDetailCache } from "@/lib/cache/sessi
 import { fetchSubjectDetailData } from "@/app/actions/subject-cache-actions";
 
 export function useSubjectCache(initialSubjects?: SubjectItem[]) {
-  const [subjects, setSubjects] = useState<SubjectItem[]>(() => {
-    return subjectStore.getSubjects() || initialSubjects || [];
-  });
+  const [cleared, setCleared] = useState(false);
+  const subjects = cleared ? [] : subjectStore.getSubjects() || initialSubjects || [];
 
   useEffect(() => {
     if (initialSubjects && !subjectStore.getSubjects()) {
       subjectStore.setSubjects(initialSubjects);
-      setSubjects(initialSubjects);
     }
   }, [initialSubjects]);
 
@@ -48,7 +46,7 @@ export function useSubjectCache(initialSubjects?: SubjectItem[]) {
 
   const clearAllCache = useCallback(() => {
     subjectStore.clear();
-    setSubjects([]);
+    setCleared(true);
   }, []);
 
   return {
