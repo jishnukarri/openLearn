@@ -332,3 +332,30 @@ export async function recordQuestionSessionAttempt(input: {
   });
   if (error) throw error;
 }
+
+// ---------------------------------------------------------------------------
+// Generated hint / remediation cache. Lives in the question's `format` JSON
+// (format.hints, format.remediation) so no migration is needed.
+// ---------------------------------------------------------------------------
+
+export function readFormatCache(format: unknown): { hints: unknown; remediation: unknown } {
+  const f = (format && typeof format === "object" ? format : {}) as Record<string, unknown>;
+  return { hints: f.hints, remediation: f.remediation };
+}
+
+// Merges `patch` into the stored format, re-reading the row first so keys
+// written elsewhere (numeric answer, options...) are never clobbered. A null
+// format becomes { type: "extended", ...patch }, matching how the app already
+// treats a missing format.
+export async function mergeQuestionFormat(
+  questionId: string,
+  patch: Record<string, unknown>
+): Promise<void> {
+  const { data, error } = await db.from("questions").select("format").eq("id", questionId).maybeSingle();
+  if (error) throw error;
+  if (!data) return;
+  const current = data.format && typeof data.format === "object" ? (data.format as Record<string, unknown>) : null;
+  const next = current ? { ...current, ...patch } : { type: "extended", ...patch };
+  const { error: updateError } = await db.from("questions").update({ format: next }).eq("id", questionId);
+  if (updateError) throw updateError;
+}
