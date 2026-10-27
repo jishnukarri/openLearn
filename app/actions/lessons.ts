@@ -52,6 +52,12 @@ export async function completeLessonAction(
     return { xp: profile.xp, streak: profile.streak_count, earned: 0, breakdown: "", repeat: false, hintsUsed: 0 };
   }
 
+  // Two near-simultaneous calls would both see "first completion" and pay
+  // full XP; allow one completion per student per lesson every 10 seconds.
+  if (!await checkKeyRateLimit("lesson-complete", `${profile.id}:${mode}:${id}`, 1, 10_000)) {
+    return { xp: profile.xp, streak: profile.streak_count, earned: 0, breakdown: "Already recorded.", repeat: true, hintsUsed: 0 };
+  }
+
   const repeat =
     mode === "subtopic"
       ? (await getCompletedSubtopicIds(profile.id)).has(id)
@@ -162,8 +168,11 @@ export async function explainCheckAnswerAction({
   correctAnswer: string;
 }): Promise<string> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
+  if (!await checkKeyRateLimit("lesson-explain", profile.id, 20, 60_000)) {
+    throw new Error("You're going a bit fast. Wait a few seconds and try again.");
+  }
   const config = await resolveProviderConfig(profile.id);
-  return explainAnswer(question, correctAnswer, config);
+  return explainAnswer(String(question).slice(0, 1500), String(correctAnswer).slice(0, 800), config);
 }
 
 export async function askLessonTutorAction({
@@ -263,15 +272,19 @@ export async function adaptNextSectionAction({
   nextSection: { heading: string; explanation: string; example: string };
 }): Promise<{ adapted: boolean; explanation: string; example: string }> {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
+  if (!await checkKeyRateLimit("lesson-adapt", profile.id, 20, 60_000)) {
+    return { adapted: false, explanation: "", example: "" };
+  }
   const topic = await getTopic(topicId);
   if (!topic) throw new Error("Topic not found.");
 
+  const cap = (v: unknown, n: number) => String(v ?? "").slice(0, n);
   const config = await resolveProviderConfig(profile.id);
   return adaptNextSection(
     topic.name,
     topic.subject.name,
-    struggledConcept,
-    nextSection,
+    { heading: cap(struggledConcept?.heading, 200), explanation: cap(struggledConcept?.explanation, 3000) },
+    { heading: cap(nextSection?.heading, 200), explanation: cap(nextSection?.explanation, 3000), example: cap(nextSection?.example, 3000) },
     config
   );
 }
