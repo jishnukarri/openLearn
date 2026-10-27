@@ -3,6 +3,7 @@ import { db } from "./database-client";
 import { getProfileById } from "./profiles";
 import { getTopicMastery } from "./mastery";
 import { getCompletedPieces } from "./onboarding-progress";
+import { isUuid } from "@/lib/ids";
 import { ONBOARDING_PIECES } from "@/lib/onboarding-pieces";
 import { getCompletedSubtopicIds, getCompletedTopicIds } from "./progress";
 import {
@@ -121,6 +122,7 @@ export async function getStudentOverview(studentId: string): Promise<StudentOver
 
 // A teacher may only see students who sit in one of their own classes.
 export async function teacherCanViewStudent(teacherId: string, studentId: string): Promise<boolean> {
+  if (!isUuid(studentId) || !isUuid(teacherId)) return false;
   const { data, error } = await db
     .from("class_members")
     .select("class_id, classes!inner(teacher_id)")

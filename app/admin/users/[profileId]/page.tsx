@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { isUuid } from "@/lib/ids";
 import { requireRole } from "@/lib/appwrite/session";
 import { getStudentOverview } from "@/lib/supabase/student-analytics";
 import { listAuditForTarget } from "@/lib/supabase/admin-audit";
@@ -15,6 +16,7 @@ export default async function AdminUserPage({ params, searchParams }: { params: 
   await requireRole("admin");
   const { profileId } = await params;
   const sp = await searchParams;
+  if (!isUuid(profileId)) notFound();
   const filter = parseFilter(sp.activity);
   const overview = await getStudentOverview(profileId);
   if (!overview) notFound();

@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "./database-client";
 import { listAuditForTarget } from "./admin-audit";
+import { safeCursor } from "@/lib/ids";
 import {
   normaliseFeedback,
   PAGE_SIZE,
@@ -34,7 +35,7 @@ export async function getStudentActivity(
   opts: { limit?: number; before?: string | null; filter?: ActivityFilter; includeAdmin?: boolean } = {},
 ): Promise<StudentActivityPage> {
   const limit = opts.limit ?? PAGE_SIZE;
-  const before = opts.before && !Number.isNaN(Date.parse(opts.before)) ? opts.before : null;
+  const before = safeCursor(opts.before);
   const filter = opts.filter ?? "all";
   const n = limit + 1; // one extra row tells us whether another page exists
   const want = (...kinds: ActivityKind[]) => kinds.some((k) => matchesFilter(k, filter));
