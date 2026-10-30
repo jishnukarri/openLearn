@@ -424,7 +424,7 @@ export async function SubjectDetailPage({
                               <input type="hidden" name="topicId" value={topic.id} />
                               <p className="max-w-[60ch] text-sm text-muted">
                                 Permanently deletes “{topic.name}” and its {subtopics.length} lesson
-                                {subtopics.length === 1 ? "" : "s"}. This can't be undone.
+                                {subtopics.length === 1 ? "" : "s"}. This can&apos;t be undone.
                               </p>
                               <button type="submit" className="text-sm font-semibold text-error-ink hover:underline">
                                 Yes, delete topic
