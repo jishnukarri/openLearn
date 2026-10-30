@@ -29,7 +29,7 @@ export function PageShell({
   className?: string;
 }) {
   return (
-    <main className={cn("mx-auto w-full px-6 py-10 lg:py-14", SIZES[size], className)}>
+    <main className={cn("mx-auto w-full px-6 py-10 lg:py-14", SIZES[size], size === "fluid" && "operate-surface", className)}>
       {aside ? (
         <div
           className={cn(

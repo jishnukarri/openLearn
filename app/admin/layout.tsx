@@ -1,4 +1,4 @@
-import { BookOpen, Flag, ShieldBan, Settings2, Users } from "lucide-react";
+import { BookOpen, Flag, Presentation, ShieldBan, Settings2, Users } from "lucide-react";
 import { requireRole } from "@/lib/appwrite/session";
 import { SidebarNav } from "@/components/sidebar-nav";
 
@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/admin/reports", label: "Reports", icon: <Flag /> },
   { href: "/admin/blocklist", label: "Blocklist", icon: <ShieldBan /> },
   { href: "/admin/settings", label: "AI Settings", icon: <Settings2 /> },
+  { href: "/admin/presentation", label: "Presentation", icon: <Presentation /> },
 ];
 
 export default async function AdminLayout({

@@ -13,6 +13,7 @@ import {
   generateSingleTopicAction,
   addCustomTopicAction,
   deleteSubtopicAction,
+  deleteTopicAction,
   publishTopicAction,
   publishSubtopicAction,
   unpublishTopicAction,
@@ -414,6 +415,22 @@ export async function SubjectDetailPage({
                             </div>
                           ))}
                           <TopicInstructionsForm topicId={topic.id} initial={topic.custom_instructions ?? ""} />
+
+                          <details className="mt-3 border-t border-border pt-3">
+                            <summary className="cursor-pointer text-sm text-error hover:underline">
+                              Delete topic
+                            </summary>
+                            <form action={deleteTopicAction} className="mt-2 flex flex-wrap items-center gap-3">
+                              <input type="hidden" name="topicId" value={topic.id} />
+                              <p className="max-w-[60ch] text-sm text-muted">
+                                Permanently deletes “{topic.name}” and its {subtopics.length} lesson
+                                {subtopics.length === 1 ? "" : "s"}. This can't be undone.
+                              </p>
+                              <button type="submit" className="text-sm font-semibold text-error-ink hover:underline">
+                                Yes, delete topic
+                              </button>
+                            </form>
+                          </details>
 
                           <details className="group/docs mt-3 border-t border-border pt-3">
                             <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold text-foreground">

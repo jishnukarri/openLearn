@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ButtonHTMLAttributes, AnchorHTMLAttributes } from "react"; 
 
 const VARIANT_STYLES = { 
-  primary: "bg-primary text-white shadow-[0_4px_0_0_#39369a] disabled:active:shadow-[0_4px_0_0_#39369a]", 
+  primary: "bg-primary text-white shadow-[0_4px_0_0_var(--primary-edge)] disabled:active:shadow-[0_4px_0_0_var(--primary-edge)]", 
   secondary: "bg-surface text-foreground shadow-[0_4px_0_0_var(--border)] disabled:active:shadow-[0_4px_0_0_var(--border)]", 
 } as const; 
 

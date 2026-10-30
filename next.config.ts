@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 
+// Dev-only allowance so impeccable live mode can load.
+const __impeccableLiveDev =
+  process.env.NODE_ENV === "development" ? " http://localhost:8400" : "";
+
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
@@ -39,9 +43,9 @@ const nextConfig: NextConfig = {
             // in production. Keyed on "not production" rather than "is
             // development" so a dev server started with NODE_ENV unset or
             // overridden still gets it.
-            value: `default-src 'self'; script-src 'self' 'unsafe-inline'${
+            value: `default-src 'self'; script-src 'self' 'unsafe-inline'${__impeccableLiveDev}${
               process.env.NODE_ENV !== "production" ? " 'unsafe-eval'" : ""
-            }; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:; frame-ancestors 'none';`,
+            }; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:${__impeccableLiveDev}; frame-ancestors 'none';`,
           },
         ],
       },

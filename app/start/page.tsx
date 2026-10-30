@@ -34,7 +34,7 @@ export default async function StartPage() {
         <div className="flex flex-col items-center gap-3">
           <Link
             href={`/start/diagnostic/${activeSession.id}/level/0`}
-            className="inline-flex items-center justify-center rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-white shadow-[0_4px_0_0_#39369a] transition-[transform,box-shadow] hover:-translate-y-0.5 active:translate-y-1 active:shadow-none"
+            className="inline-flex items-center justify-center rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-white shadow-[0_4px_0_0_var(--primary-edge)] transition-[transform,box-shadow] hover:-translate-y-0.5 active:translate-y-1 active:shadow-none"
           >
             Continue where I left off
           </Link>

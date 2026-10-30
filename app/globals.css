@@ -40,6 +40,7 @@
   --background: #faf7f3;
   --foreground: #211c17;
   --primary: #534fe0;
+  --primary-edge: #39369a;
   --primary-foreground: #ffffff;
   --secondary: #c94a34;
   --secondary-foreground: #ffffff;
@@ -77,6 +78,7 @@
   --color-muted: var(--muted);
 
   --color-primary: var(--primary);
+  --color-primary-edge: var(--primary-edge);
   --color-primary-ink: var(--primary-ink);
   --color-success-ink: var(--success-ink);
   --color-error-ink: var(--error-ink);
@@ -364,7 +366,7 @@ body {
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     /* App-specific tokens */
-    --surface: #1f1a15;
+    --surface: #1d1814;
     --border: oklch(1 0 0 / 10%);
     --muted: #a69c90;
     --highlight: #ffc24d;
@@ -376,23 +378,24 @@ body {
     --highlight-ink: #ffc24d;
 
     /* shadcn standard tokens — dark */
-    --background: #17130f;
+    --background: #14110e;
     --foreground: #f5f1eb;
-    --primary: #534fe0;
+    --primary: #6461f5;
+    --primary-edge: #3b38b8;
     --primary-foreground: #ffffff;
     --secondary: #ff8a78;
     --secondary-foreground: #1a1512;
-    --card: #1f1a15;
+    --card: #1d1814;
     --card-foreground: #f5f1eb;
-    --popover: #1f1a15;
+    --popover: #1d1814;
     --popover-foreground: #f5f1eb;
     --muted-foreground: #a69c90;
     --accent: #2a241d;
     --accent-foreground: #f5f1eb;
     --destructive: #ff5c5c;
     --input: oklch(1 0 0 / 15%);
-    --ring: #534fe0;
-    --sidebar: #1f1a15;
+    --ring: #8f8dff;
+    --sidebar: #1d1814;
     --sidebar-foreground: #f5f1eb;
     --sidebar-primary: #534fe0;
     --sidebar-primary-foreground: #ffffff;
@@ -408,7 +411,7 @@ body {
 .dark,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --surface: #1f1a15;
+  --surface: #1d1814;
   --border: oklch(1 0 0 / 10%);
   --muted: #a69c90;
   --highlight: #ffc24d;
@@ -419,28 +422,29 @@ body {
   --error-ink: #ff7a7a;
   --highlight-ink: #ffc24d;
 
-  --background: #17130f;
+  --background: #14110e;
   --foreground: #f5f1eb;
-  --primary: #534fe0;
+  --primary: #6461f5;
+  --primary-edge: #3b38b8;
   --primary-foreground: #ffffff;
   --secondary: #ff8a78;
   --secondary-foreground: #1a1512;
-  --card: #1f1a15;
+  --card: #1d1814;
   --card-foreground: #f5f1eb;
-  --popover: #1f1a15;
+  --popover: #1d1814;
   --popover-foreground: #f5f1eb;
   --muted-foreground: #a69c90;
   --accent: #2a241d;
   --accent-foreground: #f5f1eb;
   --destructive: #ff5c5c;
   --input: oklch(1 0 0 / 15%);
-  --ring: #534fe0;
+  --ring: #8f8dff;
   --chart-1: oklch(0.828 0.111 230.318);
   --chart-2: oklch(0.685 0.169 237.323);
   --chart-3: oklch(0.588 0.158 241.966);
   --chart-4: oklch(0.5 0.134 242.749);
   --chart-5: oklch(0.443 0.11 240.79);
-  --sidebar: #1f1a15;
+  --sidebar: #1d1814;
   --sidebar-foreground: #f5f1eb;
   --sidebar-primary: #534fe0;
   --sidebar-primary-foreground: #ffffff;
@@ -448,6 +452,17 @@ body {
   --sidebar-accent-foreground: #f5f1eb;
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: #534fe0;
+}
+
+/* Operate surfaces (admin, teacher: PageShell size="fluid") are tools, not
+   showcases. DESIGN.md keeps the Fraunces display face for editorial moments
+   (lessons, onboarding, celebration), so on these pages every display
+   heading falls back to the UI sans and weight does the hierarchy. */
+.operate-surface {
+  --font-display: var(--font-sans), var(--font-sans-fallback);
+}
+.operate-surface :where(h1, h2, h3) {
+  letter-spacing: -0.015em;
 }
 
 /* Fullscreen lesson mode — hides the app navbar only (a direct child of body),
@@ -478,6 +493,8 @@ body {
     outline-offset: 2px;
     border-radius: 0.25rem;
   }
+  input, textarea { caret-color: var(--primary); }
+  .font-mono, code, kbd { font-variant-numeric: tabular-nums; }
   ::selection {
     background: color-mix(in srgb, var(--primary) 30%, transparent);
     color: var(--foreground);

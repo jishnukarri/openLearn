@@ -425,11 +425,16 @@ export async function getHintAction(input: {
   }
   const level = clampHintLevel(input?.level);
   if (level < 1 || typeof input?.questionId !== "string") return { unavailable: true };
-  const question = await getQuestionById(input.questionId);
-  if (!question) return { unavailable: true };
-  const hints = await getOrCreateHints(question, await topicTitleFor(question));
-  if (!hints) return { unavailable: true };
-  return { hint: hints[level - 1], level, maxLevel: hints.length };
+  try {
+    const question = await getQuestionById(input.questionId);
+    if (!question) return { unavailable: true };
+    const hints = await getOrCreateHints(question, await topicTitleFor(question));
+    if (!hints) return { unavailable: true };
+    return { hint: hints[level - 1], level, maxLevel: hints.length };
+  } catch (e) {
+    console.error("[hints] getHintAction failed:", e);
+    return { unavailable: true };
+  }
 }
 
 // Remediation for a question (scaffold or explain). Answers are stripped:
