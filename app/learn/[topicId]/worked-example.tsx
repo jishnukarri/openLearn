@@ -19,7 +19,7 @@ const controlClass =
 // A worked example as a stepped, animated visual: the image or diagram when
 // there is one, with the steps revealing one by one as highlighted callouts.
 // Reduced motion shows every step at once. A missing or failed image falls
-// back to the animated step frame, so there is never an empty gap.
+// drops the visual block entirely, so the steps are the whole example.
 export function WorkedExample({
   steps,
   visual,
@@ -86,7 +86,7 @@ function SteppedExample({ steps, visual }: { steps: string[]; visual?: Visual | 
       onKeyDown={onKeyDown}
       className="animate-fade-slide-up rounded-xl border border-border bg-surface p-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
-      <WatchLabel />
+      <WatchLabel>{showFrame ? "Worked example" : undefined}</WatchLabel>
 
       {visual?.kind === "image" && visual.url && imageState !== "failed" && (
         <figure className="relative mb-4 overflow-hidden rounded-lg bg-background">
@@ -116,16 +116,7 @@ function SteppedExample({ steps, visual }: { steps: string[]; visual?: Visual | 
         </motion.div>
       )}
 
-      {showFrame && (
-        <div
-          className="mb-4 flex min-h-32 items-center rounded-lg bg-background p-5"
-          aria-hidden={reduce ? true : undefined}
-        >
-          <p className="text-base text-muted">Follow the steps below.</p>
-        </div>
-      )}
-
-      <StepNarration steps={steps} index={index} />
+      <StepNarration steps={steps} index={index} large={showFrame} />
 
       {!reduce && total > 1 && (
         <div className="mt-4 flex flex-wrap items-center gap-2">

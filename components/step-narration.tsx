@@ -7,7 +7,7 @@ import { EASE_OUT } from "@/components/motion";
 // Large, readable narration for a stepped worked example. The current step
 // slides and fades in with a highlight sweep; earlier steps dim to 60% but
 // stay fully legible. Reduced motion shows everything at once, no movement.
-export function StepNarration({ steps, index }: { steps: string[]; index: number }) {
+export function StepNarration({ steps, index, large = false }: { steps: string[]; index: number; large?: boolean }) {
   const reduce = !!useReducedMotion();
   const total = steps.length;
   const current = Math.max(0, Math.min(total - 1, index));
@@ -50,7 +50,7 @@ export function StepNarration({ steps, index }: { steps: string[]; index: number
           <p className="relative mb-2 inline-flex items-center rounded-full bg-primary px-3 py-1 text-sm font-semibold text-white">
             Step {current + 1} of {total}
           </p>
-          <p className="relative max-w-[60ch] break-words text-lg leading-normal text-foreground sm:text-xl">
+          <p className={`relative max-w-[60ch] break-words leading-normal text-foreground ${large ? "text-xl sm:text-2xl" : "text-lg sm:text-xl"}`}>
             <RichText text={steps[current] ?? ""} />
           </p>
         </motion.div>
