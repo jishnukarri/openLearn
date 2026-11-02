@@ -130,9 +130,13 @@ function isFallbackable(status: number): boolean {
 // Returns the first good response. A 4xx that means the request itself is wrong
 // (400, 404, 422) is thrown straight away, since a second provider would refuse
 // it too.
+// For a streamed reply (server-sent events, used by audio output) pass
+// `streamed`: the raw text comes back in `text` and `isGood` decides whether
+// it holds a real answer, so an empty or errored stream also tries the fallback.
 export async function postChat(
-  build: (provider: Provider) => Record<string, unknown>
-): Promise<{ data: Record<string, unknown>; provider: Provider }> {
+  build: (provider: Provider) => Record<string, unknown>,
+  streamed?: { isGood: (text: string) => boolean }
+): Promise<{ data: Record<string, unknown>; text: string; provider: Provider }> {
   const errors: string[] = [];
   for (const provider of providerOrder()) {
     const spec = PROVIDERS[provider];
@@ -151,6 +155,10 @@ export async function postChat(
       });
       const text = await response.text();
       if (!response.ok) throw new ProviderHttpError(response.status, spec.label, text);
+      if (streamed) {
+        if (!streamed.isGood(text)) throw new ProviderHttpError(502, spec.label, "the stream held no usable answer");
+        return { data: {}, text, provider };
+      }
       let data: Record<string, unknown> | null = null;
       try {
         data = JSON.parse(text);
@@ -164,7 +172,7 @@ export async function postChat(
         throw new ProviderHttpError(Number.isFinite(code) && code >= 400 ? code : 502, spec.label, String(embedded.message ?? "provider error"));
       }
       if (!data) throw new ProviderHttpError(502, spec.label, "response was not JSON");
-      return { data, provider };
+      return { data, text, provider };
     } catch (e) {
       if (e instanceof ProviderHttpError && !isFallbackable(e.status)) throw e;
       const msg = e instanceof Error ? e.message : String(e);

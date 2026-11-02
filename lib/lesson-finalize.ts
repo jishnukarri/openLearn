@@ -4,6 +4,7 @@ import { parseScene } from "@/lib/lesson-scene";
 import { sanitizeVisual } from "@/lib/lesson-visual";
 import { generateLessonImage } from "@/lib/ai/images";
 import { generateScenesForLesson } from "@/lib/ai/scenes";
+import { narrateLesson } from "@/lib/ai/narration";
 import { deepCollapseRepeatedChars } from "@/lib/text-sanitize";
 
 // Runs between AI generation and createLesson(): sanitizes every visual
@@ -28,6 +29,8 @@ export async function finalizeLessonContent(
       exampleVisual: await finalizeVisual(section.exampleVisual, topicId, section.heading),
       exampleScene: parseScene(section.exampleScene),
       exampleSteps: cleanSteps(section.exampleSteps),
+      narration: cleanNarration(section.narration),
+      audioId: undefined,
     }))
   );
   const result: LessonContent = {
@@ -38,11 +41,24 @@ export async function finalizeLessonContent(
   // Scenes come from a separate cheap model (lib/ai/scenes.ts); never throws,
   // and with no key / on failure the content is returned unchanged.
   if (!subjectName) return result;
+  let withScenes = result;
   try {
-    return await generateScenesForLesson(result, subjectName);
+    withScenes = await generateScenesForLesson(result, subjectName);
   } catch {
-    return result;
+    // keep the lesson without scenes
   }
+  // Voiceovers for the tricky sections, recorded now so they are ready when the lesson opens.
+  try {
+    return await narrateLesson(withScenes, subjectName);
+  } catch {
+    return withScenes;
+  }
+}
+
+// A spoken script is plain text of a sensible length, or nothing.
+function cleanNarration(v: unknown): string | undefined {
+  const t = typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "";
+  return t.length >= 20 ? t.slice(0, 900) : undefined;
 }
 
 // Re-sanitizes stored visuals (and drops an invalid interactive) at read

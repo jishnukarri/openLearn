@@ -22,6 +22,7 @@ import { resolveExampleSteps } from "@/lib/worked-example";
 import { QuickCheck } from "./quick-check";
 import { attemptSeed } from "@/lib/shuffle";
 import { LessonTutor } from "./lesson-tutor";
+import { NarrationPlayer, narrationUrl } from "./narration-player";
 import type { CoachSession } from "@/lib/lesson-coach-context";
 import { LessonPracticeStep } from "./lesson-practice";
 import type { LessonPractice } from "@/lib/lesson-personalise";
@@ -81,6 +82,13 @@ export function LessonPlayer({
 }) {
   useReducedMotionSafe();
   const router = useRouter();
+
+  // Warm every voiceover as the lesson opens, so Play is instant on its step.
+  useEffect(() => {
+    for (const sec of sections) {
+      if (sec.audioId) fetch(narrationUrl(sec.audioId)).catch(() => undefined);
+    }
+  }, [sections]);
 
   // Coach panel: remembered per device on desktop; on phones it is a sheet
   // that always starts closed.
@@ -416,6 +424,7 @@ export function LessonPlayer({
                   <div className={`grid gap-6 ${hasVisual ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start lg:gap-10" : ""}`}>
                     {/* Left: explanation + example reveal */}
                     <div>
+                      {sec.audioId && <NarrationPlayer key={sec.audioId} audioId={sec.audioId} />}
                       <p className="mt-0 max-w-[65ch] text-lg leading-relaxed text-foreground">
                         <RichText text={sec.explanation} />
                       </p>

@@ -28,6 +28,9 @@ export function refreshStaleExamples(
       ...section,
       exampleScene: null,
       exampleSteps: deriveExampleSteps(section.example),
+      // The recording reads the old wording; drop it rather than teach stale text.
+      narration: null,
+      audioId: null,
     };
   });
   return { content: { ...next, sections }, changed };
