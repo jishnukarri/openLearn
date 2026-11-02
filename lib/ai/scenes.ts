@@ -108,7 +108,10 @@ export async function generateScenesForLesson(
   const sections = content.sections ?? [];
   const todo = sections
     .map((s, i) => ({ s, i }))
-    .filter(({ s }) => s && !parseScene(s.exampleScene) && s.example?.trim())
+    // A section whose worked example already has its own visual (a generated
+    // image, diagram) is shown with that; a scene would hide it, so the image
+    // would be generated and stored for nothing.
+    .filter(({ s }) => s && !parseScene(s.exampleScene) && !s.exampleVisual && s.example?.trim())
     .slice(0, MAX_SECTIONS);
   if (!todo.length) return content;
 

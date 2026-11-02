@@ -115,9 +115,10 @@ async function finalizeVisual(
     (await generateLessonImage(cleaned.prompt, topicId)) ??
     undefined;
   if (!url) {
-    // Kept (prompt + alt, no url) so the failure is visible in stored data;
-    // the player falls back to the animated step frame for it.
-    console.error("Lesson image not generated; saved without url:", cleaned.alt);
+    // An image that could not be generated is dropped, not stored as a dead
+    // prompt: the section shows its steps or scene instead.
+    console.error("Lesson image not generated; dropped:", cleaned.alt);
+    return null;
   }
   return { ...cleaned, url };
 }
