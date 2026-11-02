@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 const hackClub = vi.fn();
 vi.mock("undici", () => ({ fetch: (...a: unknown[]) => hackClub(...a), Agent: class {} }));
 
-import { chatJson, providerOrder } from "./client";
+import { chatJson, countOptionalFields, providerOrder } from "./client";
 
 const ok = (content: object) =>
   new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(content) } }] }), { status: 200 });
@@ -71,5 +71,19 @@ describe("provider fallback", () => {
     expect(await chatJson("hi", { ...SCHEMA, properties: { a: { type: "string" }, b: { type: "string" } } })).toEqual({ a: "loose" });
     const body = JSON.parse(hackClub.mock.calls[1][1].body);
     expect(body.response_format).toEqual({ type: "json_object" });
+  });
+
+  it("counts optional fields, including nested ones", () => {
+    const schema = { type: "object", required: ["a"], properties: { a: { type: "string" }, b: { type: "string" }, c: { type: "array", items: { type: "object", properties: { d: { type: "string" } } } } } };
+    expect(countOptionalFields(schema)).toBe(3);
+  });
+
+  it("goes straight to a plain JSON reply for a Claude model with a big schema", async () => {
+    vi.stubEnv("HACKCLUB_MODEL", "anthropic/claude-sonnet-5.5");
+    const props = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`f${i}`, { type: "string" }]));
+    hackClub.mockResolvedValue(ok({ a: "x" }));
+    await chatJson("hi", { type: "object", properties: props }, { provider: "hackclub", model: "anthropic/claude-sonnet-5.5" });
+    expect(hackClub).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(hackClub.mock.calls[0][1].body).response_format).toEqual({ type: "json_object" });
   });
 });

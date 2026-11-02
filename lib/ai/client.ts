@@ -198,6 +198,27 @@ function withSchemaNote(messages: Record<string, unknown>[], schema: object): Re
 // (Anthropic allows at most 24 optional fields).
 const looseSchemaModels = new Set<string>();
 
+// Counts the optional fields in a JSON schema, to know in advance whether a
+// Claude model will refuse it in strict mode.
+export function countOptionalFields(schema: unknown): number {
+  if (!schema || typeof schema !== "object") return 0;
+  const node = schema as { properties?: Record<string, unknown>; required?: string[]; items?: unknown };
+  let n = 0;
+  if (node.properties) {
+    const required = new Set(node.required ?? []);
+    for (const [key, child] of Object.entries(node.properties)) {
+      if (!required.has(key)) n++;
+      n += countOptionalFields(child);
+    }
+  }
+  if (node.items) n += countOptionalFields(node.items);
+  return n;
+}
+
+const ANTHROPIC_OPTIONAL_LIMIT = 24;
+const refusesStrictSchema = (model: string, schema: object) =>
+  /anthropic|claude/i.test(model) && countOptionalFields(schema) > ANTHROPIC_OPTIONAL_LIMIT;
+
 // Asks for a reply that matches `schema`: strict structured output first, and
 // for a model that refuses a big schema, a plain JSON reply with the schema in
 // the prompt. Every caller still validates what comes back.
@@ -222,7 +243,7 @@ export async function completeJson<T>(input: {
     }));
 
   let result;
-  if (looseSchemaModels.has(looseKey)) {
+  if (looseSchemaModels.has(looseKey) || refusesStrictSchema(model, schema)) {
     result = await send(false);
   } else {
     try {
