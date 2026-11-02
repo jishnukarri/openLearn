@@ -22,6 +22,17 @@ function sentenceGroups(words: string[]): string[][] {
   return groups;
 }
 
+// Which sentence (0, 1, 2...) each word belongs to, for highlighting the line being spoken.
+export function sentenceIndexes(words: string[]): number[] {
+  const out: number[] = [];
+  let sentence = 0;
+  for (const w of words) {
+    out.push(sentence);
+    if (/[.!?]["')\]]*$/.test(w)) sentence++;
+  }
+  return out;
+}
+
 // How long a word takes to say, roughly: its letters, plus a beat after a comma.
 function weight(word: string): number {
   const letters = word.replace(/[^\p{L}\p{N}]/gu, "").length;

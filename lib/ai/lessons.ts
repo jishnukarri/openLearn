@@ -107,8 +107,10 @@ export type LessonSection = {
   // (lib/lesson-scene.ts). Validated by lib/lesson-finalize.ts.
   exampleScene?: LessonScene | null;
   exampleSteps?: string[];
-  // Spoken script for a tricky section, and the id of its pre-recorded MP3
-  // (lib/ai/narration.ts). Both absent for simple sections.
+  // The lesson writer's "read this one aloud" flag for a tricky section.
+  voiceover?: boolean | null;
+  // The script that was recorded (the explanation itself, see lib/tts-text.ts)
+  // and the id of its pre-recorded MP3 (lib/ai/narration.ts). Absent for simple sections.
   narration?: string | null;
   audioId?: string | null;
   // Start time in ms of each word of `narration`, for the follow-along highlight.
@@ -268,10 +270,10 @@ const SCHEMA = {
             },
             required: ["kind"],
           },
-          narration: {
-            type: "string",
+          voiceover: {
+            type: "boolean",
             description:
-              "ONLY for a conceptually tricky section (a process, a formula, a counter-intuitive idea); leave it out for simple ones, and for at most 2 sections per lesson. A 40-70 word script a teacher would SAY aloud: spoken English with no symbols or markdown (say 'v equals f times lambda'), explaining the idea from a different angle than the written explanation, never repeating it.",
+              "Set true ONLY for a conceptually tricky section (a process or counter-intuitive idea), and for at most 2 sections per lesson; leave it out for simple ones. That section's explanation is read aloud word for word, so for it write plain flowing prose of 3-6 sentences, under 900 characters, with no formulas, symbols, LaTeX or markdown.",
           },
           exampleSteps: {
             type: "array",

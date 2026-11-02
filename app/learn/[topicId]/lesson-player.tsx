@@ -22,7 +22,8 @@ import { resolveExampleSteps } from "@/lib/worked-example";
 import { QuickCheck } from "./quick-check";
 import { attemptSeed } from "@/lib/shuffle";
 import { LessonTutor } from "./lesson-tutor";
-import { NarrationPlayer, narrationUrl } from "./narration-player";
+import { NarratedExplanation, narrationUrl } from "./narration-player";
+import { voiceoverMatches } from "@/lib/tts-text";
 import type { CoachSession } from "@/lib/lesson-coach-context";
 import { LessonPracticeStep } from "./lesson-practice";
 import type { LessonPractice } from "@/lib/lesson-personalise";
@@ -86,7 +87,7 @@ export function LessonPlayer({
   // Warm every voiceover as the lesson opens, so Play is instant on its step.
   useEffect(() => {
     for (const sec of sections) {
-      if (sec.audioId) fetch(narrationUrl(sec.audioId)).catch(() => undefined);
+      if (voiceoverMatches(sec)) fetch(narrationUrl(sec.audioId as string)).catch(() => undefined);
     }
   }, [sections]);
 
@@ -158,7 +159,9 @@ export function LessonPlayer({
   const stepRef = useRef<HTMLDivElement>(null);
 
   const step = plan[planIdx] as Step | undefined;
-  const displayedSections = sections.map((s, i) => ({ ...s, ...coachEdits[i] }));
+  // A section with a voiceover always shows its original text, so the words on
+  // screen match the recording; an adaptation for it is replaced by a note.
+  const displayedSections = sections.map((s, i) => (voiceoverMatches(s) ? s : { ...s, ...coachEdits[i] }));
 
   // ── Progress bar ─────────────────────────────────────────────────────
 
@@ -413,7 +416,7 @@ export function LessonPlayer({
                     <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary-ink">
                       {sec.heading}
                     </span>
-                    {adaptedSections.has(step.sectionIndex) && (
+                    {adaptedSections.has(step.sectionIndex) && !voiceoverMatches(sec) && (
                       <span className="inline-flex items-center gap-1 text-sm font-medium text-primary-ink">
                         <Sparkles className="size-3.5" strokeWidth={2} /> Adapted to your progress
                       </span>
@@ -424,10 +427,13 @@ export function LessonPlayer({
                   <div className={`grid gap-6 ${hasVisual ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start lg:gap-10" : ""}`}>
                     {/* Left: explanation + example reveal */}
                     <div>
-                      {sec.audioId && <NarrationPlayer key={sec.audioId} audioId={sec.audioId} script={sec.narration} starts={sec.audioStarts} />}
-                      <p className="mt-0 max-w-[65ch] text-lg leading-relaxed text-foreground">
-                        <RichText text={sec.explanation} />
-                      </p>
+                      {voiceoverMatches(sec) ? (
+                        <NarratedExplanation key={sec.audioId} audioId={sec.audioId as string} script={sec.narration as string} starts={sec.audioStarts} />
+                      ) : (
+                        <p className="mt-0 max-w-[65ch] text-lg leading-relaxed text-foreground">
+                          <RichText text={sec.explanation} />
+                        </p>
+                      )}
 
                       {!exampleRevealed ? (
                         <div className="mt-6">
@@ -469,6 +475,11 @@ export function LessonPlayer({
                       </div>
                     )}
                   </div>
+                  {adaptedSections.has(step.sectionIndex) && voiceoverMatches(sec) && (
+                    <p className="mt-8 max-w-[65ch] border-t border-border pt-4 text-sm text-muted">
+                      Note: this lesson adapts to your progress, but this section has a voiceover, so the standard wording is shown to keep the text and the audio matching.
+                    </p>
+                  )}
                 </div>
               );
             })()}

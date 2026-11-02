@@ -5,6 +5,7 @@ import { sanitizeVisual } from "@/lib/lesson-visual";
 import { generateLessonImage } from "@/lib/ai/images";
 import { generateScenesForLesson } from "@/lib/ai/scenes";
 import { narrateLesson } from "@/lib/ai/narration";
+import { MAX_VOICEOVERS_PER_LESSON, voiceoverScript } from "@/lib/tts-text";
 import { deepCollapseRepeatedChars } from "@/lib/text-sanitize";
 
 // Runs between AI generation and createLesson(): sanitizes every visual
@@ -29,11 +30,18 @@ export async function finalizeLessonContent(
       exampleVisual: await finalizeVisual(section.exampleVisual, topicId, section.heading),
       exampleScene: parseScene(section.exampleScene),
       exampleSteps: cleanSteps(section.exampleSteps),
-      narration: cleanNarration(section.narration),
+      narration: voiceoverScript(section),
       audioId: undefined,
       audioStarts: undefined,
     }))
   );
+  // At most a couple of sections are read aloud; keep the first ones.
+  let voiced = 0;
+  for (const section of sections) {
+    if (!section.narration) continue;
+    if (voiced >= MAX_VOICEOVERS_PER_LESSON) section.narration = null;
+    else voiced++;
+  }
   const result: LessonContent = {
     ...content,
     sections,
@@ -54,12 +62,6 @@ export async function finalizeLessonContent(
   } catch {
     return withScenes;
   }
-}
-
-// A spoken script is plain text of a sensible length, or nothing.
-function cleanNarration(v: unknown): string | undefined {
-  const t = typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "";
-  return t.length >= 20 ? t.slice(0, 900) : undefined;
 }
 
 // Re-sanitizes stored visuals (and drops an invalid interactive) at read
