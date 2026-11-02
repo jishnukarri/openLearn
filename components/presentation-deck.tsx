@@ -22,28 +22,6 @@ function Points({ items }: { items: { title: string; body: string }[] }) {
   );
 }
 
-function Stat({ n, label }: { n: string; label: string }) {
-  return (
-    <div className="border-t-2 border-border pt-4">
-      <div className={`${DISPLAY} text-6xl font-semibold leading-none text-foreground lg:text-8xl`}>{n}</div>
-      <p className="mt-3 max-w-[18ch] text-base leading-snug text-muted lg:text-xl">{label}</p>
-    </div>
-  );
-}
-
-function Step({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="flex-1 rounded-2xl border border-border bg-surface p-5 lg:p-6">
-      <h3 className={`${DISPLAY} text-xl font-semibold text-foreground lg:text-2xl`}>{title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-muted lg:text-lg">{body}</p>
-    </div>
-  );
-}
-
-function Arrow() {
-  return <ChevronRight aria-hidden className="hidden size-6 shrink-0 self-center text-primary lg:block" />;
-}
-
 function Bullets({ items }: { items: { title: string; body: string }[] }) {
   return (
     <ul className="flex flex-col gap-6">
@@ -61,31 +39,16 @@ type SlideDef = { seconds: number; node: (qr: string) => React.ReactNode; video?
 
 const SLIDES: SlideDef[] = [
   {
-    seconds: 20,
+    seconds: 15,
     node: () => (
       <>
         <div className={`${DISPLAY} mb-8 text-3xl font-bold text-foreground lg:text-5xl`}>
           openLearn<span className="text-primary">.</span>
         </div>
         <h1 className={`${DISPLAY} max-w-[16ch] text-balance text-5xl font-semibold leading-[1.05] text-foreground sm:text-6xl lg:text-8xl`}>
-          AI that marks like a real teacher
+          An AI tutor that never gets tired
         </h1>
-        <p className={SUB}>A revision platform for Computer Science, Physics and Chemistry.</p>
-      </>
-    ),
-  },
-  {
-    seconds: 35,
-    node: () => (
-      <>
-        <h2 className={H2}>Learning it once isn&apos;t always enough</h2>
-        <Points
-          items={[
-            { title: "Everyone forgets", body: "Even a lesson you understood can fade over time. That's normal." },
-            { title: "A recap isn't always enough", body: "Sometimes you need the whole lesson again, not a summary." },
-            { title: "One missing detail", body: "Until you find that specific thing, it just doesn't click." },
-          ]}
-        />
+        <p className={SUB}>Helping students relearn what they have forgotten.</p>
       </>
     ),
   },
@@ -93,102 +56,56 @@ const SLIDES: SlideDef[] = [
     seconds: 40,
     node: () => (
       <>
-        <h2 className={H2}>So I built openLearn</h2>
-        <div className="mt-10 flex flex-col gap-3 lg:mt-14 lg:flex-row">
-          <Step title="Find the gaps" body="A short quiz means you skip what you already know" />
-          <Arrow />
-          <Step title="Learn it properly" body="Step-by-step lessons with worked examples" />
-          <Arrow />
-          <Step title="Check it stuck" body="Practice questions, marked with feedback" />
-          <Arrow />
-          <Step title="Revise or redo" body="Quick revision, or the full lesson again" />
-        </div>
-        <p className={SUB}>Made because I loved the idea of helping students revise better.</p>
-      </>
-    ),
-  },
-  { seconds: 85, video: true, node: () => null },
-  {
-    seconds: 30,
-    node: () => (
-      <>
-        <h2 className={H2}>What it can do</h2>
-        <div className="mt-10 grid grid-cols-2 gap-8 lg:mt-14 lg:grid-cols-5 lg:gap-8">
-          <Stat n="3" label="subjects: Computer Science, Physics, Chemistry" />
-          <Stat n="23" label="topics, each with its own lesson" />
-          <Stat n="20" label="question diagnostic, no account needed" />
-          <Stat n="12" label="step guided lessons with an AI coach" />
-          <Stat n="4" label="first-time-right answers to master a topic" />
-        </div>
-        <p className={SUB}>Also: handwritten-answer photo upload, flashcards, XP and daily streaks.</p>
-      </>
-    ),
-  },
-  {
-    seconds: 30,
-    node: () => (
-      <>
-        <h2 className={H2}>Why it helps</h2>
+        <h2 className={H2}>The problem: people forget</h2>
         <Points
           items={[
-            { title: "Revise or relearn", body: "Do a quick revision, or go through the whole lesson again. Your choice." },
-            { title: "Skip what you know", body: "A starting quiz shows your gaps, so nobody relearns what they already know." },
-            { title: "Supports the teacher", body: "Teachers teach the first lesson. openLearn helps students with everything after." },
+            { title: "Students forget", body: "Even a lesson you understood can fade. That is normal." },
+            { title: "A recap isn't always enough", body: "Sometimes you need the whole lesson again to find the one detail that makes it click." },
+            { title: "Teachers run out of time", body: "There is no curriculum time to re-teach every small topic for every student." },
           ]}
         />
       </>
     ),
   },
   {
-    seconds: 35,
+    seconds: 45,
     node: () => (
       <>
-        <h2 className={H2}>Built for schools to run</h2>
-        <div className="mt-10 grid gap-10 lg:mt-14 lg:grid-cols-2">
-          <Bullets
-            items={[
-              { title: "We provide", body: "The platform: lessons, quizzes, practice, flashcards and progress tracking" },
-              { title: "Schools provide", body: "Their own AI connection, so they control usage and cost" },
-            ]}
-          />
-          <Bullets
-            items={[
-              { title: "Teachers stay in charge", body: "They teach the first lesson. Students use openLearn to revise and practise." },
-              { title: "Open by design", body: "Any school or teacher can set it up for their own students" },
-            ]}
-          />
-        </div>
+        <h2 className={H2}>The fix: an AI that teaches it again</h2>
+        <Points
+          items={[
+            { title: "It builds the lesson", body: "Any topic, as many times as a student needs, without using up class time." },
+            { title: "It teaches like a teacher", body: "It shows it, does it together, then lets the student try: I do, we do, you do." },
+            { title: "It answers and marks", body: "Students can ask the AI tutor anything. Written answers are marked point by point." },
+          ]}
+        />
       </>
     ),
   },
+  { seconds: 137, video: true, node: () => null },
   {
-    seconds: 25,
+    seconds: 30,
     node: (qr) => (
-      <div className="grid items-center gap-10 lg:grid-cols-2">
+      <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_auto]">
         <div>
-          <h2 className={H2}>What comes next</h2>
-          <ul className="mt-10 flex flex-col gap-4 text-lg text-foreground lg:text-2xl">
-            {[
-              "Measure AI marking against teacher marking",
-              "More subjects and exam boards",
-              "Teacher view of class-wide weak spots",
-              "More ways to answer, such as voice",
-            ].map((t) => (
-              <li key={t} className="flex gap-3">
-                <span aria-hidden className="mt-[0.7em] h-0.5 w-4 shrink-0 bg-primary" />
-                {t}
-              </li>
-            ))}
-          </ul>
+          <h2 className={H2}>Built for schools to run</h2>
+          <div className="mt-10">
+            <Bullets
+              items={[
+                { title: "Teachers stay in charge", body: "They teach the first lesson. openLearn helps students revise it, again and again." },
+                { title: "Schools bring their own AI", body: "The platform is open, and each school controls its own usage and cost." },
+              ]}
+            />
+          </div>
         </div>
-        <div className="flex items-center gap-6 lg:justify-center">
+        <div className="flex items-center gap-6 lg:flex-col lg:items-start">
           <div
             role="img"
             aria-label="QR code to open openLearn"
             className="size-44 shrink-0 overflow-hidden rounded-2xl border border-border bg-white lg:size-60 [&>svg]:size-full"
             dangerouslySetInnerHTML={{ __html: qr }}
           />
-          <p className="max-w-[10ch] text-lg text-muted lg:text-2xl">Scan to try openLearn</p>
+          <p className="max-w-[12ch] text-lg text-muted lg:text-2xl">Scan to try openLearn</p>
         </div>
       </div>
     ),
