@@ -72,3 +72,20 @@ export async function createProfile(input: {
   if (error) throw error;
   return data;
 }
+
+// Privacy-notice acknowledgement. Kept apart from the main profile select so a
+// database that has not had the privacy_ack migration yet still works: the
+// gate then fails open (treated as acknowledged) instead of breaking login.
+export async function getPrivacyAckVersion(profileId: string): Promise<number | null | "unavailable"> {
+  const { data, error } = await db.from("profiles").select("privacy_ack_version").eq("id", profileId).maybeSingle();
+  if (error) return "unavailable";
+  return (data as { privacy_ack_version: number | null } | null)?.privacy_ack_version ?? null;
+}
+
+export async function setPrivacyAck(profileId: string, version: number): Promise<void> {
+  const { error } = await db
+    .from("profiles")
+    .update({ privacy_ack_version: version, privacy_ack_at: new Date().toISOString() })
+    .eq("id", profileId);
+  if (error) throw error;
+}

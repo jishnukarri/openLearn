@@ -3,7 +3,8 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import { createSessionClient } from "./server";
-import { getProfileByAppwriteId, type ProfileRole } from "@/lib/supabase/profiles";
+import { getProfileByAppwriteId, getPrivacyAckVersion, type Profile, type ProfileRole } from "@/lib/supabase/profiles";
+import { privacyAcknowledged } from "@/lib/privacy";
 import { canManageSubject } from "@/lib/roles";
 import { getSubject } from "@/lib/supabase/subjects";
 import { forcedPasswordRedirect, readMustChangePassword } from "@/lib/password-policy";
@@ -44,10 +45,19 @@ export async function requireSession() {
 // Combines the Appwrite session with the matching Supabase profile, and
 // 404s (not redirects) on role mismatch — a wrong role shouldn't reveal
 // that the route exists.
+// Students must have seen the current privacy notice before using the platform.
+// Teachers, admins and a database without the migration are not held back.
+async function requirePrivacyAck(profile: Profile) {
+  if (profile.role !== "student") return;
+  const stored = await getPrivacyAckVersion(profile.id);
+  if (stored !== "unavailable" && !privacyAcknowledged(stored)) redirect("/privacy/accept");
+}
+
 export const requireRole = cache(async (role: ProfileRole) => {
   const session = await requireSession();
   const profile = await getProfileByAppwriteId(session.userId);
   if (!profile || profile.role !== role) notFound();
+  await requirePrivacyAck(profile);
   return { session, profile };
 });
 
@@ -58,6 +68,7 @@ export const requireAnyRole = cache(async (roles: ProfileRole[]) => {
   const session = await requireSession();
   const profile = await getProfileByAppwriteId(session.userId);
   if (!profile || !roles.includes(profile.role)) notFound();
+  await requirePrivacyAck(profile);
   return { session, profile };
 });
 

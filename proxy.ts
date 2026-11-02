@@ -16,6 +16,7 @@ const protectedRoutes = [
   "/practice",
   "/join",
   "/account",
+  "/privacy/accept",
 ];
 const authRoutes = ["/login", "/signup"];
 
