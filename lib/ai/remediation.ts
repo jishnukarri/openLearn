@@ -5,6 +5,7 @@ import "server-only";
 // Never throws: any failure yields null.
 import type { Question } from "@/lib/supabase/questions";
 import { mergeQuestionFormat, readFormatCache } from "@/lib/supabase/questions";
+import { chatJson } from "./client";
 import { checkKeyRateLimit } from "@/lib/rate-limit";
 import { getQuestionById } from "@/lib/supabase/questions";
 import { LEASE_WINDOW_MS, leaseKey, withGenerationLease } from "./generation-lease";
@@ -55,7 +56,8 @@ async function generateJson<T>(
   user: string,
   retryWhat: string,
   validate: (raw: unknown) => Validated<T>,
-  opts: Opts
+  opts: Opts,
+  schema?: object
 ): Promise<(Validated<T> & { ok: true }) | null> {
   const apiKey = opts.apiKey ?? cheapKey();
   if (!apiKey) {
@@ -77,6 +79,7 @@ async function generateJson<T>(
         label: "remediation",
         maxTokens: MAX_TOKENS,
         timeoutMs: TIMEOUT_MS,
+        schema,
       });
       let reason: string;
       try {
@@ -97,16 +100,46 @@ async function generateJson<T>(
   }
 }
 
+// Fixed reply shape for hints: exactly three strings, nothing else.
+const HINTS_SCHEMA = {
+  type: "object",
+  properties: { hints: { type: "array", items: { type: "string" } } },
+  required: ["hints"],
+  additionalProperties: false,
+};
+
 export async function generateHints(question: Question, opts: Opts = {}): Promise<string[] | null> {
   const input = toRemediationInput(question, opts.topicTitle);
+  // Hints use their own model (HINT_MODEL): they must not leak the answer.
+  if (!opts.model && process.env.HINT_MODEL) opts = { ...opts, model: process.env.HINT_MODEL };
   const r = await generateJson(
     HINTS_SYSTEM_PROMPT,
     buildHintsPrompt(input),
     "hints",
     (raw) => validateHints(raw, input),
-    opts
+    opts,
+    HINTS_SCHEMA
   );
-  return r ? r.hints : null;
+  if (r) return r.hints;
+  return generateHintsViaMainModel(input);
+}
+
+// If the cheap model has no key or keeps failing, the platform's main model
+// writes the hints live instead (same prompt, same schema, same safety check),
+// so a question never ends up with "no hint available".
+async function generateHintsViaMainModel(input: RemediationInput): Promise<string[] | null> {
+  try {
+    let prompt = buildHintsPrompt(input);
+    for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+      const raw = await chatJson<{ hints: string[] }>(`${HINTS_SYSTEM_PROMPT}\n\n${prompt}`, HINTS_SCHEMA);
+      const v = validateHints(raw, input);
+      if (v.ok) return v.hints;
+      prompt = `${buildHintsPrompt(input)}\n\n${buildRetryPrompt(v.reason, "hints")}`;
+    }
+  } catch (e) {
+    console.warn("[remediation] main-model hints failed:", e instanceof Error ? e.message : e);
+  }
+  return null;
 }
 
 export async function generateRemediation(question: Question, opts: Opts = {}): Promise<Remediation | null> {

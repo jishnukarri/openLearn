@@ -419,7 +419,7 @@ export async function getHintAction(input: {
   questionId: string;
   level: number;
 }): Promise<{ hint: string; level: number; maxLevel: number } | Unavailable> {
-  const { profile } = await requireRole("student");
+  const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
   if (!await checkKeyRateLimit("practice-ai-hint", profile.id, 20, TEN_MIN)) {
     return { unavailable: true, message: RATE_MESSAGE };
   }
@@ -451,7 +451,7 @@ function redact(r: Remediation): Remediation {
 export async function getRemediationAction(input: {
   questionId: string;
 }): Promise<Remediation | Unavailable> {
-  const { profile } = await requireRole("student");
+  const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
   if (!await checkKeyRateLimit("practice-remediation", profile.id, 20, TEN_MIN)) {
     return { unavailable: true, message: RATE_MESSAGE };
   }
@@ -475,7 +475,7 @@ export async function checkScaffoldStepAction(input: {
   stepIndex: number;
   answer: string;
 }): Promise<{ correct: boolean; hint?: string }> {
-  const { profile } = await requireRole("student");
+  const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
   if (!await checkKeyRateLimit("practice-scaffold", profile.id, 120, TEN_MIN)) return { correct: false };
   if (typeof input?.questionId !== "string" || typeof input?.answer !== "string" || input.answer.length > 200) {
     return { correct: false };
@@ -496,7 +496,7 @@ export async function checkTransferAction(input: {
   questionId: string;
   answer: string;
 }): Promise<{ correct: boolean }> {
-  const { profile } = await requireRole("student");
+  const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
   if (!await checkKeyRateLimit("practice-transfer", profile.id, 60, TEN_MIN)) return { correct: false };
   if (typeof input?.questionId !== "string" || typeof input?.answer !== "string" || input.answer.length > 200) {
     return { correct: false };

@@ -55,10 +55,13 @@ export async function callCheapModel(
     label: string; // log prefix, e.g. "scenes"
     maxTokens?: number;
     timeoutMs?: number;
+    // A JSON schema makes the provider enforce the reply's exact shape. Without
+    // one the reply is only "some JSON object" and callers must validate it.
+    schema?: object;
   }
 ): Promise<string> {
   const provider = cheapProvider();
-  const res = await opts.fetchImpl(CHEAP_ENDPOINTS[provider], {
+  const post = (schema: object | undefined) => opts.fetchImpl(CHEAP_ENDPOINTS[provider], {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${opts.apiKey}` },
     body: JSON.stringify({
@@ -69,10 +72,16 @@ export async function callCheapModel(
       // plenty of room for the answer.
       max_tokens: opts.maxTokens ?? 8000,
       reasoning: { effort: "low" },
-      response_format: { type: "json_object" },
+      response_format: schema
+        ? { type: "json_schema", json_schema: { name: "response", strict: true, schema } }
+        : { type: "json_object" },
     }),
     signal: AbortSignal.timeout(opts.timeoutMs ?? 100_000),
   });
+  let res = await post(opts.schema);
+  // A model/provider that rejects json_schema still gets a JSON-object reply
+  // (callers validate the shape either way).
+  if (opts.schema && res.status === 400) res = await post(undefined);
   if (res.status === 402) {
     warnOnce(opts.label, "402", `${provider} returned 402 (insufficient credits or quota); ${opts.label} disabled until that is fixed.`);
     throw new FatalModelError("402");
