@@ -1,5 +1,5 @@
 import "server-only";
-import { chatJson, type ProviderConfig } from "./client";
+import { chatJson, forGeneration, type ProviderConfig } from "./client";
 
 export type MarkPoint = { point: string };
 
@@ -202,7 +202,7 @@ export async function generateQuestion(
       `concise, full-marks response hitting every markscheme point the way ` +
       `a strong student would write it.${instructionNote}`,
     SCHEMA,
-    config
+    forGeneration(config)
   );
 }
 

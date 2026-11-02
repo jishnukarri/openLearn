@@ -1,5 +1,5 @@
 import "server-only";
-import { chatJson, type ProviderConfig } from "./client";
+import { chatJson, forGeneration, type ProviderConfig } from "./client";
 import type { MarkPoint, QuestionFormat } from "./questions";
 import { distributeQuestions } from "@/lib/question-distribute";
 
@@ -161,7 +161,7 @@ export async function generateQuestionBank(
       `Questions should be ordered by sectionIndex (section 0 first, section N last).\n\n` +
       `${formatGuide}${imageGuide}${instructionNote}`,
     BANK_SCHEMA,
-    config
+    forGeneration(config)
   );
 
   // Sort by sectionIndex then assign sequential bankPosition

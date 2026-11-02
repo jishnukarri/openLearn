@@ -1,5 +1,5 @@
 import "server-only";
-import { chatJson, type ProviderConfig } from "./client";
+import { chatJson, forGeneration, type ProviderConfig } from "./client";
 // Animated scenes (exampleScene) are generated separately by lib/ai/scenes.ts
 // with a cheaper model, so the main prompt only asks for step annotations.
 const STEPS_GUIDE =
@@ -459,7 +459,7 @@ export async function generateLesson(
       `$$formula$$ standalone. Never plain-text approximations. ` +
       `${INTERACTIVE_GUIDE}${helpNote}${instructionNote}${VISUAL_GUIDE}${STEPS_GUIDE}`,
     SCHEMA,
-    config
+    forGeneration(config)
   );
 }
 
@@ -492,6 +492,6 @@ export async function tweakLesson(
       VISUAL_GUIDE +
       STEPS_GUIDE,
     SCHEMA,
-    config
+    forGeneration(config)
   );
 }
