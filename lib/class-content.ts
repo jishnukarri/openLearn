@@ -16,12 +16,35 @@ import { withReferenceContext } from "@/lib/rag";
 // every self-study student too) and only the customized ones cost an
 // extra AI call, generated once and cached from then on.
 
-export async function resolveLessonContent(
-  topic: TopicWithSubject,
-  profile: Profile
-): Promise<LessonContent> {
-  const fork = profile.role === "student" ? await getForkingAssignment(profile.id, topic.id) : null;
+// One generation per lesson slot at a time. Opening a new lesson twice (a
+// prefetch, a double navigation, a refresh while it builds) used to start a
+// second paid generation and race the first; later callers now wait on the
+// first one's promise and get the same saved lesson.
+const generating = new Map<string, Promise<LessonContent>>();
 
+export function resolveLessonContent(topic: TopicWithSubject, profile: Profile): Promise<LessonContent> {
+  return resolveLessonContentOnce(topic, profile);
+}
+
+async function resolveLessonContentOnce(topic: TopicWithSubject, profile: Profile): Promise<LessonContent> {
+  const fork = profile.role === "student" ? await getForkingAssignment(profile.id, topic.id) : null;
+  const key = `${topic.id}:${fork?.classId ?? "shared"}`;
+  const running = generating.get(key);
+  if (running) return running;
+  const p = resolveLessonContentUncached(topic, profile, fork);
+  generating.set(key, p);
+  try {
+    return await p;
+  } finally {
+    if (generating.get(key) === p) generating.delete(key);
+  }
+}
+
+async function resolveLessonContentUncached(
+  topic: TopicWithSubject,
+  profile: Profile,
+  fork: Awaited<ReturnType<typeof getForkingAssignment>>
+): Promise<LessonContent> {
   if (fork) {
     const existing = await getLessonByTopic(topic.id, fork.classId);
     if (existing && existing.sections[0]?.check) return existing;
