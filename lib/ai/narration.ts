@@ -1,6 +1,7 @@
 import "server-only";
 import { postChat } from "./client";
 import { pcm16ToMp3 } from "../audio-encode";
+import { wordStartTimes } from "../audio-timing";
 import { uploadFile } from "../appwrite/storage";
 import type { LessonContent } from "./lessons";
 
@@ -57,7 +58,7 @@ export function matchesScript(script: string, transcript: string): boolean {
   return want.filter((w) => got.has(w)).length / want.length >= 0.9;
 }
 
-export async function synthesizeMp3(script: string, subjectName: string): Promise<Buffer | null> {
+export async function synthesizeNarration(script: string, subjectName: string): Promise<{ mp3: Buffer; starts: number[] } | null> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const { text } = await postChat(
       () => ({
@@ -74,12 +75,16 @@ export async function synthesizeMp3(script: string, subjectName: string): Promis
       { isGood: (t) => parseAudioStream(t).pcm.length > SAMPLE_RATE }
     );
     const { pcm, transcript } = parseAudioStream(text);
-    if (matchesScript(script, transcript)) return pcm16ToMp3(pcm, SAMPLE_RATE);
+    if (matchesScript(script, transcript)) {
+      const samples = new Int16Array(Math.floor(pcm.length / 2));
+      for (let i = 0; i < samples.length; i++) samples[i] = pcm.readInt16LE(i * 2);
+      return { mp3: pcm16ToMp3(pcm, SAMPLE_RATE), starts: wordStartTimes(script, samples, SAMPLE_RATE) };
+    }
   }
   return null;
 }
 
-// Fills `audioId` for narrated sections. Never throws; a section whose
+// Fills `audioId` and the word timings (`audioStarts`) for narrated sections. Never throws; a section whose
 // recording fails simply has no audio.
 export async function narrateLesson(content: LessonContent, subjectName: string): Promise<LessonContent> {
   const todo = content.sections
@@ -88,14 +93,15 @@ export async function narrateLesson(content: LessonContent, subjectName: string)
     .slice(0, MAX_SECTIONS);
   if (!todo.length) return content;
 
-  const ids = new Map<number, string>();
+  const made = new Map<number, { id: string; starts: number[] }>();
   await Promise.race([
     Promise.all(
       todo.map(async ({ s, i }) => {
         try {
-          const mp3 = await synthesizeMp3(s.narration as string, subjectName);
-          if (!mp3) return;
-          ids.set(i, await uploadFile({ bytes: mp3, filename: `narration-${Date.now()}-${i}.mp3`, contentType: "audio/mpeg" }));
+          const result = await synthesizeNarration(s.narration as string, subjectName);
+          if (!result) return;
+          const id = await uploadFile({ bytes: result.mp3, filename: `narration-${Date.now()}-${i}.mp3`, contentType: "audio/mpeg" });
+          made.set(i, { id, starts: result.starts });
         } catch (e) {
           console.error("[narration] failed:", e instanceof Error ? e.message : e);
         }
@@ -103,6 +109,12 @@ export async function narrateLesson(content: LessonContent, subjectName: string)
     ),
     new Promise<void>((r) => setTimeout(r, DEADLINE_MS)),
   ]);
-  if (!ids.size) return content;
-  return { ...content, sections: content.sections.map((s, i) => (ids.has(i) ? { ...s, audioId: ids.get(i) } : s)) };
+  if (!made.size) return content;
+  return {
+    ...content,
+    sections: content.sections.map((s, i) => {
+      const m = made.get(i);
+      return m ? { ...s, audioId: m.id, audioStarts: m.starts } : s;
+    }),
+  };
 }

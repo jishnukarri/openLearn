@@ -31,6 +31,7 @@ export async function finalizeLessonContent(
       exampleSteps: cleanSteps(section.exampleSteps),
       narration: cleanNarration(section.narration),
       audioId: undefined,
+      audioStarts: undefined,
     }))
   );
   const result: LessonContent = {

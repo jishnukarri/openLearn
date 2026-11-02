@@ -31,6 +31,7 @@ export function refreshStaleExamples(
       // The recording reads the old wording; drop it rather than teach stale text.
       narration: null,
       audioId: null,
+      audioStarts: null,
     };
   });
   return { content: { ...next, sections }, changed };

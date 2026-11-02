@@ -424,7 +424,7 @@ export function LessonPlayer({
                   <div className={`grid gap-6 ${hasVisual ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start lg:gap-10" : ""}`}>
                     {/* Left: explanation + example reveal */}
                     <div>
-                      {sec.audioId && <NarrationPlayer key={sec.audioId} audioId={sec.audioId} />}
+                      {sec.audioId && <NarrationPlayer key={sec.audioId} audioId={sec.audioId} script={sec.narration} starts={sec.audioStarts} />}
                       <p className="mt-0 max-w-[65ch] text-lg leading-relaxed text-foreground">
                         <RichText text={sec.explanation} />
                       </p>

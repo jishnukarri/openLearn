@@ -111,6 +111,8 @@ export type LessonSection = {
   // (lib/ai/narration.ts). Both absent for simple sections.
   narration?: string | null;
   audioId?: string | null;
+  // Start time in ms of each word of `narration`, for the follow-along highlight.
+  audioStarts?: number[] | null;
   visual?: LessonVisual | null;
   visualPosition?: "top" | "middle" | "bottom";
   check: LessonCheck;
