@@ -1,7 +1,7 @@
 import { AsideBlock, PageHeader, PageShell } from "@/components/page-shell";
 import { Rise, Stagger } from "@/components/motion";
 import { requireRole } from "@/lib/appwrite/session";
-import { platformDefault } from "@/lib/ai/client";
+import { platformDefault, providerOrder } from "@/lib/ai/client";
 import { cheapModel, cheapProvider, CHEAP_DEFAULT_MODEL } from "@/lib/ai/cheap-model";
 
 const MONO = "font-[family-name:var(--font-mono)]";
@@ -9,7 +9,6 @@ const MONO = "font-[family-name:var(--font-mono)]";
 const PROVIDER_LABELS: Record<string, string> = {
   openrouter: "OpenRouter",
   hackclub: "Hack Club AI",
-  gemini: "Google Gemini",
 };
 
 type Row = { role: string; used: string; env: string; value: string; note?: string };
@@ -18,20 +17,19 @@ type Row = { role: string; used: string; env: string; value: string; note?: stri
 // them means editing .env.local and restarting the server.
 function currentRows(): Row[] {
   const base = platformDefault();
-  const hc = base.provider === "hackclub";
   const env = process.env;
   return [
-    { role: "Study coach chat and other general calls", used: "Every chat turn, topics, diagnostics, marking", env: base.provider === "gemini" ? "GEMINI_MODEL" : base.provider === "openrouter" ? "OPENROUTER_MODEL" : "HACKCLUB_MODEL", value: base.model ?? "" },
-    { role: "Lesson and exam-question writing", used: "Written once, then shared", env: "HACKCLUB_GEN_MODEL", value: hc && env.HACKCLUB_GEN_MODEL ? env.HACKCLUB_GEN_MODEL : `${base.model ?? ""} (same as chat)`, note: hc ? undefined : "Only applies when the provider is Hack Club." },
+    { role: "Study coach chat and other general calls", used: "Every chat turn, topics, diagnostics, marking", env: "HACKCLUB_MODEL", value: base.model ?? "" },
+    { role: "Lesson and exam-question writing", used: "Written once, then shared", env: "HACKCLUB_GEN_MODEL", value: env.HACKCLUB_GEN_MODEL || `${base.model ?? ""} (same as chat)` },
     { role: "Exam-question hints", used: "Hint button on practice questions", env: "HINT_MODEL", value: env.HINT_MODEL || `${cheapModel()} (scene model)` },
     { role: "Animated worked-example scenes", used: "Generated with each lesson", env: "SCENE_MODEL", value: `${cheapModel()}${env.SCENE_MODEL ? "" : ` (default ${CHEAP_DEFAULT_MODEL})`}`, note: `via ${PROVIDER_LABELS[cheapProvider()]}` },
-    { role: "Lesson images", used: "Only generated when they will be shown", env: "HACKCLUB_IMAGE_MODEL", value: env.HACKCLUB_IMAGE_MODEL || env.GEMINI_IMAGE_MODEL || "google/gemini-2.5-flash-image (default)" },
+    { role: "Lesson images", used: "Only generated when they will be shown", env: "HACKCLUB_IMAGE_MODEL", value: env.HACKCLUB_IMAGE_MODEL || "google/gemini-3.1-flash-lite-image (default)" },
     { role: "Reading scanned papers", used: "Paper marking and extraction", env: "HACKCLUB_VISION_MODEL", value: env.HACKCLUB_VISION_MODEL || "google/gemini-2.5-flash (default)" },
   ];
 }
 
 function keyStatus(): { name: string; set: boolean }[] {
-  return ["HACKCLUB_API_KEY", "OPENROUTER_API_KEY", "GEMINI_API_KEY"].map((name) => ({ name, set: !!process.env[name] }));
+  return ["HACKCLUB_API_KEY", "OPENROUTER_API_KEY"].map((name) => ({ name, set: !!process.env[name] }));
 }
 
 export default async function AdminSettingsPage() {
@@ -39,7 +37,9 @@ export default async function AdminSettingsPage() {
   const base = platformDefault();
   const rows = currentRows();
   const keys = keyStatus();
-  const activeKey = base.provider === "gemini" ? "GEMINI_API_KEY" : base.provider === "openrouter" ? "OPENROUTER_API_KEY" : "HACKCLUB_API_KEY";
+  const order = providerOrder();
+  const fallback = order[1];
+  const activeKey = base.provider === "openrouter" ? "OPENROUTER_API_KEY" : "HACKCLUB_API_KEY";
   const activeKeySet = keys.find((k) => k.name === activeKey)?.set ?? false;
 
   return (
@@ -52,6 +52,10 @@ export default async function AdminSettingsPage() {
               <div className="flex items-center justify-between gap-3">
                 <dt>Provider</dt>
                 <dd className="text-foreground">{PROVIDER_LABELS[base.provider]}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt>Fallback</dt>
+                <dd className={fallback ? "text-foreground" : "text-error"}>{fallback ? PROVIDER_LABELS[fallback] : "None (no second key)"}</dd>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <dt>API key</dt>
@@ -109,9 +113,8 @@ export default async function AdminSettingsPage() {
             ))}
           </ul>
           <p className="max-w-[65ch] text-sm text-muted">
-            To switch provider set <code className={MONO}>AI_PROVIDER</code> to{" "}
-            <code className={MONO}>hackclub</code>, <code className={MONO}>openrouter</code> or{" "}
-            <code className={MONO}>gemini</code>.
+            Hack Club AI is tried first and OpenRouter takes over automatically if it fails, using the same models.
+            Set <code className={MONO}>AI_PROVIDER=openrouter</code> to swap the order.
           </p>
         </Rise>
       </Stagger>

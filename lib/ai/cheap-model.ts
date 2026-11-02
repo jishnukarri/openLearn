@@ -5,7 +5,7 @@ import "server-only";
 //                       HACKCLUB_API_KEY is set, otherwise openrouter.
 //   HACKCLUB_API_KEY / OPENROUTER_API_KEY  the key for the chosen provider
 //   SCENE_MODEL         default "deepseek/deepseek-v4.1-flash"
-import { hackClubFetch } from "./client";
+import { hackClubFetch, providerOrder } from "./client";
 
 export const CHEAP_ENDPOINTS = {
   openrouter: "https://openrouter.ai/api/v1/chat/completions",
@@ -20,7 +20,7 @@ export type Msg = { role: "system" | "user" | "assistant"; content: string };
 export function cheapProvider(): CheapProvider {
   const v = process.env.SCENE_PROVIDER;
   if (v === "hackclub" || v === "openrouter") return v;
-  return process.env.HACKCLUB_API_KEY ? "hackclub" : "openrouter";
+  return providerOrder()[0];
 }
 
 export function cheapKey(): string | undefined {
@@ -46,7 +46,25 @@ export function warnOnce(label: string, key: string, msg: string) {
 // 401/402: nothing will work until config is fixed; callers stop retrying.
 export class FatalModelError extends Error {}
 
+// Tries the chosen provider; if it fails, the other one (same models) when its
+// key is set. A key that is wrong or out of credit (FatalModelError) also falls back.
 export async function callCheapModel(
+  messages: Msg[],
+  opts: Parameters<typeof callCheapModelOnce>[1]
+): Promise<string> {
+  const primary = cheapProvider();
+  const other: CheapProvider = primary === "hackclub" ? "openrouter" : "hackclub";
+  const otherKey = other === "hackclub" ? process.env.HACKCLUB_API_KEY : process.env.OPENROUTER_API_KEY;
+  try {
+    return await callCheapModelOnce(messages, opts, primary);
+  } catch (e) {
+    if (!otherKey) throw e;
+    warnOnce(opts.label, `fallback-${primary}`, `${primary} failed (${e instanceof Error ? e.message : e}); using ${other}.`);
+    return callCheapModelOnce(messages, { ...opts, apiKey: otherKey, fetchImpl: other === "hackclub" ? (hackClubFetch as unknown as typeof fetch) : fetch }, other);
+  }
+}
+
+async function callCheapModelOnce(
   messages: Msg[],
   opts: {
     apiKey: string;
@@ -58,9 +76,9 @@ export async function callCheapModel(
     // A JSON schema makes the provider enforce the reply's exact shape. Without
     // one the reply is only "some JSON object" and callers must validate it.
     schema?: object;
-  }
+  },
+  provider: CheapProvider
 ): Promise<string> {
-  const provider = cheapProvider();
   const post = (schema: object | undefined) => opts.fetchImpl(CHEAP_ENDPOINTS[provider], {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${opts.apiKey}` },

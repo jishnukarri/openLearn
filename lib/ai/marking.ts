@@ -1,6 +1,6 @@
 import "server-only";
 import { encode } from "@toon-format/toon";
-import { chatJson, hackClubFetch, type ProviderConfig } from "./client";
+import { chatJson, completeJson, type ProviderConfig } from "./client";
 import type { MarkPoint } from "./questions";
 
 export type PointFeedback = { point: string; met: boolean; comment: string };
@@ -169,112 +169,23 @@ export async function markAnswerFromImages(input: {
   markscheme: MarkPoint[];
   images: { bytes: Buffer; contentType: string }[];
 }): Promise<MarkingResult> {
-  const preferHackClub = process.env.AI_PROVIDER === "hackclub";
-  const parsed =
-    preferHackClub && process.env.HACKCLUB_API_KEY
-      ? await markViaHackClub(input)
-      : process.env.GEMINI_API_KEY
-        ? await markViaGemini(input)
-        : process.env.HACKCLUB_API_KEY
-          ? await markViaHackClub(input)
-          : null;
-
-  if (!parsed) {
-    throw new Error(
-      "Photo marking needs a vision-capable AI key (Gemini or Hack Club) configured on the platform."
-    );
-  }
-
-  const marksAwarded = parsed.feedback.filter((f) => f.met).length;
-  return { marksAwarded, feedback: parsed.feedback };
-}
-
-async function markViaGemini(input: {
-  question: string;
-  markscheme: MarkPoint[];
-  images: { bytes: Buffer; contentType: string }[];
-}): Promise<{ feedback: PointFeedback[] }> {
-  const { GoogleGenAI, Type } = await import("@google/genai");
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
-  const response = await ai.models.generateContent({
-    model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-    contents: [
+  const parsed = await completeJson<{ feedback: PointFeedback[] }>({
+    model: process.env.HACKCLUB_VISION_MODEL || "google/gemini-2.5-flash",
+    messages: [
       {
         role: "user",
-        parts: [
-          { text: MARK_PROMPT(input.question, input.markscheme) },
+        content: [
+          { type: "text", text: MARK_PROMPT(input.question, input.markscheme) },
           ...input.images.map((img) => ({
-            inlineData: {
-              mimeType: img.contentType,
-              data: img.bytes.toString("base64"),
-            },
+            type: "image_url",
+            image_url: { url: `data:${img.contentType};base64,${img.bytes.toString("base64")}` },
           })),
         ],
       },
     ],
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          feedback: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                point: { type: Type.STRING },
-                met: { type: Type.BOOLEAN },
-                comment: { type: Type.STRING },
-              },
-              required: ["point", "met", "comment"],
-            },
-          },
-        },
-        required: ["feedback"],
-      },
-    },
+    schema: SCHEMA,
   });
 
-  return JSON.parse(response.text ?? "{}") as { feedback: PointFeedback[] };
-}
-
-async function markViaHackClub(input: {
-  question: string;
-  markscheme: MarkPoint[];
-  images: { bytes: Buffer; contentType: string }[];
-}): Promise<{ feedback: PointFeedback[] }> {
-  const response = await hackClubFetch("https://ai.hackclub.com/proxy/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.HACKCLUB_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: process.env.HACKCLUB_VISION_MODEL || "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: MARK_PROMPT(input.question, input.markscheme) },
-            ...input.images.map((img) => ({
-              type: "image_url",
-              image_url: {
-                url: `data:${img.contentType};base64,${img.bytes.toString("base64")}`,
-              },
-            })),
-          ],
-        },
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: { name: "response", strict: true, schema: SCHEMA },
-      },
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(`Hack Club vision marking failed (${response.status}): ${await response.text()}`);
-  }
-  const data = await response.json();
-  return JSON.parse(data.choices[0].message.content) as { feedback: PointFeedback[] };
+  const marksAwarded = parsed.feedback.filter((f) => f.met).length;
+  return { marksAwarded, feedback: parsed.feedback };
 }

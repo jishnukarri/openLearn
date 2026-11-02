@@ -10,7 +10,7 @@ It is a app which solves the issue of accessing the content easier thorugh AI. I
 
 ## Current progress
 
-Stack: Next.js 16 (App Router, Turbopack) · TypeScript · Supabase (Postgres + Auth via Appwrite sessions) · Tailwind v4. AI generation runs against a pluggable provider (OpenRouter/Hack Club/Gemini), configured by the admin through the server environment (`lib/ai/client.ts`).
+Stack: Next.js 16 (App Router, Turbopack) · TypeScript · Supabase (Postgres + Auth via Appwrite sessions) · Tailwind v4. AI generation runs against a pluggable provider (Hack Club AI first, OpenRouter as the automatic fallback), configured by the admin through the server environment (`lib/ai/client.ts`).
 
 ### Built and working
 

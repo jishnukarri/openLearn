@@ -27,7 +27,7 @@ Routing is in `lib/roles.ts`. `proxy.ts` does only an optimistic cookie check. R
 - **Auth and files:** Appwrite. Sessions are minted server-side and held in an httpOnly cookie. Appwrite also handles uploaded-file storage.
 - **Data:** Supabase Postgres, service-role access from the server only (DB-only, no Supabase Auth). RLS is enabled but authorization is enforced in Server Actions and the `lib/supabase/*` data layer, not by RLS policies.
 - **AI:** all calls go through `chatJson()` in `lib/ai/client.ts`.
-  - Providers: OpenRouter, Hack Club AI, Gemini. Platform default comes from `AI_PROVIDER` and related env vars.
+  - Providers: Hack Club AI (main) with OpenRouter as the automatic fallback; same models on both. Platform default comes from `AI_PROVIDER` and related env vars.
   - Output is JSON against object-rooted schemas.
   - OpenRouter/Hack Club can return errors inside an HTTP 200 body. The client surfaces them explicitly (e.g. 429 on free-tier models).
 - **RAG:** `lib/rag.ts` — teacher reference documents are extracted, chunked, embedded and similarity-searched into generation prompts.

@@ -41,53 +41,44 @@ export async function hackClubFetch(
   }
 }
 
-// Single entry point for every AI request in the app. Three providers:
+// Single entry point for every AI request in the app. Two providers, which
+// serve the same models through different proxies:
 //
-// - openrouter: hosted, OpenAI-compatible, pay-per-token
-// - hackclub:   hosted, OpenAI-compatible (ai.hackclub.com proxy), free for
-//               Hack Club members
-// - gemini:     hosted, Google's SDK, pay-per-token (or free tier w/ low limits)
+// - hackclub:   the main one (ai.hackclub.com proxy)
+// - openrouter: the fallback, used automatically when Hack Club fails
+//               (network error, timeout, rate limit, out of credit, 5xx)
 //
-// The provider, key and models are platform-wide and come only from the
-// environment (AI_PROVIDER plus the provider's key/model variables). Admins
-// can see the live values on /admin/settings; changing them means editing the
-// env and restarting the server. Nobody else configures AI.
-//
-// All generation modules (topics/lessons/questions/marking/diagnostic)
-// call chatJson() here instead of talking to a provider SDK directly.
+// AI_PROVIDER picks which one goes first (default hackclub); the other is
+// the fallback as long as its key is set. Models are the same on both, so
+// one set of model variables applies. Admins see the live values on
+// /admin/settings; changing them means editing the env and restarting.
 
-export type Provider = "openrouter" | "hackclub" | "gemini";
+export type Provider = "hackclub" | "openrouter";
 
 export type ProviderConfig = {
   provider: Provider;
-  apiKey?: string;
   model?: string;
 };
 
-export function platformDefault(): ProviderConfig {
-  const provider = process.env.AI_PROVIDER as Provider | undefined;
+const PROVIDERS: Record<Provider, { url: string; label: string; keyEnv: string }> = {
+  hackclub: { url: "https://ai.hackclub.com/proxy/v1/chat/completions", label: "Hack Club AI", keyEnv: "HACKCLUB_API_KEY" },
+  openrouter: { url: "https://openrouter.ai/api/v1/chat/completions", label: "OpenRouter", keyEnv: "OPENROUTER_API_KEY" },
+};
 
-  switch (provider) {
-    case "gemini":
-      return {
-        provider,
-        apiKey: process.env.GEMINI_API_KEY,
-        model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-      };
-    case "openrouter":
-      return {
-        provider,
-        apiKey: process.env.OPENROUTER_API_KEY,
-        model: process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini",
-      };
-    case "hackclub":
-    default:
-      return {
-        provider: "hackclub",
-        apiKey: process.env.HACKCLUB_API_KEY,
-        model: process.env.HACKCLUB_MODEL || "qwen/qwen3-32b",
-      };
-  }
+export const DEFAULT_CHAT_MODEL = "anthropic/claude-haiku-5.5";
+
+// Providers to try, in order: the chosen primary first, then the other one if
+// it has a key. With no keys at all the primary is still returned so the error
+// says which key is missing.
+export function providerOrder(): Provider[] {
+  const primary: Provider = process.env.AI_PROVIDER === "openrouter" ? "openrouter" : "hackclub";
+  const other: Provider = primary === "hackclub" ? "openrouter" : "hackclub";
+  const withKey = [primary, other].filter((p) => !!process.env[PROVIDERS[p].keyEnv]);
+  return withKey.length ? withKey : [primary];
+}
+
+export function platformDefault(): ProviderConfig {
+  return { provider: providerOrder()[0], model: process.env.HACKCLUB_MODEL || DEFAULT_CHAT_MODEL };
 }
 
 // Every caller gets the platform config. The profile id is still accepted so
@@ -100,14 +91,11 @@ export async function resolveProviderConfig(
 }
 
 // Content that is written once and then shared (lessons, exam questions)
-// can use a stronger model than per-turn chat: set HACKCLUB_GEN_MODEL. Only
-// applies to the platform default config.
-export function forGeneration(config?: ProviderConfig): ProviderConfig | undefined {
-  const base = platformDefault();
+// can use a stronger model than per-turn chat: set HACKCLUB_GEN_MODEL.
+export function forGeneration(config?: ProviderConfig): ProviderConfig {
+  const base = config ?? platformDefault();
   const genModel = process.env.HACKCLUB_GEN_MODEL;
-  const isPlatform = !config || (config.provider === base.provider && config.model === base.model && config.apiKey === base.apiKey);
-  if (isPlatform && base.provider === "hackclub" && genModel) return { ...base, model: genModel };
-  return config;
+  return genModel ? { ...base, model: genModel } : base;
 }
 
 export type ChatOptions = {
@@ -124,6 +112,137 @@ function logUsage(provider: string, model: string, usage: Record<string, unknown
   console.log(`[ai-usage] ${provider} ${model} ${JSON.stringify(usage)}`);
 }
 
+export class ProviderHttpError extends Error {
+  constructor(public status: number, public provider: string, public body: string) {
+    super(`${provider} request failed (${status}): ${body.slice(0, 600)}`);
+    this.name = "ProviderHttpError";
+  }
+}
+
+// Failures that say "this provider is unavailable", not "this request is bad":
+// bad key, no credit, rate limit, timeout, server error. These try the fallback.
+function isFallbackable(status: number): boolean {
+  return status === 401 || status === 402 || status === 403 || status === 408 || status === 429 || status >= 500;
+}
+
+// POSTs one chat-completions body to the providers in order. `build` makes the
+// body per provider (OpenRouter wants cache_control markers, for example).
+// Returns the first good response. A 4xx that means the request itself is wrong
+// (400, 404, 422) is thrown straight away, since a second provider would refuse
+// it too.
+export async function postChat(
+  build: (provider: Provider) => Record<string, unknown>
+): Promise<{ data: Record<string, unknown>; provider: Provider }> {
+  const errors: string[] = [];
+  for (const provider of providerOrder()) {
+    const spec = PROVIDERS[provider];
+    const key = process.env[spec.keyEnv];
+    if (!key) {
+      errors.push(`${spec.label}: ${spec.keyEnv} is not set`);
+      continue;
+    }
+    try {
+      const doFetch = provider === "hackclub" ? hackClubFetch : fetch;
+      const response = await doFetch(spec.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify(build(provider)),
+        signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+      });
+      const text = await response.text();
+      if (!response.ok) throw new ProviderHttpError(response.status, spec.label, text);
+      let data: Record<string, unknown> | null = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // handled below
+      }
+      // Some proxies return HTTP 200 with the failure in the body (a rate limit, say).
+      const embedded = data?.error as { code?: unknown; message?: unknown } | undefined;
+      if (embedded) {
+        const code = Number(embedded.code);
+        throw new ProviderHttpError(Number.isFinite(code) && code >= 400 ? code : 502, spec.label, String(embedded.message ?? "provider error"));
+      }
+      if (!data) throw new ProviderHttpError(502, spec.label, "response was not JSON");
+      return { data, provider };
+    } catch (e) {
+      if (e instanceof ProviderHttpError && !isFallbackable(e.status)) throw e;
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`${spec.label}: ${msg}`);
+      console.warn(`[ai] ${spec.label} failed, trying the next provider: ${msg.slice(0, 200)}`);
+    }
+  }
+  throw new Error(`All AI providers failed. ${errors.join(" | ")}`);
+}
+
+// Adds "reply with JSON matching this schema" to the last message, for the
+// loose fallback below.
+function withSchemaNote(messages: Record<string, unknown>[], schema: object): Record<string, unknown>[] {
+  const note = `\n\nReply with ONLY one JSON object that matches this JSON schema exactly (include every required field, omit optional ones you do not need):\n${JSON.stringify(schema)}`;
+  const out = messages.map((m) => ({ ...m }));
+  const last = out[out.length - 1];
+  if (typeof last.content === "string") last.content = last.content + note;
+  else if (Array.isArray(last.content)) last.content = [...last.content, { type: "text", text: note }];
+  return out;
+}
+
+// Model+schema pairs a provider rejected as too complex for strict mode
+// (Anthropic allows at most 24 optional fields).
+const looseSchemaModels = new Set<string>();
+
+// Asks for a reply that matches `schema`: strict structured output first, and
+// for a model that refuses a big schema, a plain JSON reply with the schema in
+// the prompt. Every caller still validates what comes back.
+export async function completeJson<T>(input: {
+  model: string;
+  messages: Record<string, unknown>[];
+  schema: object;
+  maxTokens?: number;
+  // Per-provider tweak of the messages, e.g. OpenRouter cache markers.
+  prepare?: (provider: Provider, messages: Record<string, unknown>[]) => Record<string, unknown>[];
+}): Promise<T> {
+  const { model, schema } = input;
+  const looseKey = `${model}|${JSON.stringify(schema).length}`;
+  const send = (strict: boolean) =>
+    postChat((provider) => ({
+      model,
+      messages: (input.prepare ?? ((_p, m) => m))(provider, strict ? input.messages : withSchemaNote(input.messages, schema)),
+      max_tokens: input.maxTokens ?? 8000,
+      response_format: strict
+        ? { type: "json_schema", json_schema: { name: "response", strict: true, schema } }
+        : { type: "json_object" },
+    }));
+
+  let result;
+  if (looseSchemaModels.has(looseKey)) {
+    result = await send(false);
+  } else {
+    try {
+      result = await send(true);
+    } catch (e) {
+      if (!(e instanceof ProviderHttpError) || e.status !== 400 || !/optional parameters|grammar|schema/i.test(e.body)) throw e;
+      looseSchemaModels.add(looseKey);
+      result = await send(false);
+    }
+  }
+
+  const { data, provider } = result;
+  const usage = data.usage as { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } | undefined;
+  if (usage) {
+    logUsage(PROVIDERS[provider].label, model, {
+      prompt_tokens: usage.prompt_tokens,
+      cached_tokens: usage.prompt_tokens_details?.cached_tokens ?? null,
+      completion_tokens: usage.completion_tokens,
+    });
+  }
+  const content = (data.choices as { message?: { content?: unknown } }[] | undefined)?.[0]?.message?.content;
+  if (typeof content !== "string" || !content) {
+    throw new Error(`${PROVIDERS[provider].label} returned an unexpected response format: ${JSON.stringify(data).slice(0, 200)}`);
+  }
+  // A loose-mode reply may arrive wrapped in a code fence.
+  return JSON.parse(content.trim().replace(/^```(?:json)?\s*|\s*```$/g, "")) as T;
+}
+
 export async function chatJson<T>(
   prompt: string,
   schema: object,
@@ -131,218 +250,16 @@ export async function chatJson<T>(
   options?: ChatOptions
 ): Promise<T> {
   const cfg = config ?? platformDefault();
-
-  switch (cfg.provider) {
-    case "gemini":
-      return chatJsonGemini<T>(prompt, schema, cfg, options);
-    case "openrouter":
-      return chatJsonOpenAICompatible<T>(
-        "https://openrouter.ai/api/v1/chat/completions",
-        "OpenRouter",
-        "openai/gpt-4o-mini",
-        prompt,
-        schema,
-        cfg,
-        options
-      );
-    case "hackclub":
-      return chatJsonOpenAICompatible<T>(
-        "https://ai.hackclub.com/proxy/v1/chat/completions",
-        "Hack Club AI",
-        "qwen/qwen3-32b",
-        prompt,
-        schema,
-        cfg,
-        options
-      );
-    default:
-      throw new Error(`Unknown AI provider: ${String((cfg as { provider: unknown }).provider)}`);
-  }
-}
-
-// --- OpenAI-compatible chat/completions (OpenRouter, Hack Club AI) ---
-// Same request/response shape, different base URL and default model — Hack
-// Club's proxy (https://ai.hackclub.com) is a drop-in OpenAI-compatible
-// endpoint, same as OpenRouter's.
-// Model+schema pairs a provider rejected as too complex for strict mode.
-const looseSchemaModels = new Set<string>();
-
-async function chatJsonOpenAICompatible<T>(
-  endpoint: string,
-  providerLabel: string,
-  defaultModel: string,
-  prompt: string,
-  schema: object,
-  cfg: ProviderConfig,
-  options?: ChatOptions
-): Promise<T> {
-  if (!cfg.apiKey) throw new Error(`${providerLabel} requires an API key.`);
-
-  // Hack Club relies on the upstream's automatic prefix caching, so a plain
-  // string system message is enough. OpenRouter needs an explicit
-  // cache_control breakpoint on the system content part for models that
-  // don't cache automatically (Anthropic-style); it is ignored elsewhere.
   const system = options?.system;
-  const systemMessage = system
-    ? {
-        role: "system",
-        content: endpoint.includes("openrouter.ai")
-          ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }]
-          : system,
-      }
-    : null;
-
-  const doFetch = endpoint.includes("ai.hackclub.com") ? hackClubFetch : fetch;
-  const model = cfg.model || defaultModel;
-  // Some providers (Anthropic: max 24 optional fields) refuse a big strict
-  // schema outright. For those, the schema goes into the prompt and the reply
-  // is a JSON object; every caller already validates what comes back.
-  const looseKey = `${model}|${JSON.stringify(schema).length}`;
-  const send = (strictSchema: boolean) =>
-    doFetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${cfg.apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: strictSchema
-          ? [...(systemMessage ? [systemMessage] : []), { role: "user", content: prompt }]
-          : [
-              ...(systemMessage ? [systemMessage] : []),
-              {
-                role: "user",
-                content: `${prompt}\n\nReply with ONLY one JSON object that matches this JSON schema exactly (include every required field, omit optional ones you do not need):\n${JSON.stringify(schema)}`,
-              },
-            ],
-        // Every response here is a bounded JSON structure (a handful of
-        // sections/questions), never a long-form essay — capping this avoids
-        // some providers defaulting to a huge max_tokens that a low-credit
-        // account can't afford, even though the actual output is small.
-        max_tokens: 8000,
-        response_format: strictSchema
-          ? { type: "json_schema", json_schema: { name: "response", strict: true, schema } }
-          : { type: "json_object" },
-      }),
-      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-    });
-
-  let response = await send(!looseSchemaModels.has(looseKey));
-  if (response.status === 400 && !looseSchemaModels.has(looseKey)) {
-    const body = await response.text();
-    if (!/optional parameters|grammar|schema/i.test(body)) {
-      throw new Error(`${providerLabel} request failed (400): ${body}`);
-    }
-    looseSchemaModels.add(looseKey);
-    response = await send(false);
-  }
-
-  if (!response.ok) {
-    throw new Error(`${providerLabel} request failed (${response.status}): ${await response.text()}`);
-  }
-
-  const data = await response.json();
-
-  // Some providers (OpenRouter included) return HTTP 200 with the failure
-  // embedded in the body instead of a non-2xx status — most commonly a
-  // rate limit (429) on the upstream model. Surface that distinctly rather
-  // than falling through to the generic "unexpected format" error below.
-  if (data?.error) {
-    const code = data.error.code ? ` (${data.error.code})` : "";
-    throw new Error(`${providerLabel} error${code}: ${data.error.message ?? "unknown error"}`);
-  }
-
-  if (data?.usage) {
-    logUsage(providerLabel, model, {
-      prompt_tokens: data.usage.prompt_tokens,
-      cached_tokens: data.usage.prompt_tokens_details?.cached_tokens ?? null,
-      completion_tokens: data.usage.completion_tokens,
-    });
-  }
-
-  if (!data?.choices?.[0]?.message?.content) {
-    throw new Error(
-      `${providerLabel} returned an unexpected response format: ${JSON.stringify(data).slice(0, 200)}`
-    );
-  }
-  // A loose-mode reply may arrive wrapped in a code fence.
-  const text = String(data.choices[0].message.content).trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
-  return JSON.parse(text) as T;
-}
-
-// --- Gemini ---
-// The @google/genai SDK wants its schema shaped with a `Type` enum instead
-// of plain JSON-schema type strings, so every schema is converted on the
-// way in.
-async function chatJsonGemini<T>(
-  prompt: string,
-  schema: object,
-  cfg: ProviderConfig,
-  options?: ChatOptions
-): Promise<T> {
-  if (!cfg.apiKey) throw new Error("Gemini requires an API key.");
-
-  const { GoogleGenAI, Type } = await import("@google/genai");
-  const ai = new GoogleGenAI({ apiKey: cfg.apiKey });
-
-  const response = await ai.models.generateContent({
-    model: cfg.model || "gemini-2.5-flash",
-    contents: prompt,
-    config: {
-      httpOptions: { timeout: AI_TIMEOUT_MS },
-      // Gemini 2.5 caches a repeated prefix implicitly (about 1,024+ tokens).
-      ...(options?.system ? { systemInstruction: options.system } : {}),
-      responseMimeType: "application/json",
-      responseSchema: toGeminiSchema(schema, Type),
-    },
+  return completeJson<T>({
+    model: cfg.model || DEFAULT_CHAT_MODEL,
+    messages: [...(system ? [{ role: "system", content: system }] : []), { role: "user", content: prompt }],
+    schema,
+    // OpenRouter needs an explicit cache breakpoint on the system part for
+    // models that do not cache by themselves; Hack Club caches the prefix on its own.
+    prepare: (provider, messages) =>
+      provider === "openrouter" && system
+        ? messages.map((m) => (m.role === "system" ? { ...m, content: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] } : m))
+        : messages,
   });
-
-  const u = response.usageMetadata;
-  if (u) {
-    logUsage("gemini", cfg.model || "gemini-2.5-flash", {
-      prompt_tokens: u.promptTokenCount,
-      cached_tokens: u.cachedContentTokenCount ?? null,
-      completion_tokens: u.candidatesTokenCount,
-    });
-  }
-  return JSON.parse(response.text ?? "{}") as T;
-}
-
-type JsonSchemaNode = {
-  type?: string;
-  properties?: Record<string, JsonSchemaNode>;
-  required?: string[];
-  items?: JsonSchemaNode;
-  enum?: string[];
-};
-
-function toGeminiSchema(
-  schema: JsonSchemaNode,
-  Type: Record<string, string>
-): Record<string, unknown> {
-  switch (schema.type) {
-    case "object":
-      return {
-        type: Type.OBJECT,
-        properties: Object.fromEntries(
-          Object.entries(schema.properties ?? {}).map(([key, value]) => [
-            key,
-            toGeminiSchema(value as JsonSchemaNode, Type),
-          ])
-        ),
-        required: schema.required,
-      };
-    case "array":
-      return { type: Type.ARRAY, items: toGeminiSchema(schema.items as JsonSchemaNode, Type) };
-    case "integer":
-      return { type: Type.INTEGER };
-    case "boolean":
-      return { type: Type.BOOLEAN };
-    case "string":
-    default:
-      return schema.enum
-        ? { type: Type.STRING, enum: schema.enum }
-        : { type: Type.STRING };
-  }
 }
