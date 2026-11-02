@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { LessonSection } from "@/lib/ai/lessons";
 import { buildLessonPlan } from "../app/learn/[topicId]/lesson-plan";
+import { buildTutorSystemPrompt, buildTutorUserPrompt } from "./coach-prompt";
 import {
+  COACH_SCOPE_RULE,
+  buildLessonReference,
+  summarizeAskedQuestions,
   buildCoachContext,
   clampIndex,
   coveredSectionSet,
@@ -76,5 +80,57 @@ describe("sanitizers", () => {
   it("caps history size", () => {
     const out = summarizeHistory({ weakAreas: ["w".repeat(500)], recentLow: Array(20).fill({ prompt: "p".repeat(500), marks: 0, max: 3 }) });
     expect(out.length).toBeLessThanOrEqual(2400);
+  });
+});
+
+describe("lesson reference and prompt split", () => {
+  it("reference covers every section but no check answers", () => {
+    const ref = buildLessonReference(secs, "HOOK");
+    for (let i = 0; i < 6; i++) {
+      expect(ref).toContain(`EXPLAIN${i}`);
+      expect(ref).not.toContain(`ANSWER${i}`);
+    }
+  });
+
+  it("system prompt is identical across turns; per-turn data stays in the user part", () => {
+    const ref = buildLessonReference(secs);
+    const a = buildTutorSystemPrompt("Waves", "Physics", ref);
+    const b = buildTutorSystemPrompt("Waves", "Physics", ref);
+    expect(a).toBe(b);
+    const mk = (message: string, stepIdx: number) => {
+      const c = buildCoachContext({ plan, sections: secs, stepIndex: stepIdx });
+      return buildTutorUserPrompt({
+        currentStep: c.currentStep,
+        coveredContext: c.text,
+        coveredTopics: c.coveredTopics,
+        studentSummary: "Got wrong: X.",
+        history: [{ role: "student", text: "HISTORYMARK" }],
+        message,
+      });
+    };
+    const idx = plan.findIndex((s) => s.phase === "check" && s.sectionIndex === 1);
+    const u = mk("I don't get this", idx);
+    expect(a).not.toContain("HISTORYMARK");
+    expect(a).not.toContain("Got wrong");
+    expect(u).toContain("HISTORYMARK");
+    expect(u).toContain("I don't get this");
+    expect(u).toContain("QUESTION1");
+    expect(u).not.toContain("ANSWER1");
+  });
+
+  it("allows later topics and drops the old refusal wording", () => {
+    expect(COACH_SCOPE_RULE).not.toMatch(/comes later in the lesson and/);
+    expect(buildTutorSystemPrompt("T", "S", "ref")).toMatch(/never say it comes later/i);
+  });
+});
+
+describe("summarizeAskedQuestions", () => {
+  it("lists only student questions older than the transcript window", () => {
+    const h = Array.from({ length: 10 }, (_, i) => ({ role: i % 2 ? "coach" : "student", text: `m${i}` }));
+    const out = summarizeAskedQuestions(h, 6);
+    expect(out).toContain("m0");
+    expect(out).toContain("m2");
+    expect(out).not.toContain("m8");
+    expect(summarizeAskedQuestions(h.slice(0, 4), 6)).toBe("");
   });
 });

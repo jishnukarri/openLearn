@@ -1,7 +1,9 @@
 import "server-only";
 
 import { chatJson, type ProviderConfig } from "./client";
-import { COACH_SCOPE_RULE } from "@/lib/lesson-coach-context";
+import { buildTutorSystemPrompt, buildTutorUserPrompt, type CoachHistoryItem } from "@/lib/coach-prompt";
+
+export type { CoachHistoryItem };
 
 const TUTOR_SCHEMA = {
   type: "object",
@@ -28,9 +30,9 @@ export type CoachTurn = {
 export type CoachScope = {
   coveredTopics: string[];
   studentSummary: string; // session + topic history, already token-capped
+  currentStep: string; // the step on screen (answer withheld)
+  lessonReference: string; // whole lesson, no check answers: the cached prefix
 };
-
-export type CoachHistoryItem = { role: "student" | "coach"; text: string };
 
 const REWRITE_SCHEMA = {
   type: "object",
@@ -55,51 +57,31 @@ export async function askLessonTutor(
   config: ProviderConfig,
   scope?: CoachScope
 ): Promise<CoachTurn> {
-  const transcript = history
-    .slice(-8)
-    .map((h) => `${h.role === "student" ? "Student" : "Coach"}: ${h.text}`)
-    .join("\n");
-
-  const result = await chatJson<CoachTurn>(
-    `You are a friendly, sharp GCSE study coach. The student is working ` +
-      `through a lesson on "${topicName}" in ${subjectName}. ` +
-      (scope
-        ? `Lesson material covered so far (the ONLY material you may use):\n${lessonContext}\n\n` +
-          `Covered topics: ${scope.coveredTopics.join(", ") || "none yet"}.\n` +
-          `${COACH_SCOPE_RULE} Quiz questions must be answerable from that material alone. ` +
-          `Never reveal the answer to a check question the student has not answered yet.\n` +
-          (scope.studentSummary
-            ? `About this student (use lightly, never quote it back verbatim): ${scope.studentSummary}\n` +
-              `Favour questions on material they got wrong, if it is in the covered material. If they have just got a question wrong, your first suggestion should refer to it, for example "You picked X on the last question, want to go through why?". When they are just starting, offer a quick quiz on what is covered so far.\n`
-            : `When they are just starting, offer a quick quiz on what is covered so far.\n`) +
-          `\n`
-        : `The step on screen is:\n${lessonContext}\n\n`) +
-      (transcript ? `Conversation so far:\n${transcript}\n\n` : "") +
-      `Student now says: "${message}"\n\n` +
-      `Do not penalise spelling, grammar or punctuation, except where a key scientific term is misspelled so that it becomes a different or ambiguous term.\n\n` +
-      `Reply as JSON. Choose "kind":\n` +
-      `- "mcq": when they ask to be quizzed or tested, or want a multiple ` +
-      `choice question. Write one question about THIS step in "reply", 4 ` +
-      `plausible options in "options", the right one's 0-based "correctIndex", ` +
-      `and a 1-2 sentence "explanation" of why it is right.\n` +
-      `- "question": when they ask you to ask them something. Put one ` +
-      `direct, answerable question about this step in "reply" (options: [], ` +
-      `correctIndex: 0, explanation: ""). Their next message is their answer: ` +
-      `tell them if it is right, correct any mistake kindly, and say what ` +
-      `the full answer is.\n` +
-      `- "text": for everything else (explain, hint, their own question).\n\n` +
-      `Rules: stay at GCSE level and within what the step teaches (no A-level ` +
-      `ideas such as E=mc^2); questions must have one clearly correct answer. ` +
-      `Never ask the student to clarify what to explain; just explain ` +
-      `the step shown, in simpler words with an everyday example. "Check my ` +
-      `understanding" means ask a direct question (kind "question"). A hint ` +
-      `is one useful nudge that does not reveal the answer. Use plain ` +
-      `English, 2-4 short sentences for text, no markdown, headings or ` +
-      `lists. For "text" and "question" set options to [], correctIndex 0 ` +
-      `and explanation "" unless told otherwise.`,
-    TUTOR_SCHEMA,
-    config
-  );
+  // Chat turns: stable cached prefix as `system`, small variable part as user.
+  const result = scope
+    ? await chatJson<CoachTurn>(
+        buildTutorUserPrompt({
+          currentStep: scope.currentStep,
+          coveredContext: lessonContext,
+          coveredTopics: scope.coveredTopics,
+          studentSummary: scope.studentSummary,
+          history,
+          message,
+        }),
+        TUTOR_SCHEMA,
+        config,
+        { system: buildTutorSystemPrompt(topicName, subjectName, scope.lessonReference) }
+      )
+    : await chatJson<CoachTurn>(
+        // Marking path (no lesson scope): a one-off prompt, not cached.
+        `You are a friendly, sharp GCSE study coach working on "${topicName}" in ${subjectName}.\n` +
+          `Material:\n${lessonContext}\n\n` +
+          `Task: ${message}\n\n` +
+          `Reply as JSON with kind "text", your answer in "reply", options [], correctIndex 0, explanation "". ` +
+          `Plain English, no markdown.`,
+        TUTOR_SCHEMA,
+        config
+      );
 
   const kind = result.kind === "mcq" && (result.options?.length ?? 0) >= 2 ? "mcq" : result.kind === "question" ? "question" : "text";
   return {

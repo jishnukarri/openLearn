@@ -19,7 +19,7 @@ import { explainAnswer } from "@/lib/ai/explain";
 import { resolveLessonContent } from "@/lib/class-content";
 import { resolveLessonForSubtopic } from "@/lib/subtopic-content";
 import { getCoachTopicHistory } from "@/lib/supabase/coach-history";
-import { buildCoachContext, clampIndex, coveredSectionSet, sanitizePlan, sanitizeSession, summarizeHistory, summarizeSession } from "@/lib/lesson-coach-context";
+import { buildCoachContext, buildLessonReference, summarizeAskedQuestions, clampIndex, coveredSectionSet, sanitizePlan, sanitizeSession, summarizeHistory, summarizeSession } from "@/lib/lesson-coach-context";
 import { setSimplifiedLesson } from "@/lib/simplified-lessons";
 import { resolveProviderConfig } from "@/lib/ai/client";
 import { validateLesson, type LessonIssue } from "@/lib/lesson-validate";
@@ -224,15 +224,21 @@ export async function askLessonTutorAction({
   const sessionText = summarizeSession(sanitizeSession(rawSession, lesson.sections.length), lesson.sections, covered);
   const historyText = summarizeHistory(await getCoachTopicHistory(profile.id, topic.id, topic.subject.id, topic.name));
 
+  const cleanHistory = history.slice(-30).map((h) => ({ role: h.role === "student" ? "student" as const : "coach" as const, text: String(h.text).slice(0, 600) }));
   const config = await resolveProviderConfig(profile.id);
   return askLessonTutor(
     topic.name,
     topic.subject.name,
     ctx.text,
-    history.slice(-8).map((h) => ({ role: h.role === "student" ? "student" : "coach", text: String(h.text).slice(0, 600) })),
+    cleanHistory,
     question.trim(),
     config,
-    { coveredTopics: ctx.coveredTopics, studentSummary: [sessionText, historyText].filter(Boolean).join(" ") }
+    {
+      coveredTopics: ctx.coveredTopics,
+      studentSummary: [sessionText, summarizeAskedQuestions(cleanHistory), historyText].filter(Boolean).join(" "),
+      currentStep: ctx.currentStep,
+      lessonReference: buildLessonReference(lesson.sections, lesson.hook),
+    }
   );
 }
 

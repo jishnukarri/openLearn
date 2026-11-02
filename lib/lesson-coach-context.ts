@@ -7,7 +7,7 @@ import type { Step } from "@/app/learn/[topicId]/lesson-plan";
 // current step: later steps are never serialised, so they cannot leak.
 
 export const COACH_SCOPE_RULE =
-  "Only use the lesson material provided. If the student asks about something not covered yet, say it comes later in the lesson and offer to explain what they've covered so far.";
+  "The student may ask about anything in this topic or subject, including parts of the lesson they have not reached yet. Answer it directly at GCSE level; never say it comes later. Knowing more is good for revision.";
 
 const MAX_STEPS = 80;
 const MAX_TEXT = 700;
@@ -54,6 +54,7 @@ export function clampIndex(index: unknown, total: number): number {
 // ── Covered lesson context ─────────────────────────────────────────────────
 export type CoachContext = {
   text: string;
+  currentStep: string; // just the step on screen, answer withheld
   coveredTopics: string[];
   stepNumber: number; // 1-based, for "Knows up to step N"
 };
@@ -109,7 +110,40 @@ export function buildCoachContext(input: {
   // earlier step never exposes later sections.
   const text = clip(parts.join("\n\n"), MAX_CONTEXT_CHARS) ||
     "The student has not reached any teaching yet.";
-  return { text, coveredTopics: covered, stepNumber: cur + 1 };
+  return { text, currentStep: describeStep(input, cur), coveredTopics: covered, stepNumber: cur + 1 };
+}
+
+// What is on screen at step `cur`. A check or written question never has its
+// answer revealed here.
+function describeStep(
+  input: { plan: Step[]; sections: LessonSection[]; hook?: string | null },
+  cur: number
+): string {
+  const step = input.plan[cur];
+  if (!step) return "Nothing yet.";
+  if (step.phase === "hook") return input.hook ? `Opening challenge: ${clip(input.hook, 300)}` : "Opening of the lesson.";
+  const sec = "sectionIndex" in step ? input.sections[step.sectionIndex] : undefined;
+  if (step.phase === "teach" && sec) {
+    return `Section ${step.sectionIndex + 1}: ${sec.heading}\n${clip(sec.explanation, MAX_TEXT)}\nWorked example: ${clip(sec.example, MAX_TEXT)}`;
+  }
+  if ((step.phase === "check" || step.phase === "tutor") && sec) {
+    return `Check question the student has not answered yet (never reveal its answer): ${checkLine(sec.check, false).replace(/^Check question \(answer withheld\): /, "")}`;
+  }
+  return `A "${step.phase}" step.`;
+}
+
+// The whole lesson as reference text, in a fixed order, with every check
+// answer left out. Identical on every turn of a lesson, so it can sit in a
+// cached prompt prefix. Nothing per-turn may ever go in here.
+export function buildLessonReference(sections: LessonSection[], hook?: string | null): string {
+  const parts: string[] = [];
+  if (hook) parts.push(`Opening challenge: ${clip(hook, 300)}`);
+  sections.forEach((sec, i) => {
+    parts.push(
+      `Section ${i + 1}: ${sec.heading}\n${clip(sec.explanation, 1500)}\nWorked example: ${clip(sec.example, 1500)}`
+    );
+  });
+  return parts.join("\n\n");
 }
 
 // ── Student session record (client tracked, tiny) ─────────────────────────
@@ -152,6 +186,14 @@ export function summarizeSession(session: CoachSession, sections: LessonSection[
   if (session.hints) lines.push(`Hints used: ${session.hints}.`);
   if (session.revisits) lines.push(`Steps revisited: ${session.revisits}.`);
   return lines.join(" ");
+}
+
+// Questions the student asked earlier in this chat that have dropped out of
+// the short transcript window, so the coach still knows what they were unsure of.
+export function summarizeAskedQuestions(history: { role: string; text: string }[], windowSize = 6): string {
+  const older = history.slice(0, Math.max(0, history.length - windowSize)).filter((h) => h.role === "student");
+  if (!older.length) return "";
+  return `Earlier questions they asked (what they were unsure about): ${older.slice(-5).map((h) => `"${clip(h.text, 80)}"`).join("; ")}.`;
 }
 
 // ── Topic history (server fetched) ─────────────────────────────────────────
