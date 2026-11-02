@@ -33,7 +33,7 @@ The differentiating mechanism is **strict-to-markscheme AI marking**: student an
 
 ## Capabilities and Constraints
 
-- Stack: Next.js 16 (App Router, Turbopack), TypeScript, Tailwind v4, Supabase (Postgres, RLS-enabled but authorization enforced at the Server Action layer rather than via RLS policies), Appwrite for auth sessions and file storage. AI generation/marking runs against a pluggable provider (Ollama/OpenRouter/Hack Club/Gemini) chosen per request, with a teacher's own key able to override the platform default.
+- Stack: Next.js 16 (App Router, Turbopack), TypeScript, Tailwind v4, Supabase (Postgres, RLS-enabled but authorization enforced at the Server Action layer rather than via RLS policies), Appwrite for auth sessions and file storage. AI generation/marking runs against a pluggable provider (OpenRouter/Hack Club/Gemini) configured by the admin through the server environment.
 - Known gaps (do not treat as implemented, do not design around them as if solved): flashcards exist as two unrelated decks (in-lesson vs. standalone) with no unified mastery/spaced-repetition hub; no cross-topic revision view; a student can ace practice questions without a topic auto-completing; exam specs are stored as plain text only, not RAG-indexed; the admin reports queue doesn't deep-link to the flagged content; no plain "regenerate lesson" action for admins; no pre-lesson recap ("Do It Now") of prior related topics.
 
 ## Brand Commitments

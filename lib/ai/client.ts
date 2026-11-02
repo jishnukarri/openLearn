@@ -41,37 +41,31 @@ export async function hackClubFetch(
   }
 }
 
-// Single entry point for every AI request in the app. Four providers:
+// Single entry point for every AI request in the app. Three providers:
 //
-// - ollama:     local, no API key, no usage limits, slow on CPU
 // - openrouter: hosted, OpenAI-compatible, pay-per-token
 // - hackclub:   hosted, OpenAI-compatible (ai.hackclub.com proxy), free for
 //               Hack Club members
 // - gemini:     hosted, Google's SDK, pay-per-token (or free tier w/ low limits)
 //
-// Which one actually runs a given request depends on WHO is asking:
-// resolveProviderConfig(profileId) checks whether that profile is a teacher
-// with their own key saved (teacher_ai_settings) and uses it if so; every
-// other caller (students, admin-triggered generation, system/publish-time
-// pregeneration) falls through to the platform default configured in
-// .env.local (AI_PROVIDER + provider-specific key/host/model). Admins don't
-// get a per-user key — by design they only ever configure the platform
-// default via .env, per the product decision that "admins add in .env."
+// The provider, key and models are platform-wide and come only from the
+// environment (AI_PROVIDER plus the provider's key/model variables). Admins
+// can see the live values on /admin/settings; changing them means editing the
+// env and restarting the server. Nobody else configures AI.
 //
-// All five generation modules (topics/lessons/questions/marking/diagnostic)
+// All generation modules (topics/lessons/questions/marking/diagnostic)
 // call chatJson() here instead of talking to a provider SDK directly.
 
-export type Provider = "ollama" | "openrouter" | "hackclub" | "gemini";
+export type Provider = "openrouter" | "hackclub" | "gemini";
 
 export type ProviderConfig = {
   provider: Provider;
   apiKey?: string;
   model?: string;
-  host?: string; // ollama only
 };
 
-function platformDefault(): ProviderConfig {
-  const provider = (process.env.AI_PROVIDER as Provider | undefined) ?? "ollama";
+export function platformDefault(): ProviderConfig {
+  const provider = process.env.AI_PROVIDER as Provider | undefined;
 
   switch (provider) {
     case "gemini":
@@ -87,40 +81,27 @@ function platformDefault(): ProviderConfig {
         model: process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini",
       };
     case "hackclub":
-      return {
-        provider,
-        apiKey: process.env.HACKCLUB_API_KEY,
-        model: process.env.HACKCLUB_MODEL || "qwen/qwen3-32b",
-      };
-    case "ollama":
     default:
       return {
-        provider: "ollama",
-        host: process.env.OLLAMA_HOST || "http://127.0.0.1:11434",
-        model: process.env.OLLAMA_MODEL || "qwen2.5:7b-instruct",
+        provider: "hackclub",
+        apiKey: process.env.HACKCLUB_API_KEY,
+        model: process.env.HACKCLUB_MODEL || "qwen/qwen3-32b",
       };
   }
 }
 
-// Resolves which provider/key to use for a given acting profile. Pass the
-// profile.id of whoever triggered the generation (student, teacher, or
-// admin) — students and admins always fall through to the platform default;
-// a teacher with a saved key in teacher_ai_settings gets their own.
+// Every caller gets the platform config. The profile id is still accepted so
+// existing call sites keep working, but nobody has a personal provider any more.
 export async function resolveProviderConfig(
   profileId?: string | null
 ): Promise<ProviderConfig> {
-  if (profileId) {
-    const { getTeacherAiSettings } = await import("@/lib/supabase/ai-settings");
-    const custom = await getTeacherAiSettings(profileId);
-    if (custom) return custom;
-  }
+  void profileId;
   return platformDefault();
 }
 
 // Content that is written once and then shared (lessons, exam questions)
 // can use a stronger model than per-turn chat: set HACKCLUB_GEN_MODEL. Only
-// applies to the platform default config; a teacher's own key and model is
-// left exactly as they set it.
+// applies to the platform default config.
 export function forGeneration(config?: ProviderConfig): ProviderConfig | undefined {
   const base = platformDefault();
   const genModel = process.env.HACKCLUB_GEN_MODEL;
@@ -174,47 +155,9 @@ export async function chatJson<T>(
         cfg,
         options
       );
-    case "ollama":
     default:
-      return chatJsonOllama<T>(prompt, schema, cfg, options);
+      throw new Error(`Unknown AI provider: ${String((cfg as { provider: unknown }).provider)}`);
   }
-}
-
-// --- Ollama ---
-// Structured output only works reliably with an object-rooted schema
-// (`{topics: [...]}`), not a bare array root (`[...]` → model returns `[]`).
-// Every schema passed into chatJson across lib/ai/*.ts follows that rule.
-async function chatJsonOllama<T>(
-  prompt: string,
-  schema: object,
-  cfg: ProviderConfig,
-  options?: ChatOptions
-): Promise<T> {
-  const host = cfg.host || "http://127.0.0.1:11434";
-  const model = cfg.model || "qwen2.5:7b-instruct";
-
-  const response = await fetch(`${host}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      messages: [
-        ...(options?.system ? [{ role: "system", content: options.system }] : []),
-        { role: "user", content: prompt },
-      ],
-      stream: false,
-      format: schema,
-    }),
-    signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Ollama request failed (${response.status}): ${await response.text()}`);
-  }
-
-  const data = await response.json();
-  logUsage("ollama", model, { prompt_eval_count: data.prompt_eval_count });
-  return JSON.parse(data.message.content) as T;
 }
 
 // --- OpenAI-compatible chat/completions (OpenRouter, Hack Club AI) ---

@@ -1,4 +1,4 @@
-import { BookOpen, FileCheck2, GraduationCap, Settings2, Users } from "lucide-react";
+import { BookOpen, FileCheck2, GraduationCap, Users } from "lucide-react";
 import { requireRole } from "@/lib/appwrite/session";
 import { SidebarNav } from "@/components/sidebar-nav";
 
@@ -7,7 +7,6 @@ const NAV_ITEMS = [
   { href: "/teacher/classes", label: "Classes", icon: <Users /> },
   { href: "/teacher/papers", label: "Papers (in progress)", icon: <FileCheck2 /> },
   { href: "/teacher/mark", label: "Mark Paper", icon: <GraduationCap /> },
-  { href: "/teacher/settings", label: "AI Settings", icon: <Settings2 /> },
 ];
 
 export default async function TeacherLayout({

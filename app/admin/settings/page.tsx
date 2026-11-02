@@ -1,142 +1,117 @@
 import { AsideBlock, PageHeader, PageShell } from "@/components/page-shell";
 import { Rise, Stagger } from "@/components/motion";
+import { requireRole } from "@/lib/appwrite/session";
+import { platformDefault } from "@/lib/ai/client";
+import { cheapModel, cheapProvider, CHEAP_DEFAULT_MODEL } from "@/lib/ai/cheap-model";
 
-async function getOllamaStatus(host: string) {
-  try {
-    const res = await fetch(`${host}/api/version`, { cache: "no-store" });
-    if (!res.ok) return { ok: false, version: null };
-    const data = await res.json();
-    return { ok: true, version: data.version as string };
-  } catch {
-    return { ok: false, version: null };
-  }
-}
+const MONO = "font-[family-name:var(--font-mono)]";
 
 const PROVIDER_LABELS: Record<string, string> = {
-  ollama: "Local Ollama",
   openrouter: "OpenRouter",
   hackclub: "Hack Club AI",
   gemini: "Google Gemini",
 };
 
-const MODEL_ENV: Record<string, { env: string; fallback: string }> = {
-  gemini: { env: "GEMINI_MODEL", fallback: "gemini-2.5-flash" },
-  openrouter: { env: "OPENROUTER_MODEL", fallback: "openai/gpt-4o-mini" },
-  hackclub: { env: "HACKCLUB_MODEL", fallback: "qwen/qwen3-32b" },
-  ollama: { env: "OLLAMA_MODEL", fallback: "qwen2.5:7b-instruct" },
-};
+type Row = { role: string; used: string; env: string; value: string; note?: string };
 
-const ENV_ROWS: { vars: string[] }[] = [
-  { vars: ["OLLAMA_HOST", "OLLAMA_MODEL"] },
-  { vars: ["OPENROUTER_API_KEY", "OPENROUTER_MODEL"] },
-  { vars: ["HACKCLUB_API_KEY", "HACKCLUB_MODEL"] },
-  { vars: ["GEMINI_API_KEY", "GEMINI_MODEL"] },
-];
+// Reads the live process environment. Values are read-only here: changing
+// them means editing .env.local and restarting the server.
+function currentRows(): Row[] {
+  const base = platformDefault();
+  const hc = base.provider === "hackclub";
+  const env = process.env;
+  return [
+    { role: "Study coach chat and other general calls", used: "Every chat turn, topics, diagnostics, marking", env: base.provider === "gemini" ? "GEMINI_MODEL" : base.provider === "openrouter" ? "OPENROUTER_MODEL" : "HACKCLUB_MODEL", value: base.model ?? "" },
+    { role: "Lesson and exam-question writing", used: "Written once, then shared", env: "HACKCLUB_GEN_MODEL", value: hc && env.HACKCLUB_GEN_MODEL ? env.HACKCLUB_GEN_MODEL : `${base.model ?? ""} (same as chat)`, note: hc ? undefined : "Only applies when the provider is Hack Club." },
+    { role: "Exam-question hints", used: "Hint button on practice questions", env: "HINT_MODEL", value: env.HINT_MODEL || `${cheapModel()} (scene model)` },
+    { role: "Animated worked-example scenes", used: "Generated with each lesson", env: "SCENE_MODEL", value: `${cheapModel()}${env.SCENE_MODEL ? "" : ` (default ${CHEAP_DEFAULT_MODEL})`}`, note: `via ${PROVIDER_LABELS[cheapProvider()]}` },
+    { role: "Lesson images", used: "Only generated when they will be shown", env: "HACKCLUB_IMAGE_MODEL", value: env.HACKCLUB_IMAGE_MODEL || env.GEMINI_IMAGE_MODEL || "google/gemini-2.5-flash-image (default)" },
+    { role: "Reading scanned papers", used: "Paper marking and extraction", env: "HACKCLUB_VISION_MODEL", value: env.HACKCLUB_VISION_MODEL || "google/gemini-2.5-flash (default)" },
+  ];
+}
 
-const MONO = "font-[family-name:var(--font-mono)]";
+function keyStatus(): { name: string; set: boolean }[] {
+  return ["HACKCLUB_API_KEY", "OPENROUTER_API_KEY", "GEMINI_API_KEY"].map((name) => ({ name, set: !!process.env[name] }));
+}
 
 export default async function AdminSettingsPage() {
-  const provider = process.env.AI_PROVIDER ?? "ollama";
-  const host = process.env.OLLAMA_HOST ?? "http://127.0.0.1:11434";
-  const modelConfig = MODEL_ENV[provider] ?? MODEL_ENV.ollama;
-  const model = process.env[modelConfig.env] || modelConfig.fallback;
-  const status = provider === "ollama" ? await getOllamaStatus(host) : null;
+  await requireRole("admin");
+  const base = platformDefault();
+  const rows = currentRows();
+  const keys = keyStatus();
+  const activeKey = base.provider === "gemini" ? "GEMINI_API_KEY" : base.provider === "openrouter" ? "OPENROUTER_API_KEY" : "HACKCLUB_API_KEY";
+  const activeKeySet = keys.find((k) => k.name === activeKey)?.set ?? false;
 
   return (
     <PageShell
       size="fluid"
       aside={
         <>
-          <AsideBlock title="Current provider">
+          <AsideBlock title="Active provider">
             <dl className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-3">
                 <dt>Provider</dt>
-                <dd className="text-foreground">{PROVIDER_LABELS[provider] ?? provider}</dd>
+                <dd className="text-foreground">{PROVIDER_LABELS[base.provider]}</dd>
               </div>
-              {status && (
-                <div className="flex items-center justify-between gap-3">
-                  <dt>Status</dt>
-                  <dd
-                    className={`flex items-center gap-1.5 ${status.ok ? "text-success" : "text-error"}`}
-                  >
-                    <span
-                      aria-hidden
-                      className={`h-2 w-2 rounded-full ${status.ok ? "bg-success" : "bg-error"}`}
-                    />
-                    {status.ok ? `Running (v${status.version})` : "Not reachable"}
-                  </dd>
-                </div>
-              )}
-              {provider === "ollama" && (
-                <div className="flex items-center justify-between gap-3">
-                  <dt>Host</dt>
-                  <dd className={`${MONO} break-all text-right text-foreground`}>{host}</dd>
-                </div>
-              )}
               <div className="flex items-center justify-between gap-3">
-                <dt>Model</dt>
-                <dd className={`${MONO} break-all text-right text-foreground`}>{model}</dd>
+                <dt>API key</dt>
+                <dd className={activeKeySet ? "text-success" : "text-error"}>{activeKeySet ? "Set" : "Missing"}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt>Usage logging</dt>
+                <dd className="text-foreground">{process.env.AI_LOG_USAGE ? "On" : "Off"}</dd>
               </div>
             </dl>
           </AsideBlock>
-          {status && !status.ok && (
-            <AsideBlock title="Ollama is down">
-              <p className="text-error">
-                Ollama isn&apos;t responding. It doesn&apos;t run as a system service in this
-                environment, run <code className={MONO}>scripts/start-ollama.sh</code> to bring it
-                back up. All AI generation (topics, lessons, questions, marking) will fail until
-                it&apos;s running.
-              </p>
-            </AsideBlock>
-          )}
+          <AsideBlock title="Changing anything">
+            <p>
+              These are read from the server&apos;s environment. Edit <code className={MONO}>.env.local</code> and
+              restart the server; this page then shows the new values.
+            </p>
+            <p>Teachers and students cannot see or change AI settings.</p>
+          </AsideBlock>
         </>
       }
     >
       <PageHeader
         title="AI settings"
-        description={
-          <>
-            Platform default provider, used for every AI request except a teacher&apos;s own
-            generation, if they&apos;ve saved a personal key under their account (
-            <code className={MONO}>/teacher/settings</code>).
-          </>
-        }
+        description="The live AI configuration for the whole platform. Read-only: set it in the environment and restart."
       />
 
       <Stagger>
         <Rise className="flex flex-col gap-3">
-          <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">
-            Change provider or model
-          </h2>
-          <p className="max-w-[65ch] text-sm text-muted">
-            Admin AI config is env-only, not editable here, set these in{" "}
-            <code className={MONO}>.env.local</code> and restart the app:
-          </p>
-          <ul className="flex flex-col divide-y divide-border border-y border-border text-sm text-muted">
-            <li className="py-2.5">
-              <code className={`${MONO} text-foreground`}>AI_PROVIDER</code>, one of{" "}
-              {["ollama", "openrouter", "hackclub", "gemini"].map((p, i) => (
-                <span key={p}>
-                  {i > 0 && " | "}
-                  <code className={MONO}>{p}</code>
-                </span>
-              ))}
-            </li>
-            {ENV_ROWS.map((row) => (
-              <li key={row.vars[0]} className="py-2.5">
-                {row.vars.map((v, i) => (
-                  <span key={v}>
-                    {i > 0 && " / "}
-                    <code className={`${MONO} text-foreground`}>{v}</code>
-                  </span>
-                ))}
+          <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">Which model does what</h2>
+          <ul className="flex flex-col divide-y divide-border border-y border-border text-sm">
+            {rows.map((r) => (
+              <li key={r.env} className="flex flex-col gap-1 py-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="font-medium text-foreground">{r.role}</span>
+                  <code className={`${MONO} break-all text-foreground`}>{r.value}</code>
+                </div>
+                <div className="flex flex-wrap items-baseline justify-between gap-2 text-muted">
+                  <span>{r.used}{r.note ? `. ${r.note}` : ""}</span>
+                  <code className={MONO}>{r.env}</code>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Rise>
+
+        <Rise className="mt-8 flex flex-col gap-3">
+          <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold text-foreground">Keys on this server</h2>
+          <p className="max-w-[65ch] text-sm text-muted">Only whether a key exists is shown, never its value.</p>
+          <ul className="flex flex-col divide-y divide-border border-y border-border text-sm">
+            {keys.map((k) => (
+              <li key={k.name} className="flex items-center justify-between gap-3 py-2.5">
+                <code className={`${MONO} text-foreground`}>{k.name}</code>
+                <span className={k.set ? "text-success" : "text-muted"}>{k.set ? "Set" : "Not set"}</span>
               </li>
             ))}
           </ul>
           <p className="max-w-[65ch] text-sm text-muted">
-            Teachers get a per-user key instead, see <code className={MONO}>/teacher/settings</code>.
-            Admins don&apos;t, by design; the platform default shown here is what admin-triggered
-            generation always uses.
+            To switch provider set <code className={MONO}>AI_PROVIDER</code> to{" "}
+            <code className={MONO}>hackclub</code>, <code className={MONO}>openrouter</code> or{" "}
+            <code className={MONO}>gemini</code>.
           </p>
         </Rise>
       </Stagger>

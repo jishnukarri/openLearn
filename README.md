@@ -10,7 +10,7 @@ It is a app which solves the issue of accessing the content easier thorugh AI. I
 
 ## Current progress
 
-Stack: Next.js 16 (App Router, Turbopack) · TypeScript · Supabase (Postgres + Auth via Appwrite sessions) · Tailwind v4. AI generation runs against a pluggable provider (Ollama/OpenRouter/Hack Club/Gemini), selected per-request in `lib/ai/client.ts`, with a teacher's own key overriding the platform default.
+Stack: Next.js 16 (App Router, Turbopack) · TypeScript · Supabase (Postgres + Auth via Appwrite sessions) · Tailwind v4. AI generation runs against a pluggable provider (OpenRouter/Hack Club/Gemini), configured by the admin through the server environment (`lib/ai/client.ts`).
 
 ### Built and working
 
