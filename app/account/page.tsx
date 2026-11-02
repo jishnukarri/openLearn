@@ -52,6 +52,21 @@ export default async function AccountPage() {
         </a>
       </section>
 
+      <section className="animate-fade-slide-up flex max-w-md flex-col gap-3" style={{ animationDelay: "150ms" }}>
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-foreground">Your data</h2>
+        <p className="text-sm text-muted">
+          Download everything we hold about you, or read how it is used in the{" "}
+          <a href="/privacy" className="font-medium text-primary hover:underline">privacy notice</a>.
+        </p>
+        <a
+          href="/account/export"
+          download
+          className="inline-flex min-h-11 w-fit items-center rounded-xl border border-border bg-surface px-4 text-sm font-medium text-foreground transition-colors hover:border-primary"
+        >
+          Download my data
+        </a>
+      </section>
+
       <section
         className="animate-fade-slide-up flex max-w-md flex-col gap-3 border-t border-error/30 pt-6"
         style={{ animationDelay: "160ms" }}

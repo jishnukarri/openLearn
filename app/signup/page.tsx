@@ -95,6 +95,12 @@ export default function SignupPage() {
           </div>
         </label>
 
+        <p className="text-sm text-muted">
+          We keep your name, email and study progress to run your lessons. Read the{" "}
+          <Link href="/privacy" className="font-medium text-primary hover:underline">privacy notice</Link>{" "}
+          before you sign up.
+        </p>
+
         <Button type="submit" disabled={pending} className="mt-2 w-full">
           {pending ? "Creating account..." : "Sign Up"}
         </Button>

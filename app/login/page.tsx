@@ -70,6 +70,9 @@ export default function LoginPage() {
           Sign up
         </Link>
       </p>
+      <p className="text-sm text-muted">
+        <Link href="/privacy" className="font-medium text-primary hover:underline">Privacy notice</Link>
+      </p>
       </div>
     </AuthLayout>
   );

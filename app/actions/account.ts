@@ -11,6 +11,7 @@ import { MUST_CHANGE_PASSWORD_PREF, validateNewPassword } from "@/lib/password-p
 import { roleHome } from "@/lib/roles";
 import { getBlockMatch } from "@/lib/supabase/blocklist";
 import { getProfileByAppwriteId, updateProfileName, deleteProfile } from "@/lib/supabase/profiles";
+import { deleteUploadedFiles } from "@/lib/supabase/personal-data";
 
 export type AccountFormState = { message?: string } | undefined;
 
@@ -49,7 +50,11 @@ export async function deleteAccountAction(formData: FormData): Promise<void> {
   }
 
   const profile = await getProfileByAppwriteId(session.userId);
-  if (profile) await deleteProfile(profile.id);
+  if (profile) {
+    // Photographed answers sit in file storage, not the database: erase them too.
+    await deleteUploadedFiles(profile.id).catch(() => 0);
+    await deleteProfile(profile.id);
+  }
 
   const cookieStore = await cookies();
   const secret = cookieStore.get(SESSION_COOKIE)?.value;
