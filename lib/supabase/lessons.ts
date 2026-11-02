@@ -1,17 +1,20 @@
 import "server-only";
 import { db } from "./database-client";
 import type { LessonContent } from "@/lib/ai/lessons";
+import { LESSON_VERSION } from "@/lib/lesson-version";
+
+export type StoredLesson = { content: LessonContent; version: number };
 
 // classId omitted/null = the shared, topic-wide lesson every self-study
 // student sees. A non-null classId is a fork generated for that class only
 // (see lib/class-content.ts) — never falls back across classes.
-export async function getLessonByTopic(
+export async function getLessonWithVersion(
   topicId: string,
   classId?: string | null
-): Promise<LessonContent | null> {
+): Promise<StoredLesson | null> {
   let query = db
     .from("lessons")
-    .select("content")
+    .select("content, version")
     .eq("topic_id", topicId)
     .is("subtopic_id", null)
     .order("created_at", { ascending: false })
@@ -20,7 +23,14 @@ export async function getLessonByTopic(
 
   const { data, error } = await query.maybeSingle();
   if (error) throw error;
-  return data ? (data.content as LessonContent) : null;
+  return data ? { content: data.content as LessonContent, version: data.version ?? 1 } : null;
+}
+
+export async function getLessonByTopic(
+  topicId: string,
+  classId?: string | null
+): Promise<LessonContent | null> {
+  return (await getLessonWithVersion(topicId, classId))?.content ?? null;
 }
 
 export async function createLesson(
@@ -30,23 +40,27 @@ export async function createLesson(
 ): Promise<void> {
   const { error } = await db
     .from("lessons")
-    .insert({ topic_id: topicId, content, class_id: classId ?? null });
+    .insert({ topic_id: topicId, content, class_id: classId ?? null, version: LESSON_VERSION });
   if (error) throw error;
 }
 
 // A subtopic's own lesson — kept separate from getLessonByTopic/createLesson
 // (rather than overloading them) so the shared topic-wide lesson and a
 // subtopic's lesson can never be confused for one another.
-export async function getLessonBySubtopic(subtopicId: string): Promise<LessonContent | null> {
+export async function getLessonWithVersionBySubtopic(subtopicId: string): Promise<StoredLesson | null> {
   const { data, error } = await db
     .from("lessons")
-    .select("content")
+    .select("content, version")
     .eq("subtopic_id", subtopicId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data ? (data.content as LessonContent) : null;
+  return data ? { content: data.content as LessonContent, version: data.version ?? 1 } : null;
+}
+
+export async function getLessonBySubtopic(subtopicId: string): Promise<LessonContent | null> {
+  return (await getLessonWithVersionBySubtopic(subtopicId))?.content ?? null;
 }
 
 export async function createLessonForSubtopic(
@@ -56,6 +70,6 @@ export async function createLessonForSubtopic(
 ): Promise<void> {
   const { error } = await db
     .from("lessons")
-    .insert({ topic_id: topicId, subtopic_id: subtopicId, content });
+    .insert({ topic_id: topicId, subtopic_id: subtopicId, content, version: LESSON_VERSION });
   if (error) throw error;
 }

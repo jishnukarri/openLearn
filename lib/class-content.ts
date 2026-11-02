@@ -2,7 +2,8 @@ import "server-only";
 import type { TopicWithSubject } from "@/lib/supabase/topics";
 import type { Profile } from "@/lib/supabase/profiles";
 import { getForkingAssignment } from "@/lib/supabase/assignments";
-import { getLessonByTopic, createLesson } from "@/lib/supabase/lessons";
+import { getLessonWithVersion, createLesson } from "@/lib/supabase/lessons";
+import { isCurrentLesson } from "@/lib/lesson-version";
 import { getQuestionForTopic, createQuestion, type Question } from "@/lib/supabase/questions";
 import { generateLesson, type LessonContent } from "@/lib/ai/lessons";
 import { generateQuestion } from "@/lib/ai/questions";
@@ -45,31 +46,34 @@ async function resolveLessonContentUncached(
   profile: Profile,
   fork: Awaited<ReturnType<typeof getForkingAssignment>>
 ): Promise<LessonContent> {
-  if (fork) {
-    const existing = await getLessonByTopic(topic.id, fork.classId);
-    if (existing && existing.sections[0]?.check) return existing;
+  const classId = fork?.classId ?? null;
+  const stored = await getLessonWithVersion(topic.id, classId);
+  const usable = !!stored && !!stored.content.sections[0]?.check;
+  if (stored && usable && isCurrentLesson(stored.version)) return stored.content;
 
+  // Missing, or written by an older version of the lesson format: generate a new
+  // one, which replaces it (the newest row wins). If that fails, an old lesson
+  // that still works is better than an error.
+  try {
     const config = await resolveProviderConfig(profile.id);
     const instructions = await withReferenceContext(
       topic.id,
       topic.name,
-      [topic.custom_instructions, `For this class: ${fork.notes}`].filter(Boolean).join("\n\n")
+      fork
+        ? [topic.custom_instructions, `For this class: ${fork.notes}`].filter(Boolean).join("\n\n")
+        : topic.custom_instructions
     );
     const generated = await generateLesson(topic.name, topic.subject.name, false, instructions, config);
     const finalized = await finalizeLessonContent(generated, topic.id, topic.subject.name);
-    await createLesson(topic.id, finalized, fork.classId);
+    await createLesson(topic.id, finalized, classId);
     return finalized;
+  } catch (e) {
+    if (stored && usable) {
+      console.warn("[lessons] could not upgrade an older lesson, showing it as it is:", e instanceof Error ? e.message : e);
+      return stored.content;
+    }
+    throw e;
   }
-
-  const existing = await getLessonByTopic(topic.id);
-  if (existing && existing.sections[0]?.check) return existing;
-
-  const config = await resolveProviderConfig(profile.id);
-  const instructions = await withReferenceContext(topic.id, topic.name, topic.custom_instructions);
-  const generated = await generateLesson(topic.name, topic.subject.name, false, instructions, config);
-  const finalized = await finalizeLessonContent(generated, topic.id, topic.subject.name);
-  await createLesson(topic.id, finalized);
-  return finalized;
 }
 
 // force=true always generates a fresh question (used by "try a similar
