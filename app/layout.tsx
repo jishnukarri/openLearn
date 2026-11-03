@@ -38,7 +38,9 @@ export const metadata: Metadata = {
       url: '/openLearnDark.png',
       media: '(prefers-color-scheme: dark)',
     },
-    { url: "/icon.svg", rel: "apple-touch-icon" },
+    { url: "/icon.svg", type: "image/svg+xml" },
+    // iOS ignores SVG for the home-screen icon, so it gets a PNG.
+    { url: "/apple-touch-icon.png", rel: "apple-touch-icon", sizes: "180x180" },
   ]
 };
 
