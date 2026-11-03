@@ -13,12 +13,19 @@ import {
 } from "@/lib/supabase/diagnostic";
 import { scoreDiagnosticAnswerInstant, type LevelAnswerPayload } from "@/lib/diagnostic-scoring";
 import { markAnswersBatch } from "@/lib/ai/marking";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { isUuid } from "@/lib/uuid";
 
 // Picks up subject checkboxes from the landing/start form, builds a
 // diagnostic sampled from each topic's pre-generated question pool (zero
 // AI cost — see lib/guest-diagnostic.ts), and starts the guest quiz.
 export async function startGuestDiagnosticAction(formData: FormData): Promise<void> {
-  const subjectIds = formData.getAll("subjectIds").filter((v): v is string => typeof v === "string");
+  // Open to anyone without an account, so it is limited per address, and only
+  // well-formed subject ids (a handful at most) get as far as the database.
+  if (!(await checkRateLimit("guest-diagnostic", 10, 10 * 60_000))) {
+    throw new Error("You're going a bit fast. Wait a few minutes and try again.");
+  }
+  const subjectIds = [...new Set(formData.getAll("subjectIds").filter(isUuid))].slice(0, 10);
   if (subjectIds.length === 0) throw new Error("Pick at least one subject.");
 
   const guestToken = await ensureGuestToken();
