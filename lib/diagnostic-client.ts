@@ -1,5 +1,6 @@
 import type { DiagnosticQuestion } from "@/lib/supabase/diagnostic";
-import { readNumericMeta } from "@/lib/diagnostic-numeric";
+import { readNumericMeta } from "./diagnostic-numeric";
+import { seededShuffle } from "./shuffle";
 
 // What a diagnostic level page sends to the client — the answer key
 // (correctIndex, blankAnswer, which right matches which left) always stays
@@ -34,9 +35,13 @@ export function toClientDiagnosticQuestion(
     }
     case "match": {
       const content = q.content as { pairs: { left: string; right: string }[] };
-      const rights = content.pairs
-        .map((pair, index) => ({ label: pair.right, index }))
-        .sort(() => Math.random() - 0.5);
+      // Seeded by the question id: the order is stable across re-renders (a
+      // random order that changed mid-answer would point the student's picks at
+      // different items) and, unlike a random sort, actually unbiased.
+      const rights = seededShuffle(
+        content.pairs.map((pair, index) => ({ label: pair.right, index })),
+        q.id
+      );
       return {
         ...base,
         type: "match",
