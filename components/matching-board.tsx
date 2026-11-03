@@ -77,6 +77,13 @@ export function MatchingBoard({
     setDragPoint(pointFromEvent(e));
   }
 
+  // Keyboard and screen-reader activation arrives as a click with no pointer
+  // (detail 0); pointer users are already handled by the pointerdown/up drag.
+  function keyboardArm(leftIndex: number, e: React.MouseEvent) {
+    if (revealed || e.detail !== 0) return;
+    setArmedLeft((current) => (current === leftIndex ? null : leftIndex));
+  }
+
   function tapRight(rightPos: number) {
     if (revealed || armedLeft === null) return;
     onChange({ ...value, [armedLeft]: rightPos });
@@ -174,6 +181,8 @@ export function MatchingBoard({
             }}
             type="button"
             onPointerDown={(e) => startDrag(i, e)}
+            onClick={(e) => keyboardArm(i, e)}
+            aria-pressed={armedLeft === i}
             style={{ touchAction: "none" }}
             className={`flex min-h-11 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm text-foreground transition-colors ${
               armedLeft === i
@@ -201,6 +210,7 @@ export function MatchingBoard({
             }}
             type="button"
             onClick={() => tapRight(i)}
+            aria-pressed={Object.values(value).includes(i)}
             className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm text-foreground transition-colors ${
               Object.values(value).includes(i)
                 ? "border-primary bg-primary/5"
