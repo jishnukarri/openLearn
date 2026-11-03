@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { AnimatePresence, MotionConfig, motion, type Variants } from "framer-motion";
 import { Compass, PencilLine, UserPlus } from "lucide-react";
@@ -47,11 +47,10 @@ export function SubjectPicker({ subjects }: { subjects: Subject[] }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [step, setStep] = useState<"pick" | "ask">("pick");
   const [nudge, setNudge] = useState(0);
-  const headingRef = useRef<HTMLHeadingElement>(null);
 
-  useEffect(() => {
-    if (step === "ask") headingRef.current?.focus();
-  }, [step]);
+  // The "ask" heading mounts after the picker's exit animation finishes, so an
+  // effect on `step` ran too early and found nothing to focus. Focus it as it mounts.
+  const focusOnMount = (node: HTMLHeadingElement | null) => node?.focus();
 
   const chosen = subjects.filter((s) => selected.includes(s.id));
   const steps = [
@@ -173,7 +172,7 @@ export function SubjectPicker({ subjects }: { subjects: Subject[] }) {
                 className="rounded-3xl rounded-bl-md bg-surface px-6 py-5 lg:px-8 lg:py-7"
               >
                 <h1
-                  ref={headingRef}
+                  ref={focusOnMount}
                   tabIndex={-1}
                   className="font-[family-name:var(--font-display)] text-2xl font-semibold leading-snug text-foreground outline-none sm:text-3xl lg:text-5xl lg:leading-[1.1]"
                 >
