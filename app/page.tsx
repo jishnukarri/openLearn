@@ -4,6 +4,14 @@ import { getSession } from "@/lib/appwrite/session";
 import { roleHome } from "@/lib/roles";
 import { getProfileByAppwriteId } from "@/lib/supabase/profiles";
 import { MarkupDemo } from "@/components/markup-demo";
+import { listPublishedSubjects } from "@/lib/supabase/subjects";
+
+// "chemistry, physics and computer science"
+function joinNames(names: string[]): string {
+  const lower = names.map((n) => n.toLowerCase());
+  if (lower.length <= 1) return lower[0] ?? "your GCSEs";
+  return `${lower.slice(0, -1).join(", ")} and ${lower[lower.length - 1]}`;
+}
 
 export default async function Home() {
   const session = await getSession();
@@ -11,6 +19,9 @@ export default async function Home() {
     const profile = await getProfileByAppwriteId(session.userId);
     redirect(roleHome(profile?.role));
   }
+
+  // The headline names the subjects that really exist, so it never promises one that is not there.
+  const subjects = await listPublishedSubjects().catch(() => []);
 
   return (
     <main className="flex flex-col">
@@ -21,7 +32,7 @@ export default async function Home() {
         />
         <div className="relative mx-auto max-w-2xl">
           <h1 className="animate-fade-slide-up font-display text-5xl font-semibold leading-snug tracking-tight text-foreground sm:text-6xl">
-            Revise chemistry, biology and maths, marked like a real teacher marked it.
+            Revise {joinNames(subjects.map((s) => s.name))}, marked like a real teacher marked it.
           </h1>
           <p
             style={{ animationDelay: "100ms" }}
@@ -39,7 +50,7 @@ export default async function Home() {
               href="/login"
               variant="secondary"
               size="compact"
-              className="!shadow-none !bg-transparent text-muted hover:text-foreground"
+              className="min-h-11 !shadow-none !bg-transparent text-muted hover:text-foreground"
             >
               Already have an account? Log in
             </ButtonLink>
@@ -71,7 +82,7 @@ export default async function Home() {
             href="/login"
             variant="secondary"
             size="compact"
-            className="!shadow-none !bg-transparent text-muted hover:text-foreground"
+            className="min-h-11 !shadow-none !bg-transparent text-muted hover:text-foreground"
           >
             Already have an account? Log in
           </ButtonLink>

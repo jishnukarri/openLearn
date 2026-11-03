@@ -91,7 +91,7 @@ export function MarkupDemo() {
             type="button"
             onClick={() => setActive(i)}
             aria-pressed={active === i}
-            className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+            className={`min-h-11 rounded-full border px-5 text-sm font-medium transition-colors ${
               active === i
                 ? "border-primary bg-primary/10 text-primary"
                 : "border-border text-muted hover:border-primary/40 hover:text-foreground"

@@ -36,10 +36,10 @@ export default async function NotFound() {
         >
           <ButtonLink href="/">Go back home</ButtonLink>
           <Link
-            href={roleHome(profile?.role)}
-            className="inline-flex items-center px-4 py-3 text-sm font-medium text-muted hover:text-foreground"
+            href={profile ? roleHome(profile.role) : "/login"}
+            className="inline-flex min-h-11 items-center px-4 py-3 text-sm font-medium text-muted hover:text-foreground"
           >
-            Go to dashboard
+            {profile ? "Go to dashboard" : "Log in"}
           </Link>
         </div>
       </div>

@@ -21,7 +21,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "OpenLearn",
+  title: { default: "OpenLearn", template: "%s · OpenLearn" },
   description: "A opensource platform to help students get better using AI.",
   manifest: "/manifest.json",
   appleWebApp: {

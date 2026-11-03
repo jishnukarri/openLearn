@@ -31,7 +31,7 @@ export async function NavBar() {
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6 [body:has([data-fluid])_&]:max-w-none lg:[body:has([data-fluid])_&]:px-10">
         <a
           href={logoHref}
-          className="shrink-0 [&_svg]:h-6 [&_svg]:w-auto sm:[&_svg]:h-[45px] sm:[&_svg]:w-[272px]"
+          className="inline-flex min-h-11 shrink-0 items-center [&_svg]:h-6 [&_svg]:w-auto sm:[&_svg]:h-[45px] sm:[&_svg]:w-[272px]"
         >
           <Logo className="text-foreground" />
         </a>
@@ -80,7 +80,7 @@ export async function NavBar() {
             <ThemeToggle />
             <a
               href="/login"
-              className="rounded-full px-4 py-2 text-sm font-medium text-muted transition-colors hover:bg-surface hover:text-foreground"
+              className="inline-flex min-h-11 items-center rounded-full px-4 text-sm font-medium text-muted transition-colors hover:bg-surface hover:text-foreground"
             >
               Log in
             </a>
