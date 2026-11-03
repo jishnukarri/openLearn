@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./database-client";
+import { isUuid } from "@/lib/uuid";
 import type {
   GeneratedDiagnosticQuestion,
   QuestionType,
@@ -149,6 +150,7 @@ export async function isDiagnosticSessionOwner(
   sessionId: string,
   studentId: string
 ): Promise<boolean> {
+  if (!isUuid(sessionId)) return false;
   const { data, error } = await db
     .from("diagnostic_sessions")
     .select("student_id")
@@ -162,6 +164,7 @@ export async function isGuestSessionOwner(
   sessionId: string,
   guestToken: string
 ): Promise<boolean> {
+  if (!isUuid(sessionId)) return false;
   const { data, error } = await db
     .from("diagnostic_sessions")
     .select("guest_token")
@@ -193,6 +196,21 @@ export async function getActiveGuestSession(
     return null;
   }
   return { id: data.id, createdAt: data.created_at };
+}
+
+// Where a guest should resume: the first unanswered question, or null when every
+// question has an answer (the diagnostic is finished and only results remain).
+export async function getGuestResumePosition(sessionId: string): Promise<{ position: number | null; total: number }> {
+  const questions = await getDiagnosticQuestions(sessionId);
+  if (!questions.length) return { position: 0, total: 0 };
+  const { data, error } = await db
+    .from("diagnostic_answers")
+    .select("question_id")
+    .in("question_id", questions.map((q) => q.id));
+  if (error) throw error;
+  const answered = new Set((data ?? []).map((r: { question_id: string }) => r.question_id));
+  const first = questions.find((q) => !answered.has(q.id));
+  return { position: first ? questions.indexOf(first) : null, total: questions.length };
 }
 
 export async function deleteDiagnosticSession(sessionId: string): Promise<void> {
