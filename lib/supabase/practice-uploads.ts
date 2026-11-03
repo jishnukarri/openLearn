@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./database-client";
+import { isUuid } from "@/lib/uuid";
 import { uploadFile, getFileUrl, downloadFileBytes } from "@/lib/appwrite/storage";
 
 export type PracticeUploadSession = {
@@ -35,6 +36,7 @@ export async function createUploadSession(input: {
 }
 
 export async function getUploadSession(id: string): Promise<PracticeUploadSession | null> {
+  if (!isUuid(id)) return null; // a malformed link is "not found", not a database error
   const { data, error } = await db
     .from("practice_uploads")
     .select("id, student_id, topic_id, question_id, status, image_paths, created_at")
