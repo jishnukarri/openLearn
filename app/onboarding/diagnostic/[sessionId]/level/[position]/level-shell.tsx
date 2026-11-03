@@ -7,6 +7,14 @@ const TOPIC_INTROS = [
   "Time to check your knowledge of",
 ];
 
+// The topic as it reads inside a sentence: "Topic 1: Computational thinking"
+// becomes "computational thinking", and a trailing "(physics only)" is dropped.
+// Only an ordinary capitalised word is lowercased, so DNA or ASCII stay as written.
+export function topicInSentence(name: string): string {
+  const bare = name.replace(/^topic\s+\d+\s*[:.\-–]\s*/i, "").replace(/\s*\((?:[^)]*only|[^)]*higher|[^)]*triple)[^)]*\)\s*$/i, "").trim();
+  return /^[A-Z][a-z]/.test(bare) ? bare[0].toLowerCase() + bare.slice(1) : bare;
+}
+
 // Shared frame for a diagnostic question (signed-in and guest). Desktop puts
 // the question on the left and the answer on the right so both sit in view;
 // below lg they stack, question first.
@@ -48,7 +56,7 @@ export function LevelShell({
           <Rise className="flex flex-col gap-3">
             {topicName && (
               <p className="text-sm text-muted">
-                {intro} {topicName.toLowerCase()}.
+                {intro} {topicInSentence(topicName)}.
               </p>
             )}
             {showPrompt && (
