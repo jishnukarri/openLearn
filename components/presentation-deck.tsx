@@ -39,7 +39,7 @@ type SlideDef = { seconds: number; node: (qr: string) => React.ReactNode; video?
 
 const SLIDES: SlideDef[] = [
   {
-    seconds: 15,
+    seconds: 8,
     node: () => (
       <>
         <div className={`${DISPLAY} mb-8 text-3xl font-bold text-foreground lg:text-5xl`}>
@@ -53,7 +53,7 @@ const SLIDES: SlideDef[] = [
     ),
   },
   {
-    seconds: 40,
+    seconds: 27,
     node: () => (
       <>
         <h2 className={H2}>The problem: people forget</h2>
@@ -68,7 +68,7 @@ const SLIDES: SlideDef[] = [
     ),
   },
   {
-    seconds: 45,
+    seconds: 30,
     node: () => (
       <>
         <h2 className={H2}>The fix: an AI that teaches it again</h2>
@@ -82,9 +82,9 @@ const SLIDES: SlideDef[] = [
       </>
     ),
   },
-  { seconds: 137, video: true, node: () => null },
+  { seconds: 189, video: true, node: () => null },
   {
-    seconds: 30,
+    seconds: 22,
     node: (qr) => (
       <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_auto]">
         <div>
@@ -112,6 +112,7 @@ const SLIDES: SlideDef[] = [
   },
 ];
 
+const VIDEO_SRC = "/admin/presentation/file/demo.mp4";
 const BUDGET = 5 * 60;
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -121,6 +122,15 @@ export function PresentationDeck({ qr }: { qr: string }) {
   const [running, setRunning] = useState(false);
   const [sec, setSec] = useState(0);
   const [blank, setBlank] = useState(false);
+  // In full screen the slide text is scaled up so it fills the screen instead
+  // of sitting small in the middle. 1 in a normal window.
+  const [zoom, setZoom] = useState(1);
+  // The demo video is downloaded into memory as soon as the deck opens, so by
+  // slide 4 it plays from a local blob with no buffering. `lockedSrc` is fixed
+  // when the video slide first shows, so a late finish never restarts playback.
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(0);
+  const [lockedSrc, setLockedSrc] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
 
@@ -164,6 +174,48 @@ export function PresentationDeck({ qr }: { qr: string }) {
   }, [i, go, toggleFull]);
 
   useEffect(() => {
+    const ctrl = new AbortController();
+    let url: string | null = null;
+    (async () => {
+      try {
+        const res = await fetch(VIDEO_SRC, { signal: ctrl.signal });
+        if (!res.ok || !res.body) return;
+        const total = Number(res.headers.get("content-length")) || 0;
+        const reader = res.body.getReader();
+        const chunks: Uint8Array<ArrayBuffer>[] = [];
+        let got = 0;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value as Uint8Array<ArrayBuffer>);
+          got += value.length;
+          if (total) setLoaded(Math.min(99, Math.round((got / total) * 100)));
+        }
+        url = URL.createObjectURL(new Blob(chunks, { type: "video/mp4" }));
+        setLoaded(100);
+        setBlobUrl(url);
+      } catch {
+        /* aborted or offline: the video slide streams the file instead */
+      }
+    })();
+    return () => {
+      ctrl.abort();
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (SLIDES[i].video && !lockedSrc) setLockedSrc(blobUrl ?? VIDEO_SRC);
+  }, [i, blobUrl, lockedSrc]);
+
+  useEffect(() => {
+    const fit = () => setZoom(full ? Math.min(2.4, Math.max(1, Math.min(window.innerWidth / 1280, window.innerHeight / 720))) : 1);
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [full]);
+
+  useEffect(() => {
     if (!running) return;
     const t = setInterval(() => setSec((s) => s + 1), 1000);
     return () => clearInterval(t);
@@ -187,12 +239,14 @@ export function PresentationDeck({ qr }: { qr: string }) {
             animate={{ opacity: 1, y: 0, transition: { duration: 0.45, ease: EASE_OUT } }}
             exit={{ opacity: 0, y: -8, transition: { duration: 0.18 } }}
             className="mx-auto w-full max-w-6xl"
+            style={slide.video ? undefined : { zoom }}
           >
             {slide.video ? (
               <div className="group fixed inset-0 z-[100] bg-black">
                 <video
                   ref={video}
-                  src="/admin/presentation/file/demo.mp4"
+                  src={lockedSrc ?? undefined}
+                  onError={() => setLockedSrc((cur) => (cur?.startsWith("blob:") ? VIDEO_SRC : cur))}
                   controls
                   autoPlay
                   playsInline
@@ -225,6 +279,7 @@ export function PresentationDeck({ qr }: { qr: string }) {
           <span className={sec > BUDGET ? "text-error-ink" : undefined}>
             {fmt(sec)} / {fmt(BUDGET)}
           </span>
+          <span className="text-xs" aria-live="polite">{loaded >= 100 ? "Video ready" : `Loading video ${loaded}%`}</span>
         </div>
 
         <div className="flex items-center gap-1" role="group" aria-label="Slide navigation">
