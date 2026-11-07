@@ -186,7 +186,9 @@ export async function generateQuestion(
   topicName: string,
   subjectName: string,
   customInstructions?: string,
-  config?: ProviderConfig
+  config?: ProviderConfig,
+  // What the lesson taught plus the spec wording (lib/grounding.ts).
+  grounding?: string
 ): Promise<GeneratedQuestion> {
   const instructionNote = customInstructions
     ? `\n\nThe admin who set up this topic left these instructions — follow ` +
@@ -200,7 +202,7 @@ export async function generateQuestion(
       `checkable points a marker would look for — each point gradeable ` +
       `independently, one mark each. Finally write a model answer: a ` +
       `concise, full-marks response hitting every markscheme point the way ` +
-      `a strong student would write it.${instructionNote}`,
+      `a strong student would write it.${instructionNote}${grounding ?? ""}`,
     SCHEMA,
     forGeneration(config)
   );

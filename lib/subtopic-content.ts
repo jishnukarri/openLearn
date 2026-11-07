@@ -17,6 +17,7 @@ import { generateFlashcards, type FlashcardSet } from "@/lib/ai/flashcards";
 import { resolveProviderConfig } from "@/lib/ai/client";
 import { finalizeLessonContent } from "@/lib/lesson-finalize";
 import { withReferenceContext } from "@/lib/rag";
+import { getGroundingBlock } from "@/lib/supabase/spec-grounding";
 
 // A subtopic is its own lesson unit — the generator gets the subtopic's own
 // name (not the parent topic's), so "Ionisation Energy Trends" is taught as
@@ -88,7 +89,8 @@ export async function resolveQuestionForSubtopic(
     subtopic.name,
     subtopic.topic.custom_instructions
   );
-  const generated = await generateQuestion(subtopic.name, subtopic.topic.subject.name, instructions, config);
+  const grounding = await getGroundingBlock({ topicId: subtopic.topic.id, subtopicId: subtopic.id });
+  const generated = await generateQuestion(subtopic.name, subtopic.topic.subject.name, instructions, config, grounding);
   return createQuestionForSubtopic(subtopic.topic.id, subtopic.id, generated);
 }
 
@@ -105,7 +107,8 @@ export async function resolveFlashcardsForSubtopic(
     subtopic.name,
     subtopic.topic.custom_instructions
   );
-  const generated = await generateFlashcards(subtopic.name, subtopic.topic.subject.name, instructions, config);
+  const grounding = await getGroundingBlock({ topicId: subtopic.topic.id, subtopicId: subtopic.id });
+  const generated = await generateFlashcards(subtopic.name, subtopic.topic.subject.name, instructions, config, grounding);
   await createFlashcardSetForSubtopic(subtopic.topic.id, subtopic.id, generated);
   return generated;
 }

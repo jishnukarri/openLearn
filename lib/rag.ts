@@ -4,6 +4,7 @@ import { composeInstructions } from "@/lib/instructions";
 import { extractTextFromFile } from "@/lib/extract-text";
 import { chunkText } from "@/lib/text-chunk";
 import { generateEmbedding } from "@/lib/ai/embeddings";
+import { getSpecExcerpt } from "@/lib/supabase/spec-grounding";
 import {
   createTopicDocument,
   hasIndexedChunks,
@@ -73,7 +74,16 @@ export async function withReferenceContext(
   topicName: string,
   baseInstructions?: string | null
 ): Promise<string | undefined> {
-  const reference = await getReferenceContext(topicId, topicName);
+  const [referenceBlock, specExcerpt] = await Promise.all([
+    getReferenceContext(topicId, topicName),
+    // For a subtopic, callers pass the parent topic's id and the subtopic's own name.
+    getSpecExcerpt(topicId, topicName),
+  ]);
+  const spec = specExcerpt
+    ? `\n\nOFFICIAL SPECIFICATION EXTRACT for this part of the course. Cover what it requires, ` +
+      `use its exact terms, and do not go beyond it into material it never mentions:\n${specExcerpt}`
+    : "";
+  const reference = `${referenceBlock}${spec}`;
   const { data } = await db
     .from("topics")
     .select("subjects(custom_instructions)")

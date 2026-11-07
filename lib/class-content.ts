@@ -10,6 +10,7 @@ import { generateQuestion } from "@/lib/ai/questions";
 import { resolveProviderConfig } from "@/lib/ai/client";
 import { finalizeLessonContent } from "@/lib/lesson-finalize";
 import { withReferenceContext } from "@/lib/rag";
+import { getGroundingBlock } from "@/lib/supabase/spec-grounding";
 
 // Fork-on-demand: a class only gets its own lesson/question once a teacher
 // attaches a customization note to an assignment for it — most classes
@@ -98,7 +99,7 @@ export async function resolveQuestionContent(
       topic.name,
       [topic.custom_instructions, `For this class: ${fork.notes}`].filter(Boolean).join("\n\n")
     );
-    const generated = await generateQuestion(topic.name, topic.subject.name, instructions, config);
+    const generated = await generateQuestion(topic.name, topic.subject.name, instructions, config, await getGroundingBlock({ topicId: topic.id }));
     return createQuestion(topic.id, generated, fork.classId);
   }
 
@@ -109,6 +110,6 @@ export async function resolveQuestionContent(
 
   const config = await resolveProviderConfig(profile.id);
   const instructions = await withReferenceContext(topic.id, topic.name, topic.custom_instructions);
-  const generated = await generateQuestion(topic.name, topic.subject.name, instructions, config);
+  const generated = await generateQuestion(topic.name, topic.subject.name, instructions, config, await getGroundingBlock({ topicId: topic.id }));
   return createQuestion(topic.id, generated);
 }

@@ -14,6 +14,7 @@ import { checkKeyRateLimit } from "@/lib/rate-limit";
 import { requireAnyRole, requireOwnerOrAdmin } from "@/lib/appwrite/session";
 import { withInFlight } from "@/lib/in-flight";
 import { isDeckUsable } from "@/lib/flashcard-quality";
+import { getGroundingBlock } from "@/lib/supabase/spec-grounding";
 import { withReferenceContext } from "@/lib/rag";
 
 // Get-or-generate, same lazy pattern as lessons/questions — a topic's
@@ -29,7 +30,8 @@ export async function resolveFlashcards(topicId: string): Promise<FlashcardSet> 
 
   const config = await resolveProviderConfig(profile.id);
   const instructions = await withReferenceContext(topicId, topic.name, topic.custom_instructions);
-  const generated = await generateFlashcards(topic.name, topic.subject.name, instructions, config);
+  const grounding = await getGroundingBlock({ topicId });
+  const generated = await generateFlashcards(topic.name, topic.subject.name, instructions, config, grounding);
   await createFlashcardSet(topicId, generated);
   return generated;
 }
@@ -48,10 +50,12 @@ export async function regenerateFlashcardsAction(formData: FormData): Promise<vo
 
   // The subtopic comes from the client: it must belong to this topic.
   let subtopicKey: string | null = null;
+  let subtopicName: string | null = null;
   if (typeof subtopicId === "string" && subtopicId) {
     const subtopic = await getSubtopic(subtopicId);
     if (!subtopic || subtopic.topic.id !== topicId) throw new Error("Subtopic not found.");
     subtopicKey = subtopicId;
+    subtopicName = subtopic.name;
   }
 
   if (profile.role === "student") {
@@ -67,8 +71,11 @@ export async function regenerateFlashcardsAction(formData: FormData): Promise<vo
 
   await withInFlight(`flashcards:${subtopicKey ?? topicId}`, async () => {
     const config = await resolveProviderConfig(profile.id);
-    const instructions = await withReferenceContext(topicId, topic.name, topic.custom_instructions);
-    const generated = await generateFlashcards(topic.name, topic.subject.name, instructions, config);
+    // A subtopic deck is about the subtopic, not the whole topic around it.
+    const subject = subtopicName ?? topic.name;
+    const instructions = await withReferenceContext(topicId, subject, topic.custom_instructions);
+    const grounding = await getGroundingBlock({ topicId, subtopicId: subtopicKey });
+    const generated = await generateFlashcards(subject, topic.subject.name, instructions, config, grounding);
     if (generated.cards.length === 0) throw new Error("Couldn't build good cards this time. Try again later.");
     if (subtopicKey) {
       await createFlashcardSetForSubtopic(topicId, subtopicKey, generated);

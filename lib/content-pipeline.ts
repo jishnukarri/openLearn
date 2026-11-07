@@ -10,6 +10,7 @@ import { finalizeQuestionBank } from "@/lib/question-finalize";
 import { resolveProviderConfig } from "@/lib/ai/client";
 import { finalizeLessonContent } from "@/lib/lesson-finalize";
 import { withReferenceContext } from "@/lib/rag";
+import { getGroundingBlock } from "@/lib/supabase/spec-grounding";
 
 export async function pregenerateTopicContent(
   topicId: string,
@@ -58,7 +59,8 @@ export async function pregenerateTopicContent(
       topic.name,
       topic.subject.name,
       instructions,
-      config
+      config,
+      await getGroundingBlock({ topicId })
     );
     await createFlashcardSet(topicId, flashcards);
   }

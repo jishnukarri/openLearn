@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "./database-client";
 import type { LessonContent } from "@/lib/ai/lessons";
 import { LESSON_VERSION } from "@/lib/lesson-version";
+import { getSpecExcerpt, getSubtopicName } from "./spec-grounding";
 
 export type StoredLesson = { content: LessonContent; version: number };
 
@@ -40,7 +41,15 @@ export async function createLesson(
 ): Promise<void> {
   const { error } = await db
     .from("lessons")
-    .insert({ topic_id: topicId, content, class_id: classId ?? null, version: LESSON_VERSION });
+    .insert({
+      topic_id: topicId,
+      content,
+      class_id: classId ?? null,
+      version: LESSON_VERSION,
+      // The part of the spec this lesson was written against, kept so the exam
+      // questions and flashcards made later use the same wording.
+      spec_excerpt: (await getSpecExcerpt(topicId)) || null,
+    });
   if (error) throw error;
 }
 
@@ -70,6 +79,12 @@ export async function createLessonForSubtopic(
 ): Promise<void> {
   const { error } = await db
     .from("lessons")
-    .insert({ topic_id: topicId, subtopic_id: subtopicId, content, version: LESSON_VERSION });
+    .insert({
+      topic_id: topicId,
+      subtopic_id: subtopicId,
+      content,
+      version: LESSON_VERSION,
+      spec_excerpt: (await getSpecExcerpt(topicId, await getSubtopicName(subtopicId))) || null,
+    });
   if (error) throw error;
 }

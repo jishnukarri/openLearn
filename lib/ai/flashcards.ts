@@ -27,7 +27,10 @@ export async function generateFlashcards(
   topicName: string,
   subjectName: string,
   customInstructions?: string,
-  config?: ProviderConfig
+  config?: ProviderConfig,
+  // What the lesson taught plus the spec wording (lib/grounding.ts), so the
+  // cards test exactly that instead of whatever the topic name suggests.
+  grounding?: string
 ): Promise<FlashcardSet> {
   const instructionNote = customInstructions
     ? `\n\nThe admin who set up this topic left these instructions — follow ` +
