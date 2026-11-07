@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./database-client";
+import { copyStandardDecks } from "./flashcard-decks";
 import type { SubjectSummary } from "./subjects";
 
 // Published subjects authored by an admin — the only copy source, per this
@@ -137,7 +138,7 @@ export async function copySubjectForTeacher(
 
   const { data: lessons, error: lessonsError } = await db
     .from("lessons")
-    .select("topic_id, subtopic_id, content")
+    .select("topic_id, subtopic_id, content, version, spec_excerpt")
     .in("topic_id", sourceTopicIds)
     .is("class_id", null);
   if (lessonsError) throw lessonsError;
@@ -147,6 +148,9 @@ export async function copySubjectForTeacher(
         topic_id: topicIdMap.get(l.topic_id),
         subtopic_id: l.subtopic_id ? subtopicIdMap.get(l.subtopic_id) : null,
         content: l.content,
+        // Keep the lesson's format version, or a copy would look outdated and be regenerated.
+        version: l.version ?? 1,
+        spec_excerpt: l.spec_excerpt ?? null,
       }))
     );
     if (error) throw error;
@@ -179,21 +183,8 @@ export async function copySubjectForTeacher(
     if (error) throw error;
   }
 
-  const { data: flashcardSets, error: flashcardsError } = await db
-    .from("flashcard_sets")
-    .select("topic_id, subtopic_id, cards")
-    .in("topic_id", sourceTopicIds);
-  if (flashcardsError) throw flashcardsError;
-  if (flashcardSets && flashcardSets.length > 0) {
-    const { error } = await db.from("flashcard_sets").insert(
-      flashcardSets.map((f) => ({
-        topic_id: topicIdMap.get(f.topic_id),
-        subtopic_id: f.subtopic_id ? subtopicIdMap.get(f.subtopic_id) : null,
-        cards: f.cards,
-      }))
-    );
-    if (error) throw error;
-  }
+  // Standard flashcard decks follow the lessons they belong to.
+  await copyStandardDecks({ sourceTopicIds, topicIdMap, subtopicIdMap });
 
   return newSubjectId;
 }
