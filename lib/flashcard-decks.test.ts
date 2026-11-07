@@ -8,7 +8,9 @@ import {
   isShareToken,
   newShareToken,
   pickDeck,
+  remedialBlock,
   remedialEligible,
+  variationBlock,
 } from "./flashcard-decks";
 
 describe("decksToArchive", () => {
@@ -77,5 +79,24 @@ describe("small helpers", () => {
     expect(copyTitle("My waves deck")).toBe("My waves deck (shared)");
     expect(copyTitle(null)).toBe("Shared deck");
     expect(avoidFronts([{ front: "a", back: "b" }, { front: "c", back: "d" }])).toEqual(["a", "c"]);
+  });
+});
+
+describe("prompt blocks for non-standard decks", () => {
+  it("asks a personal deck to avoid the cards already in the standard one", () => {
+    const block = variationBlock(["Hypothesis", "Fair test"]);
+    expect(block).toContain("NEW set");
+    expect(block).toContain("- Hypothesis");
+    expect(block).toContain("- Fair test");
+    expect(variationBlock([])).toBe("");
+  });
+
+  it("points an extra deck at exactly what the student got wrong", () => {
+    const block = remedialBlock([{ prompt: "Which variable does the investigator change?", correctAnswer: "The independent variable" }]);
+    expect(block).toContain("EXTRA practice set");
+    expect(block).toContain("Which variable does the investigator change?");
+    expect(block).toContain("The right answer: The independent variable");
+    expect(remedialBlock([])).toBe("");
+    expect(remedialBlock([{ prompt: "  ", correctAnswer: "x" }])).toBe("");
   });
 });

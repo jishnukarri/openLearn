@@ -67,3 +67,29 @@ export const copyTitle = (title: string | null): string => (title?.trim() ? `${t
 
 // A fresh deck should not repeat the cards of the one it stands in for.
 export const avoidFronts = (existing: Card[], max = 30): string[] => existing.slice(0, max).map((c) => c.front);
+
+// Extra prompt text for a deck that is not the standard one (appended after the
+// lesson grounding). A personal deck is a fresh take, not a copy of the standard.
+export function variationBlock(fronts: string[]): string {
+  if (!fronts.length) return "";
+  return (
+    `\n\nThis is a NEW set for a student who asked for a different deck on the same material. ` +
+    `Cover the same ground from fresh angles and do not repeat any of these existing cards:\n` +
+    fronts.map((f) => `- ${f}`).join("\n")
+  );
+}
+
+export type MissedIdea = { prompt: string; correctAnswer: string };
+
+// An extra set for a student who keeps getting a lesson's check questions wrong:
+// every card should close one of those exact gaps.
+export function remedialBlock(misses: MissedIdea[], max = 8): string {
+  const list = misses.slice(0, max).filter((m) => m.prompt.trim());
+  if (!list.length) return "";
+  return (
+    `\n\nThis is an EXTRA practice set for a student who got these lesson questions wrong. ` +
+    `Write cards that fix exactly these gaps, testing the idea behind each one (do not copy the ` +
+    `questions word for word):\n` +
+    list.map((m) => `- Asked: ${m.prompt.trim()}${m.correctAnswer.trim() ? ` | The right answer: ${m.correctAnswer.trim()}` : ""}`).join("\n")
+  );
+}

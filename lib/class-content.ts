@@ -11,6 +11,7 @@ import { resolveProviderConfig } from "@/lib/ai/client";
 import { finalizeLessonContent } from "@/lib/lesson-finalize";
 import { withReferenceContext } from "@/lib/rag";
 import { getGroundingBlock } from "@/lib/supabase/spec-grounding";
+import { refreshStandardDeck } from "@/lib/flashcard-service";
 
 // Fork-on-demand: a class only gets its own lesson/question once a teacher
 // attaches a customization note to an assignment for it — most classes
@@ -67,6 +68,11 @@ async function resolveLessonContentUncached(
     const generated = await generateLesson(topic.name, topic.subject.name, false, instructions, config);
     const finalized = await finalizeLessonContent(generated, topic.id, topic.subject.name);
     await createLesson(topic.id, finalized, classId);
+    // An upgraded shared lesson gets a standard deck rebuilt from it, in the
+    // background (class versions share the topic's deck).
+    if (stored && !classId) {
+      void refreshStandardDeck({ topicId: topic.id, name: topic.name, subjectName: topic.subject.name, topicCustomInstructions: topic.custom_instructions }, profile.id);
+    }
     return finalized;
   } catch (e) {
     if (stored && usable) {

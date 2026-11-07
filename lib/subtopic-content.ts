@@ -8,7 +8,7 @@ import {
   type Question,
 } from "@/lib/supabase/questions";
 import {
-  getFlashcardsBySubtopic,
+  getFlashcardsForStudent,
   createFlashcardSetForSubtopic,
 } from "@/lib/supabase/flashcards";
 import { generateLesson, type LessonContent } from "@/lib/ai/lessons";
@@ -18,6 +18,7 @@ import { resolveProviderConfig } from "@/lib/ai/client";
 import { finalizeLessonContent } from "@/lib/lesson-finalize";
 import { withReferenceContext } from "@/lib/rag";
 import { getGroundingBlock } from "@/lib/supabase/spec-grounding";
+import { refreshStandardDeck } from "@/lib/flashcard-service";
 
 // A subtopic is its own lesson unit — the generator gets the subtopic's own
 // name (not the parent topic's), so "Ionisation Energy Trends" is taught as
@@ -63,6 +64,13 @@ async function resolveLessonForSubtopicUncached(
     const generated = await generateLesson(subtopic.name, subtopic.topic.subject.name, false, instructions, config);
     const finalized = await finalizeLessonContent(generated, subtopic.id, subtopic.topic.subject.name);
     await createLessonForSubtopic(subtopic.topic.id, subtopic.id, finalized);
+    // An upgraded lesson gets a standard deck rebuilt from it, in the background.
+    if (stored) {
+      void refreshStandardDeck(
+        { topicId: subtopic.topic.id, subtopicId: subtopic.id, name: subtopic.name, subjectName: subtopic.topic.subject.name, topicCustomInstructions: subtopic.topic.custom_instructions },
+        studentId
+      );
+    }
     return finalized;
   } catch (e) {
     if (stored && usable) {
@@ -98,7 +106,8 @@ export async function resolveFlashcardsForSubtopic(
   subtopic: SubtopicWithTopic,
   studentId: string
 ): Promise<FlashcardSet> {
-  const existing = await getFlashcardsBySubtopic(subtopic.id);
+  // The student's own deck for this lesson if they have one, else the standard deck.
+  const existing = await getFlashcardsForStudent({ studentId, topicId: subtopic.topic.id, subtopicId: subtopic.id });
   if (existing) return existing;
 
   const config = await resolveProviderConfig(studentId);

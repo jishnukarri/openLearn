@@ -18,6 +18,7 @@ const STUDENT_TABLES: { table: string; column: string }[] = [
   { table: "diagnostic_sessions", column: "student_id" },
   { table: "practice_uploads", column: "student_id" },
   { table: "onboarding_progress", column: "profile_id" },
+  { table: "student_deck_choice", column: "student_id" },
 ];
 
 export async function exportPersonalData(profileId: string): Promise<Record<string, unknown>> {
@@ -27,6 +28,17 @@ export async function exportPersonalData(profileId: string): Promise<Record<stri
   for (const { table, column } of STUDENT_TABLES) {
     const { data, error } = await db.from(table).select("*").eq(column, profileId);
     if (!error) out[table] = data ?? [];
+  }
+  // The student's own flashcard decks (personal and extra), with their cards.
+  // Standard decks are shared course content, not personal data.
+  const { data: decks, error: decksError } = await db.from("flashcard_decks").select("*").eq("owner_id", profileId);
+  if (!decksError) {
+    const ids = (decks ?? []).map((d: { id: string }) => d.id);
+    const { data: cards } = ids.length ? await db.from("flashcards").select("*").in("deck_id", ids).order("position") : { data: [] };
+    out.flashcard_decks = (decks ?? []).map((d: { id: string }) => ({
+      ...d,
+      cards: (cards ?? []).filter((c: { deck_id: string }) => c.deck_id === d.id),
+    }));
   }
   return out;
 }

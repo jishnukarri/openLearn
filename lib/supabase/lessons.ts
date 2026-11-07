@@ -3,6 +3,7 @@ import { db } from "./database-client";
 import type { LessonContent } from "@/lib/ai/lessons";
 import { LESSON_VERSION } from "@/lib/lesson-version";
 import { getSpecExcerpt, getSubtopicName } from "./spec-grounding";
+import { getStandardDeck } from "./flashcard-decks";
 
 export type StoredLesson = { content: LessonContent; version: number };
 
@@ -49,6 +50,8 @@ export async function createLesson(
       // The part of the spec this lesson was written against, kept so the exam
       // questions and flashcards made later use the same wording.
       spec_excerpt: (await getSpecExcerpt(topicId)) || null,
+      // The lesson's standard flashcard deck, if it has one yet.
+      deck_id: (await getStandardDeck({ topicId }))?.id ?? null,
     });
   if (error) throw error;
 }
@@ -85,6 +88,7 @@ export async function createLessonForSubtopic(
       content,
       version: LESSON_VERSION,
       spec_excerpt: (await getSpecExcerpt(topicId, await getSubtopicName(subtopicId))) || null,
+      deck_id: (await getStandardDeck({ topicId, subtopicId }))?.id ?? null,
     });
   if (error) throw error;
 }
