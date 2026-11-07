@@ -35,6 +35,12 @@ export function splitSpecSections(spec: string): SpecSection[] {
   }
   flush();
 
+  // Contents-page lines go first, before short parts are merged: otherwise a run
+  // of them would be merged with the first real section into one giant heading.
+  const real = sections.filter((s) => !isContentsEntry(s));
+  sections.length = 0;
+  sections.push(...real);
+
   // A heading with almost nothing under it belongs with the next part; an
   // overlong part is cut at paragraph breaks so a match stays focused.
   const merged: SpecSection[] = [];
@@ -62,6 +68,14 @@ export function splitSpecSections(spec: string): SpecSection[] {
   });
 }
 
+// A line of a table of contents: a title that ends in a page number
+// ("4.7 Magnetism and electromagnetism 94"). A PDF spec opens with pages of
+// these, and they name every topic, so without this they outrank the real section.
+const PAGE_NUMBER_END = /\s(?:\(page \d{1,3}\)|\d{1,3})$/i;
+function isContentsEntry(s: SpecSection): boolean {
+  return !!s.heading && PAGE_NUMBER_END.test(s.heading.trim()) && s.text.length < 80;
+}
+
 const STOP = new Set(
   ("a an the of to in on at by for with from and or but as is are was were be been it its this that these those " +
     "how what why when which who describe explain state give name use using about into than then so not no can will " +
@@ -85,12 +99,26 @@ export function termsOf(text: string): string[] {
   return (text.toLowerCase().match(/[a-z][a-z0-9']+/g) ?? []).filter((w) => w.length > 2 && !STOP.has(w)).map(stem);
 }
 
+// "4.7.1 Poles of a magnet" -> "4.7.1"
+const sectionNumber = (heading: string): string | null => /^(\d+(?:\.\d+)+)\b/.exec(heading.trim())?.[1] ?? null;
+
 export type ExcerptQuery = {
   name: string; // the topic or subtopic being written
   parentName?: string; // the topic a subtopic belongs to, a weaker signal
 };
 
-export function findSpecExcerpt(spec: string, query: ExcerptQuery, maxChars = DEFAULT_MAX_CHARS): string {
+// "Space physics (physics only)" -> "Space physics": a tier or paper qualifier is
+// not part of the topic's name and would match the whole spec.
+const cleanName = (name: string) => name.replace(/\s*\([^)]*\)\s*$/g, "").trim() || name;
+
+// Parts of a spec that name every topic but teach none of them.
+const OVERVIEW_HEADING = /^(\d+(\.\d+)*\.?\s+)?(subject content|assessments?|specification at a glance|introduction|contents|scheme of assessment|aims|appendix|glossary|working scientifically)\b/i;
+
+// A section's own title is the last part of its (possibly merged) heading.
+const ownTitle = (heading: string) => heading.split(" · ").pop() ?? heading;
+
+export function findSpecExcerpt(spec: string, rawQuery: ExcerptQuery, maxChars = DEFAULT_MAX_CHARS): string {
+  const query = { name: cleanName(rawQuery.name), parentName: rawQuery.parentName ? cleanName(rawQuery.parentName) : undefined };
   const sections = splitSpecSections(spec);
   if (!sections.length) return "";
 
@@ -110,18 +138,36 @@ export function findSpecExcerpt(spec: string, query: ExcerptQuery, maxChars = DE
     const score = (terms: string[], weight: number) =>
       terms.reduce((sum, t) => sum + weight * idf(t) * (Math.log(1 + (tf.get(t) ?? 0)) + (d.head.has(t) ? 2.5 : 0)), 0);
     let total = score(nameTerms, 2) + score(parentTerms, 0.7);
+    // Real teaching content has substance; a heading with a line or two under it is rarely the answer.
+    total *= Math.min(1.3, 0.7 + d.s.text.length / 1500);
     if (phrase.length > 3 && (`${d.s.heading}\n${d.s.text}`).toLowerCase().includes(phrase)) total += 6;
+    // The section titled exactly this ("4.5 Forces" for "Forces") is the one.
+    const title = ownTitle(d.s.heading).replace(/^\d+(\.\d+)*\.?\s+/, "").trim().toLowerCase();
+    if (phrase.length > 2 && title === phrase) total += 14;
+    if (OVERVIEW_HEADING.test(ownTitle(d.s.heading))) total *= 0.3;
     return { index, total, section: d.s };
   });
 
   const best = Math.max(...scored.map((x) => x.total));
   // Nothing matched well enough: better no excerpt than an unrelated one.
   if (best < 1.5) return "";
+  // The best match is only a list that names the topic (course overview, assessment
+  // plan): the spec has no section teaching it, and a list of topic names is no help.
+  if (OVERVIEW_HEADING.test(ownTitle(scored.find((x) => x.total === best)!.section.heading))) return "";
 
-  const picked = scored
+  let picked = scored
     .filter((x) => x.total >= best * 0.45)
     .sort((a, b) => b.total - a.total)
     .slice(0, 4);
+
+  // A topic's requirements live in its numbered sub-sections ("4.7" owns
+  // "4.7.1", "4.7.2"): when the best match is numbered, bring those in too.
+  const top = picked[0];
+  const topId = sectionNumber(top.section.heading);
+  if (topId) {
+    const kids = scored.filter((x) => !picked.includes(x) && sectionNumber(x.section.heading)?.startsWith(`${topId}.`));
+    picked = [...picked, ...kids];
+  }
 
   let used = 0;
   const parts: { index: number; text: string }[] = [];
