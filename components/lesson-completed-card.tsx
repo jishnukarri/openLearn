@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ButtonLink } from "@/components/button";
+import { ButtonLink } from "./button";
 
 // Shown instead of the lesson when a student has already finished it. A green
 // card with a tick that draws itself, and the choice that matters: go straight
