@@ -7,17 +7,34 @@ import { getLessonPractice } from "@/lib/supabase/lesson-personalise";
 import { LessonPlayer } from "../../[topicId]/lesson-player";
 import { SubtopicTweakForm } from "../../[topicId]/lesson-forms";
 import { SubtopicLessonEditor } from "@/components/subtopic-lesson-editor";
+import { LessonCompletedCard } from "@/components/lesson-completed-card";
+import { getCompletedSubtopicIds } from "@/lib/supabase/progress";
 
 export default async function SubtopicLessonPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ subtopicId: string }>;
+  searchParams: Promise<{ redo?: string }>;
 }) {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
   const { subtopicId } = await params;
 
   const subtopic = await getSubtopic(subtopicId);
   if (!subtopic) notFound();
+
+  // A finished lesson offers the exam questions first; the lesson itself is not
+  // loaded (or regenerated) until the student chooses to redo it.
+  const { redo } = await searchParams;
+  if (profile.role === "student" && redo !== "1" && (await getCompletedSubtopicIds(profile.id)).has(subtopicId)) {
+    return (
+      <LessonCompletedCard
+        title={subtopic.name}
+        practiceHref={`/practice/subtopic/${subtopicId}`}
+        redoHref={`/learn/subtopic/${subtopicId}?redo=1`}
+      />
+    );
+  }
 
   const generated = await resolveLessonForSubtopic(subtopic, profile.id);
   const lesson = resanitizeLessonContent(generated);

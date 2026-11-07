@@ -9,11 +9,15 @@ import { getLessonPractice } from "@/lib/supabase/lesson-personalise";
 import { LessonPlayer } from "./lesson-player";
 import { SimplifyForm, TweakForm } from "./lesson-forms";
 import { ReportButton } from "@/components/report-button";
+import { LessonCompletedCard } from "@/components/lesson-completed-card";
+import { isTopicCompleted } from "@/lib/supabase/progress";
 
 export default async function LessonPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ topicId: string }>;
+  searchParams: Promise<{ redo?: string }>;
 }) {
   const { profile } = await requireAnyRole(["student", "teacher", "admin"]);
   const { topicId } = await params;
@@ -22,6 +26,19 @@ export default async function LessonPage({
   if (!topic) notFound();
 
   const isStudent = profile.role === "student";
+
+  // A finished lesson offers the exam questions first. The lesson itself is not
+  // loaded (or regenerated) until the student chooses to redo it.
+  const { redo } = await searchParams;
+  if (isStudent && redo !== "1" && (await isTopicCompleted(profile.id, topicId))) {
+    return (
+      <LessonCompletedCard
+        title={topic.name}
+        practiceHref={`/practice/${topicId}`}
+        redoHref={`/learn/${topicId}?redo=1`}
+      />
+    );
+  }
   const generated =
     (isStudent ? getSimplifiedLesson(profile.id, topicId) : null) ?? (await resolveLessonContent(topic, profile));
   const lesson = resanitizeLessonContent(generated);
