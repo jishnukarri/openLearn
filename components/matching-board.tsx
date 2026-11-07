@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { RichText } from "@/components/rich-text";
+import { RichText } from "./rich-text";
 
 type Point = { x: number; y: number };
 
@@ -121,43 +121,57 @@ export function MatchingBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- dragFrom drives this effect's own lifecycle
   }, [dragFrom]);
 
-  const connections = lefts.map((_, leftIndex) => {
-    const rightPos = value[leftIndex];
-    if (rightPos === undefined) return null;
+  // While answering: one line per pick. Once marked: the correct pair is always
+  // drawn in green, and a wrong pick stays visible in red, so a student who got
+  // every pair wrong still sees what the right answer was.
+  type Connection = { key: string; from: Point; to: Point; correct: boolean; wrong: boolean };
+  const connections: Connection[] = [];
+  lefts.forEach((_, leftIndex) => {
     const from = leftPoints[leftIndex];
-    const to = rightPoints[rightPos];
-    if (!from || !to) return null;
-    const correct = revealed && correctRightIndex?.(leftIndex) === rightPos;
-    const wrong = revealed && correctRightIndex && !correct;
-    return { leftIndex, from, to, correct, wrong };
+    const pick = value[leftIndex];
+    if (revealed && correctRightIndex) {
+      const rightPos = correctRightIndex(leftIndex);
+      const to = rightPoints[rightPos];
+      if (from && to) connections.push({ key: `ok-${leftIndex}`, from, to, correct: true, wrong: false });
+      const pickedTo = pick !== undefined && pick !== rightPos ? rightPoints[pick] : null;
+      if (from && pickedTo) connections.push({ key: `bad-${leftIndex}`, from, to: pickedTo, correct: false, wrong: true });
+      return;
+    }
+    const to = pick !== undefined ? rightPoints[pick] : null;
+    if (from && to) connections.push({ key: `pick-${leftIndex}`, from, to, correct: false, wrong: false });
   });
+
+  // Words, not just lines: the right matches, plus what was picked where it differed.
+  const review =
+    revealed && correctRightIndex
+      ? lefts.map((left, i) => {
+          const right = rights[correctRightIndex(i)]?.label ?? "";
+          const pick = value[i];
+          const ok = pick === correctRightIndex(i);
+          return { left, right, ok, picked: pick !== undefined ? rights[pick]?.label : undefined };
+        })
+      : null;
 
   const liveFrom = dragFrom !== null ? leftPoints[dragFrom] ?? null : null;
 
   return (
+    <div className="flex flex-col gap-4">
     <div ref={boardRef} className="relative flex touch-none select-none gap-8">
       <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
-        {connections.map(
-          (c) =>
-            c && (
-              <line
-                key={c.leftIndex}
-                x1={c.from.x}
-                y1={c.from.y}
-                x2={c.to.x}
-                y2={c.to.y}
-                stroke={
-                  c.correct
-                    ? "var(--success)"
-                    : c.wrong
-                      ? "var(--error)"
-                      : "var(--primary)"
-                }
-                strokeWidth={2.5}
-                strokeLinecap="round"
-              />
-            )
-        )}
+        {connections.map((c) => (
+          <line
+            key={c.key}
+            x1={c.from.x}
+            y1={c.from.y}
+            x2={c.to.x}
+            y2={c.to.y}
+            stroke={c.correct ? "var(--success)" : c.wrong ? "var(--error)" : "var(--primary)"}
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeDasharray={c.wrong ? "5 5" : undefined}
+            opacity={c.wrong ? 0.8 : 1}
+          />
+        ))}
         {dragFrom !== null && liveFrom && dragPoint && (
           <line
             x1={liveFrom.x}
@@ -227,6 +241,28 @@ export function MatchingBoard({
           </button>
         ))}
       </div>
+    </div>
+    {review && (
+      <div className="rounded-lg border border-border bg-surface px-3 py-3" role="status">
+        <p className="mb-2 text-sm font-semibold text-foreground">
+          {review.every((r) => r.ok) ? "All matched correctly" : "The correct matches"}
+        </p>
+        <ul className="flex flex-col gap-1.5 text-sm text-foreground">
+          {review.map((r, i) => (
+            <li key={i} className="flex flex-wrap items-baseline gap-x-2">
+              <span className={r.ok ? "text-success" : "text-error"} aria-hidden="true">{r.ok ? "✓" : "✗"}</span>
+              <span className="sr-only">{r.ok ? "Correct:" : "Incorrect:"}</span>
+              <span><RichText text={r.left} /> → <span className="font-semibold"><RichText text={r.right} /></span></span>
+              {!r.ok && (
+                <span className="text-muted">
+                  {r.picked ? <>(you matched it to <RichText text={r.picked} />)</> : "(not matched)"}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
     </div>
   );
 }

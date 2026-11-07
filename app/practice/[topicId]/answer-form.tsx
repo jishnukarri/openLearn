@@ -225,7 +225,8 @@ export function AnswerForm({
             rights={format.rights}
             value={matches}
             onChange={setMatches}
-            revealed={false}
+            revealed={!!result}
+            correctRightIndex={(leftIndex) => format.rights.findIndex((r) => r.index === leftIndex)}
           />
         )}
 
