@@ -86,4 +86,17 @@ describe("provider fallback", () => {
     expect(hackClub).toHaveBeenCalledTimes(1);
     expect(JSON.parse(hackClub.mock.calls[0][1].body).response_format).toEqual({ type: "json_object" });
   });
+
+  it("treats a reply that stopped at the token limit as an error, not a result", async () => {
+    hackClub.mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ finish_reason: "length", message: { content: '{"a":"cut off"}' } }] }), { status: 200 })
+    );
+    await expect(chatJson("hi", SCHEMA)).rejects.toThrow(/ran out of room/);
+  });
+
+  it("passes a bigger output budget through when asked", async () => {
+    hackClub.mockResolvedValue(ok({ a: "x" }));
+    await chatJson("hi", SCHEMA, undefined, { maxTokens: 16000 });
+    expect(JSON.parse(hackClub.mock.calls[0][1].body).max_tokens).toBe(16000);
+  });
 });

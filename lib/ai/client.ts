@@ -103,6 +103,9 @@ export type ChatOptions = {
   // cache the repeated prefix across calls. Keep it byte-identical between
   // calls (no timestamps, step numbers or chat history), or the cache misses.
   system?: string;
+  // Output budget for this call. The default (8000) suits lessons and questions;
+  // a long list, such as every topic of a syllabus, needs more.
+  maxTokens?: number;
 };
 
 // Set AI_LOG_USAGE=1 to log prompt/cached token counts per request, to check
@@ -264,7 +267,15 @@ export async function completeJson<T>(input: {
       completion_tokens: usage.completion_tokens,
     });
   }
-  const content = (data.choices as { message?: { content?: unknown } }[] | undefined)?.[0]?.message?.content;
+  const choice = (data.choices as { message?: { content?: unknown }; finish_reason?: string }[] | undefined)?.[0];
+  // A reply that stopped at the token limit is incomplete, even when a provider
+  // "heals" the cut-off JSON so it still parses (leaving fields missing).
+  if (choice?.finish_reason === "length") {
+    throw new Error(
+      `The AI ran out of room before it finished answering (${input.maxTokens ?? 8000} tokens). Try again, or give it a smaller input.`
+    );
+  }
+  const content = choice?.message?.content;
   if (typeof content !== "string" || !content) {
     throw new Error(`${PROVIDERS[provider].label} returned an unexpected response format: ${JSON.stringify(data).slice(0, 200)}`);
   }
@@ -284,6 +295,7 @@ export async function chatJson<T>(
     model: cfg.model || DEFAULT_CHAT_MODEL,
     messages: [...(system ? [{ role: "system", content: system }] : []), { role: "user", content: prompt }],
     schema,
+    maxTokens: options?.maxTokens,
     // OpenRouter needs an explicit cache breakpoint on the system part for
     // models that do not cache by themselves; Hack Club caches the prefix on its own.
     prepare: (provider, messages) =>

@@ -26,6 +26,26 @@ const SCHEMA = {
   required: ["topics"],
 };
 
+// What the model returned, made safe to store: a topic needs a name, and a
+// missing summary or subtopic list becomes empty instead of crashing the save.
+export function normalizeTopics(raw: unknown): GeneratedTopic[] {
+  if (!Array.isArray(raw)) return [];
+  const clean = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  return raw.flatMap((t) => {
+    const name = clean((t as { name?: unknown })?.name);
+    if (!name) return [];
+    const subs = (t as { subtopics?: unknown }).subtopics;
+    return [{
+      name,
+      summary: clean((t as { summary?: unknown }).summary),
+      subtopics: Array.isArray(subs) ? subs.map(clean).filter(Boolean) : [],
+    }];
+  });
+}
+
+// Every topic of a syllabus, each with several subtopics, is a long answer.
+const TOPIC_LIST_MAX_TOKENS = 16_000;
+
 export async function generateTopicsForSubject(
   subjectName: string,
   examBoardNames: string[],
@@ -53,10 +73,13 @@ export async function generateTopicsForSubject(
       `3-8 specific subtopics (short guide-style titles, the way a student ` +
       `would see them in a checklist).${instructionNote}`,
     SCHEMA,
-    config
+    config,
+    { maxTokens: TOPIC_LIST_MAX_TOKENS }
   );
 
-  return result.topics;
+  const topics = normalizeTopics(result.topics);
+  if (topics.length === 0) throw new Error("The AI did not return any topics. Try again.");
+  return topics;
 }
 
 const SINGLE_SCHEMA = {
@@ -108,5 +131,7 @@ export async function generateSingleTopic(
     config
   );
 
-  return result.topic;
+  const [topic] = normalizeTopics([result.topic]);
+  if (!topic) throw new Error("The AI did not return a topic. Try again.");
+  return topic;
 }
